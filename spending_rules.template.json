@@ -1,0 +1,14 @@
+[
+  {"keyword": "MORTGAGE", "category": "EXCLUDE_RENTAL", "note": "Likely rental/mortgage related - verify and add specific rule"},
+  {"keyword": "PAYROLL", "category": "Income - Salary", "note": ""},
+  {"keyword": "Interest Earned", "category": "Income - Interest", "note": ""},
+  {"keyword": "NETFLIX", "category": "Subscriptions", "note": ""},
+  {"keyword": "SPOTIFY", "category": "Subscriptions", "note": ""},
+  {"keyword": "UBER", "category": "Transportation - Rideshare", "note": ""},
+  {"keyword": "LYFT", "category": "Transportation - Rideshare", "note": ""},
+  {"keyword": "WHOLE FOODS", "category": "Groceries", "note": ""},
+  {"keyword": "TRADER JOE", "category": "Groceries", "note": ""},
+  {"keyword": "TARGET", "category": "Shopping - General Merchandise", "note": ""},
+  {"keyword": "CREDIT CARD Bill", "category": "Credit Card Payment", "note": "Avoid double counting - this is a transfer, not spend"},
+  {"keyword": "PAYMENT - THANK YOU", "category": "Credit Card Payment", "note": "Avoid double counting - this is a transfer, not spend"}
+]

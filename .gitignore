@@ -1,0 +1,9 @@
+.env
+*.xlsx
+spending_rules.json
+logs/
+__pycache__/
+*.pyc
+.venv/
+.DS_Store
+service-account*.json

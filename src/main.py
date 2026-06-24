@@ -52,7 +52,7 @@ def _load_rules_with_fallback() -> list:
     return []
 
 
-def run_sync(from_date: date = None) -> dict:
+def run_sync(from_date: date = None, to_date: date = None) -> dict:
     is_cloud = bool(os.getenv("RAILWAY_ENVIRONMENT"))
     plaid_env = clean_env(os.getenv("PLAID_ENV", "production"), "PLAID_ENV")
     resend_set = bool(clean_env(os.getenv("RESEND_API_KEY"), "RESEND_API_KEY"))
@@ -79,7 +79,7 @@ def run_sync(from_date: date = None) -> dict:
         run_link_flow(client)
         access_token = clean_env(os.getenv("PLAID_ACCESS_TOKEN"), "PLAID_ACCESS_TOKEN")
 
-    end = date.today()
+    end = to_date if to_date else date.today()
     start = from_date if from_date else end - timedelta(days=7)
     print(f"Fetching transactions {start} → {end}")
 

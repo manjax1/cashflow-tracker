@@ -16,7 +16,9 @@ GRAND_FILL   = PatternFill("solid", fgColor="1F3864")
 GRAND_FONT   = Font(name="Arial", bold=True, color="FFFFFF", size=10)
 NET_FILL     = PatternFill("solid", fgColor="E2EFDA")
 NET_FONT     = Font(name="Arial", bold=True, size=10, color="375623")
-NO_FILL      = PatternFill(fill_type=None)
+NO_FILL          = PatternFill(fill_type=None)
+HIGHLIGHT_FILL   = PatternFill("solid", fgColor="FFC107")  # amber — monthly category winner
+HIGHLIGHT_FONT   = Font(name="Arial", bold=True, size=10)
 
 CURRENCY_FMT = '_($* #,##0.00_);_($* (#,##0.00);_($* "-"??_);_(@_)'
 MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
@@ -172,6 +174,8 @@ def _refresh_summary_formulas(wb, year: int):
     ms_income_subtotal    = None
     ms_rental_subtotal    = None
     ms_personal_subtotal  = None
+    # populated by _ms_cat_row; used later to apply per-month highlight fills
+    ms_cat_row_map: dict = {}  # category string → Monthly Summary row number
 
     def _ms_sec_header(label):
         nonlocal cur
@@ -185,6 +189,7 @@ def _refresh_summary_formulas(wb, year: int):
     def _ms_cat_row(cat, tx_type):
         nonlocal cur
         r = cur
+        ms_cat_row_map[cat] = r
         cf = _category_fill(cat)
         ms.cell(row=r, column=1, value=cat).fill = cf
         ms.cell(row=r, column=1).font = Font(name="Arial", size=10)
@@ -283,6 +288,48 @@ def _refresh_summary_formulas(wb, year: int):
             ms.add_chart(chart, f"A{cur + 1}")
         except Exception:
             pass
+
+    # ── Per-month highlight: amber cell for largest category by magnitude ────
+    # Legend in row 1 (to the right of "Category" header — only other content in that row)
+    legend_cell = ms.cell(row=1, column=2,
+                          value="🟡 = largest single category (by magnitude) that month")
+    legend_cell.font = Font(name="Arial", italic=True, size=9, color="888888")
+
+    if ms_cat_row_map:
+        from collections import defaultdict
+        monthly_totals: dict = defaultdict(lambda: defaultdict(float))
+        for tx_row in tx_ws.iter_rows(min_row=2, values_only=True):
+            date_val, _, _, cat, _, amount, include_in_net = (
+                tx_row[0], tx_row[1], tx_row[2], tx_row[3], tx_row[4], tx_row[5], tx_row[6]
+            )
+            if not date_val or not cat or amount is None or include_in_net is False:
+                continue
+            if cat not in ms_cat_row_map:
+                continue
+            try:
+                if hasattr(date_val, "year"):
+                    row_date = date_val.date() if hasattr(date_val, "date") else date_val
+                else:
+                    row_date = date.fromisoformat(str(date_val))
+                if row_date.year != year:
+                    continue
+            except Exception:
+                continue
+            monthly_totals[row_date.month][cat] += abs(float(amount))
+
+        for m_idx in range(1, len(MONTHS) + 1):
+            month_data = monthly_totals.get(m_idx, {})
+            if not month_data:
+                continue
+            max_val = max(month_data.values())
+            if max_val == 0:
+                continue
+            col = m_idx + 1  # month 1 → column B (col index 2)
+            for cat, val in month_data.items():
+                if val == max_val:
+                    cell = ms.cell(row=ms_cat_row_map[cat], column=col)
+                    cell.fill = HIGHLIGHT_FILL
+                    cell.font = HIGHLIGHT_FONT
 
     # ════════════════════════════════════════════════════════════════════════
     # YTD SUMMARY

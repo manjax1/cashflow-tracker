@@ -8,7 +8,7 @@ Tracks personal spending across Bank of America checking and credit card account
 
 - **Plaid Link** browser flow to connect your bank account (one-time setup)
 - **Custom keyword rules** with fallback to Plaid's Personal Finance Categories (PFC)
-- **EXCLUDE_RENTAL** pattern — silently drops transactions that belong to a separate rental property tracker running on the same bank account
+- **Rental - \*** categories — mortgage, income, insurance, property tax/utilities/HOA, and maintenance roll up into dedicated subtotals in the dashboard
 - **Credit card payment deduplication** — internal transfers never count as spend
 - **Excel dashboard**: Transactions, Monthly Summary (stacked bar chart), YTD Summary, YoY Trends
 - **Google Drive sync** — ledger auto-uploads after each run (cloud mode)
@@ -51,8 +51,9 @@ Rules are matched case-insensitively. Longest keyword wins (most specific match 
 | Category value | Effect |
 |---|---|
 | Any string | Tags the transaction with that category |
-| `EXCLUDE_RENTAL` | Silently excludes — rental/property transactions |
-| `Credit Card Payment` | Excluded from spend totals (internal transfer) |
+| `Rental - *` | Treated as normal income/expense; rolls up into Rental subtotals in the dashboard |
+| `Credit Card Payment` | Excluded from totals (internal transfer, would double-count) |
+| `EXCLUDE_ZERO` | Excluded — $0 notification rows with no financial meaning |
 
 ### 4. First run — connect your bank account
 
@@ -98,15 +99,19 @@ Pending transactions are always skipped — they're picked up on the next sync o
 
 ---
 
-## EXCLUDE_RENTAL pattern
+## Rental categories
 
-If you have a rental property tracked on the same Bank of America account, add rules like:
+Rental transactions use a `Rental - ` prefix so they roll up cleanly in the dashboard:
 
-```json
-{"keyword": "PROPERTY MGMT CO NAME", "category": "EXCLUDE_RENTAL", "note": "Property management fee"}
-```
+| Category | Use |
+|---|---|
+| `Rental - Income` | Rent received (Zelle from tenants, property management deposits) |
+| `Rental - Mortgage` | Mortgage servicer payments |
+| `Rental - Insurance` | Landlord/rental property insurance |
+| `Rental - Property Tax/Utilities/HOA` | Property tax, HOA, utility bills for rental units |
+| `Rental - Maintenance` | Repairs, contractors, maintenance workers |
 
-The sync email shows an "excluded rental" count so you can verify the filter is working correctly.
+The YTD Summary shows a **Total Rental Expense** subtotal separate from **Total Personal Expense**, plus a **Net (Income − Expense)** block at the bottom for the full household cash-flow view.
 
 ---
 

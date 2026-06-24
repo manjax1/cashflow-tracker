@@ -1,14 +1,59 @@
 [
-  {"keyword": "MORTGAGE", "category": "EXCLUDE_RENTAL", "note": "Likely rental/mortgage related - verify and add specific rule"},
-  {"keyword": "PAYROLL", "category": "Income - Salary", "note": ""},
-  {"keyword": "Interest Earned", "category": "Income - Interest", "note": ""},
-  {"keyword": "NETFLIX", "category": "Subscriptions", "note": ""},
-  {"keyword": "SPOTIFY", "category": "Subscriptions", "note": ""},
-  {"keyword": "UBER", "category": "Transportation - Rideshare", "note": ""},
-  {"keyword": "LYFT", "category": "Transportation - Rideshare", "note": ""},
-  {"keyword": "WHOLE FOODS", "category": "Groceries", "note": ""},
-  {"keyword": "TRADER JOE", "category": "Groceries", "note": ""},
-  {"keyword": "TARGET", "category": "Shopping - General Merchandise", "note": ""},
-  {"keyword": "CREDIT CARD Bill", "category": "Credit Card Payment", "note": "Avoid double counting - this is a transfer, not spend"},
-  {"keyword": "PAYMENT - THANK YOU", "category": "Credit Card Payment", "note": "Avoid double counting - this is a transfer, not spend"}
+  {"keyword": "ROCKET MORTGAGE",            "category": "Rental - Mortgage",                    "note": ""},
+  {"keyword": "PENNYMAC",                   "category": "Rental - Mortgage",                    "note": ""},
+  {"keyword": "FREEDOM DES:MTG",            "category": "Rental - Mortgage",                    "note": ""},
+  {"keyword": "MISSION SERVICIN",           "category": "Rental - Mortgage",                    "note": ""},
+  {"keyword": "MORTGAGE SERV CT",           "category": "Rental - Mortgage",                    "note": ""},
+  {"keyword": "BANK OF AMERICA DES:MORTGAGE","category": "Rental - Mortgage",                   "note": ""},
+
+  {"keyword": "UTOPIA MGMT TRST",           "category": "Rental - Income",                      "note": "Property management trust deposit"},
+  {"keyword": "LANCELOTS CASTLE",           "category": "Rental - Income",                      "note": ""},
+  {"keyword": "BOFA FIN CTR",               "category": "Rental - Income",                      "note": "Branch deposit - verify source before assuming rental income"},
+
+  {"keyword": "STEADILY INS",               "category": "Rental - Insurance",                   "note": ""},
+
+  {"keyword": "SAWGRASS ASSOCIA",           "category": "Rental - Property Tax/Utilities/HOA",  "note": ""},
+  {"keyword": "TIFTON COVE",               "category": "Rental - Property Tax/Utilities/HOA",  "note": ""},
+  {"keyword": "HEATHERWOOD OF P",           "category": "Rental - Property Tax/Utilities/HOA",  "note": ""},
+  {"keyword": "WOODLANDS WATER",            "category": "Rental - Property Tax/Utilities/HOA",  "note": ""},
+  {"keyword": "ST.JOHNS COUNTY UTL",        "category": "Rental - Property Tax/Utilities/HOA",  "note": ""},
+  {"keyword": "Beaches Energy",             "category": "Rental - Property Tax/Utilities/HOA",  "note": ""},
+  {"keyword": "CITY OF STOCKTON UTILITY",   "category": "Rental - Property Tax/Utilities/HOA",  "note": ""},
+  {"keyword": "CALWATER SERVICE",           "category": "Rental - Property Tax/Utilities/HOA",  "note": ""},
+  {"keyword": "MANTECA*UTILITY",            "category": "Rental - Property Tax/Utilities/HOA",  "note": ""},
+  {"keyword": "VCN*SJC TTC ONLINE",         "category": "Rental - Property Tax/Utilities/HOA",  "note": "Property tax payment"},
+  {"keyword": "LINK2GOV",                   "category": "Rental - Property Tax/Utilities/HOA",  "note": "Property tax payment"},
+
+  {"keyword": "RANJODH",                               "category": "Rental - Maintenance", "note": ""},
+  {"keyword": "Zelle payment to Daniel Garcia",        "category": "Rental - Maintenance", "note": ""},
+  {"keyword": "Zelle payment to Jason and Meredit",    "category": "Rental - Maintenance", "note": ""},
+  {"keyword": "Zelle payment to Lacey Clemons",        "category": "Rental - Maintenance", "note": ""},
+  {"keyword": "Zelle payment to Usiel Garcia",         "category": "Rental - Maintenance", "note": ""},
+
+  {"keyword": "Agent Assisted transfer from BRK",        "category": "Investment - Dividend Income",              "note": "Merrill dividend income — replace with your actual Merrill transfer description"},
+  {"keyword": "Agent Assisted transfer to BRK",          "category": "Investment - Loan Interest",                "note": "Merrill loan interest debit — replace with your actual Merrill transfer description"},
+
+  {"keyword": "Online Scheduled Payment to ACCT#",       "category": "Credit Card Payment",                       "note": "Card bill pay from checking — add your account number"},
+  {"keyword": "PAYMENT FROM CHK",                         "category": "Credit Card Payment",                       "note": "Card bill pay credit side — add your checking account number"},
+
+  {"keyword": "Online Banking transfer from BRK",        "category": "Internal Transfer",                         "note": "Brokerage/loan draw - not income — add your account number suffix"},
+  {"keyword": "Online Banking transfer to BRK",          "category": "Internal Transfer",                         "note": "Brokerage/loan repayment - not expense — add your account number suffix"},
+  {"keyword": "BANK OF AMERICA DES:MORTGAGE",            "category": "Internal Transfer",                         "note": "Mortgage debit from checking - paired with Payment Applied posting"},
+  {"keyword": "Payment Applied to",                      "category": "Internal Transfer",                         "note": "Mortgage payment posting - paired with checking debit"},
+  {"keyword": "transfer from CHK XXXX",                  "category": "Internal Transfer",                         "note": "Transfer from another account - verify it's not income"},
+  {"keyword": "transfer to CHK XXXX",                    "category": "Internal Transfer",                         "note": "Transfer to another account - verify it's not an expense"},
+
+  {"keyword": "stock exercise",                          "category": "One-Off - Non-Recurring (excluded from Net)", "note": "Stock/equity settlement - one-time, excluded from net income calc"},
+
+  {"keyword": "PAYROLL",                    "category": "Income - Salary",                      "note": ""},
+  {"keyword": "Interest Earned",            "category": "Income - Interest",                    "note": ""},
+  {"keyword": "NETFLIX",                    "category": "Subscriptions",                        "note": ""},
+  {"keyword": "SPOTIFY",                    "category": "Subscriptions",                        "note": ""},
+  {"keyword": "UBER",                       "category": "Transportation - Rideshare",           "note": ""},
+  {"keyword": "LYFT",                       "category": "Transportation - Rideshare",           "note": ""},
+  {"keyword": "WHOLE FOODS",                "category": "Groceries",                            "note": ""},
+  {"keyword": "TRADER JOE",                 "category": "Groceries",                            "note": ""},
+  {"keyword": "TARGET",                     "category": "Shopping - General Merchandise",       "note": ""},
+  {"keyword": "CREDIT CARD Bill",           "category": "Credit Card Payment",                  "note": "Avoid double counting - internal transfer"},
+  {"keyword": "PAYMENT - THANK YOU",        "category": "Credit Card Payment",                  "note": "Avoid double counting - internal transfer"}
 ]

@@ -1,18 +1,21 @@
 import os
+import sys
 import argparse
 from datetime import date, timedelta, datetime
 from collections import defaultdict
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from dotenv import load_dotenv
 
 load_dotenv()
 
-from src.utils import clean_env
-from src.plaid_client import PlaidClient
-from src.filters import load_rules, categorize_batch
-from src.ledger_writer import write_spending_ledger
-from src.email_notifier import send_sync_summary
-from src.drive_sync import download_ledger, upload_ledger
+from utils import clean_env
+from plaid_client import PlaidClient
+from filters import load_rules, categorize_batch
+from ledger_writer import write_spending_ledger
+from email_notifier import send_sync_summary
+from drive_sync import download_ledger, upload_ledger
 
 RULES_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "spending_rules.json")
 
@@ -21,7 +24,7 @@ def _resolve_ledger_path() -> tuple[str, bool]:
     """Returns (ledger_path, is_cloud)."""
     is_cloud = bool(os.getenv("RAILWAY_ENVIRONMENT"))
     if is_cloud:
-        return "/tmp/SpendingTracker.xlsx", True
+        return "/tmp/cashflow-tracker.xlsx", True
     path = clean_env(os.getenv("SPENDING_LEDGER_FILE_PATH"), "SPENDING_LEDGER_FILE_PATH")
     return path, False
 
@@ -49,7 +52,7 @@ def run_sync(from_date: date = None) -> dict:
     if not access_token or not client.verify_access_token(access_token):
         if is_cloud:
             raise RuntimeError("Plaid access token invalid or missing. Run link flow locally first.")
-        from src.link_flow import run_link_flow
+        from link_flow import run_link_flow
         run_link_flow(client)
         access_token = clean_env(os.getenv("PLAID_ACCESS_TOKEN"), "PLAID_ACCESS_TOKEN")
 
@@ -60,6 +63,11 @@ def run_sync(from_date: date = None) -> dict:
     raw_transactions = client.get_transactions(access_token, start, end)
     accounts = client.get_accounts(access_token)
     account_map = {a["account_id"]: _account_label(a) for a in accounts}
+
+    # Exclude accounts by last-4 mask — account 4719 is managed by Prateek (son), not household cash flow
+    excluded_account_ids = {a["account_id"] for a in accounts if a.get("mask") == "4719"}
+    prateek_excluded = [tx for tx in raw_transactions if tx.get("account_id") in excluded_account_ids]
+    raw_transactions  = [tx for tx in raw_transactions if tx.get("account_id") not in excluded_account_ids]
 
     rules = load_rules(RULES_PATH) if os.path.exists(RULES_PATH) else []
     if not rules:
@@ -121,6 +129,8 @@ def run_sync(from_date: date = None) -> dict:
         except Exception as e:
             print(f"⚠️  Drive upload failed: {e}")
 
+    if prateek_excluded:
+        print(f"Excluded {len(prateek_excluded)} transactions from account ending 4719 (managed by Prateek)")
     print(f"✅ Sync complete — {added} added, {skipped} skipped, ${total_spend:,.2f} total spend")
     return summary
 

@@ -1,11 +1,14 @@
 import os
+import sys
 import smtplib
 import requests
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from datetime import date
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-from src.utils import clean_env
+from utils import clean_env
 
 
 def _build_html(summary: dict) -> str:

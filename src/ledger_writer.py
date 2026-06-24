@@ -1,17 +1,26 @@
 import os
-from datetime import date, datetime
+from datetime import date
 from openpyxl import Workbook, load_workbook
-from openpyxl.styles import Font, PatternFill, Alignment, numbers
+from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.chart import BarChart, Reference
 from openpyxl.utils import get_column_letter
 
-HEADER_FILL = PatternFill("solid", fgColor="1F3864")
-HEADER_FONT = Font(name="Arial", bold=True, color="FFFFFF", size=11)
-BODY_FONT = Font(name="Arial", size=10)
+HEADER_FILL  = PatternFill("solid", fgColor="1F3864")
+HEADER_FONT  = Font(name="Arial", bold=True, color="FFFFFF", size=11)
+BODY_FONT    = Font(name="Arial", size=10)
+SEC_FILL     = PatternFill("solid", fgColor="D6E4F0")
+SEC_FONT     = Font(name="Arial", bold=True, size=10, color="1F3864")
+SUB_FILL     = PatternFill("solid", fgColor="BDD7EE")
+SUB_FONT     = Font(name="Arial", bold=True, size=10)
+GRAND_FILL   = PatternFill("solid", fgColor="1F3864")
+GRAND_FONT   = Font(name="Arial", bold=True, color="FFFFFF", size=10)
+NET_FILL     = PatternFill("solid", fgColor="E2EFDA")
+NET_FONT     = Font(name="Arial", bold=True, size=10, color="375623")
+NO_FILL      = PatternFill(fill_type=None)
+
 CURRENCY_FMT = '_($* #,##0.00_);_($* (#,##0.00);_($* "-"??_);_(@_)'
 MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
-# 15-color deterministic palette (light backgrounds)
 _PALETTE = [
     "FFF2CC", "D9EAD3", "CFE2F3", "F4CCCC", "EAD1DC",
     "D9D2E9", "FCE5CD", "D0E4F1", "E6F4EA", "FFF3E0",
@@ -40,46 +49,47 @@ def _existing_keys(ws) -> set:
     keys = set()
     for row in ws.iter_rows(min_row=2, values_only=True):
         if row[0] and row[1]:
-            # Date | Description | Account | Category | Type | Amount
             date_val = str(row[0]) if row[0] else ""
             desc_val = str(row[1]).strip().lower() if row[1] else ""
-            amt_val = f"{abs(float(row[5])):.2f}" if row[5] is not None else "0.00"
+            amt_val  = f"{abs(float(row[5])):.2f}" if row[5] is not None else "0.00"
             keys.add(f"{date_val}|{desc_val}|{amt_val}")
     return keys
 
 
+def _clear_ws(ws, from_row: int = 2):
+    for row in ws.iter_rows(min_row=from_row):
+        for cell in row:
+            cell.value = None
+            cell.fill  = NO_FILL
+            cell.font  = BODY_FONT
+
+
 def _build_summary_sheet(wb, year: int):
-    """Create Monthly Summary sheet with SUMIFS formulas and a stacked bar chart."""
     ws = wb.create_sheet("Monthly Summary")
-    ws.column_dimensions["A"].width = 28
-
-    # Row 1: title; Row 2: month headers
-    ws["A1"] = f"Category"
-    ws["A1"].font = HEADER_FONT
-    ws["A1"].fill = HEADER_FILL
-
-    for m_idx, month in enumerate(MONTHS, 2):
-        cell = ws.cell(row=2, column=m_idx, value=month)
-        cell.font = HEADER_FONT
-        cell.fill = HEADER_FILL
-        cell.alignment = Alignment(horizontal="center")
-        ws.column_dimensions[get_column_letter(m_idx)].width = 11
-
+    ws.column_dimensions["A"].width = 30
+    ws["A1"].value = "Category"
+    ws["A1"].font  = HEADER_FONT
+    ws["A1"].fill  = HEADER_FILL
     total_col = len(MONTHS) + 2
-    total_cell = ws.cell(row=2, column=total_col, value="Total")
-    total_cell.font = HEADER_FONT
-    total_cell.fill = HEADER_FILL
-    total_cell.alignment = Alignment(horizontal="center")
+    for m_idx, month in enumerate(MONTHS, 2):
+        c = ws.cell(row=2, column=m_idx, value=month)
+        c.font = HEADER_FONT
+        c.fill = HEADER_FILL
+        c.alignment = Alignment(horizontal="center")
+        ws.column_dimensions[get_column_letter(m_idx)].width = 11
+    tc = ws.cell(row=2, column=total_col, value="Total")
+    tc.font = HEADER_FONT
+    tc.fill = HEADER_FILL
+    tc.alignment = Alignment(horizontal="center")
     ws.column_dimensions[get_column_letter(total_col)].width = 13
-
     ws.freeze_panes = "B3"
     return ws
 
 
-def _build_ytd_sheet(wb, year: int):
+def _build_ytd_sheet(wb):
     ws = wb.create_sheet("YTD Summary")
     _header_row(ws, ["Category", "YTD Total", "% of Total"], row=1)
-    ws.column_dimensions["A"].width = 28
+    ws.column_dimensions["A"].width = 34
     ws.column_dimensions["B"].width = 14
     ws.column_dimensions["C"].width = 12
     return ws
@@ -90,161 +100,333 @@ def _build_yoy_sheet(wb):
     ws["A1"] = "Year-over-year comparison requires 12+ months of data to populate Last Year column."
     ws["A1"].font = Font(name="Arial", italic=True, color="888888")
     _header_row(ws, ["Category", "This Year YTD", "Last Year Same Period", "$ Change", "% Change"], row=2)
-    ws.column_dimensions["A"].width = 28
+    ws.column_dimensions["A"].width = 34
     for col in "BCDE":
         ws.column_dimensions[col].width = 18
     return ws
 
 
 def _refresh_summary_formulas(wb, year: int):
-    """Rewrite Monthly Summary, YTD Summary, and YoY Trends formulas from Transactions data."""
+    """Rebuild all summary sheets with Income / Rental Expense / Personal Expense sections."""
     tx_ws = wb["Transactions"]
 
-    # Collect all unique expense categories from data rows
-    categories = []
-    seen = set()
+    today      = date.today().strftime("%Y-%m-%d")
+    ytd_start  = f"{year}-01-01"
+    last_year  = year - 1
+    ly_start   = f"{last_year}-01-01"
+    try:
+        ly_end = date(last_year, date.today().month, date.today().day).strftime("%Y-%m-%d")
+    except ValueError:
+        ly_end = f"{last_year}-12-31"
+
+    total_col = len(MONTHS) + 2  # column N in Monthly Summary
+
+    # Scan Transactions sheet: build ordered category lists by type.
+    # Skip categories where IncludeInNet (col G) is False — those rows are
+    # visible in Transactions but intentionally excluded from all summary totals.
+    income_cats, rental_exp_cats, personal_exp_cats = [], [], []
+    seen: set = set()
     for row in tx_ws.iter_rows(min_row=2, values_only=True):
-        if row[3] and row[4] == "Expense" and row[3] not in seen:
-            seen.add(row[3])
-            categories.append(row[3])
+        cat, tx_type, include_in_net = row[3], row[4], row[6]
+        if not cat or cat in seen:
+            continue
+        if include_in_net is False:
+            seen.add(cat)  # prevent re-processing but don't add to summary lists
+            continue
+        seen.add(cat)
+        if tx_type == "Income":
+            income_cats.append(cat)
+        elif tx_type == "Expense":
+            if cat.startswith("Rental - "):
+                rental_exp_cats.append(cat)
+            else:
+                personal_exp_cats.append(cat)
 
-    # ---- Monthly Summary ----
-    ms = wb["Monthly Summary"]
-    # Clear data rows (keep header rows 1-2)
-    for row in ms.iter_rows(min_row=3):
-        for cell in row:
-            cell.value = None
+    # ── helper: SUMPRODUCT formula builder ──────────────────────────────────
+    # Column G (IncludeInNet) is a boolean; multiplying by it excludes FALSE rows
+    # from all totals — this filters out "One-Off - Non-Recurring" rows automatically.
+    def _sp(cat, tx_type, start, end):
+        return (
+            f'=SUMPRODUCT((Transactions!D$2:D$10000="{cat}")*'
+            f'(Transactions!E$2:E$10000="{tx_type}")*'
+            f'(Transactions!A$2:A$10000>="{start}")*'
+            f'(Transactions!A$2:A$10000<="{end}")*'
+            f'Transactions!G$2:G$10000*'
+            f'Transactions!F$2:F$10000)'
+        )
 
-    data_start_row = 3
-    total_col = len(MONTHS) + 2  # col 14 (N)
+    def _month_end(month_num):
+        end_day = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month_num - 1]
+        if month_num == 2 and (year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)):
+            end_day = 29
+        return f"{year}-{month_num:02d}-{end_day:02d}"
 
-    for r_idx, cat in enumerate(categories, data_start_row):
-        ms.cell(row=r_idx, column=1, value=cat).font = Font(name="Arial", size=10)
-        cat_fill = _category_fill(cat)
-        ms.cell(row=r_idx, column=1).fill = cat_fill
+    # ════════════════════════════════════════════════════════════════════════
+    # MONTHLY SUMMARY
+    # ════════════════════════════════════════════════════════════════════════
+    ms  = wb["Monthly Summary"]
+    _clear_ws(ms, from_row=3)
+    cur = 3  # next writable row
 
-        for m_idx, _ in enumerate(MONTHS, 2):
-            month_num = m_idx - 1
-            # Start/end of month as date literals Plaid stores as YYYY-MM-DD strings
-            start = f"{year}-{month_num:02d}-01"
-            end_day = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month_num - 1]
-            if month_num == 2 and (year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)):
-                end_day = 29
-            end = f"{year}-{month_num:02d}-{end_day:02d}"
+    # tracks row numbers for subtotals so we can reference them in grand totals
+    ms_income_subtotal    = None
+    ms_rental_subtotal    = None
+    ms_personal_subtotal  = None
 
-            formula = (
-                f'=SUMPRODUCT((Transactions!D$2:D$10000="{cat}")*'
-                f'(Transactions!E$2:E$10000="Expense")*'
-                f'(Transactions!A$2:A$10000>="{start}")*'
-                f'(Transactions!A$2:A$10000<="{end}")*'
-                f'Transactions!F$2:F$10000)'
-            )
-            cell = ms.cell(row=r_idx, column=m_idx, value=formula)
-            cell.number_format = CURRENCY_FMT
-            cell.font = Font(name="Arial", size=10)
-            cell.fill = cat_fill
+    def _ms_sec_header(label):
+        nonlocal cur
+        for col in range(1, total_col + 1):
+            c = ms.cell(row=cur, column=col)
+            c.fill  = SEC_FILL
+            c.font  = SEC_FONT if col == 1 else Font(name="Arial", size=10)
+            c.value = label if col == 1 else None
+        cur += 1
 
-        # Total column
-        b_col = get_column_letter(2)
-        m_col = get_column_letter(1 + len(MONTHS))
-        ms.cell(row=r_idx, column=total_col,
-                value=f"=SUM({b_col}{r_idx}:{m_col}{r_idx})").number_format = CURRENCY_FMT
+    def _ms_cat_row(cat, tx_type):
+        nonlocal cur
+        r = cur
+        cf = _category_fill(cat)
+        ms.cell(row=r, column=1, value=cat).fill = cf
+        ms.cell(row=r, column=1).font = Font(name="Arial", size=10)
+        for m_idx in range(2, len(MONTHS) + 2):
+            mn = m_idx - 1
+            c = ms.cell(row=r, column=m_idx,
+                        value=_sp(cat, tx_type, f"{year}-{mn:02d}-01", _month_end(mn)))
+            c.number_format = CURRENCY_FMT
+            c.font  = Font(name="Arial", size=10)
+            c.fill  = cf
+        b = get_column_letter(2)
+        m = get_column_letter(1 + len(MONTHS))
+        ms.cell(row=r, column=total_col,
+                value=f"=SUM({b}{r}:{m}{r})").number_format = CURRENCY_FMT
+        cur += 1
+        return r
 
-    # Total row
-    if categories:
-        total_row = data_start_row + len(categories)
-        ms.cell(row=total_row, column=1, value="TOTAL").font = Font(name="Arial", bold=True, size=10)
-        for m_idx in range(2, len(MONTHS) + 3):
-            col_ltr = get_column_letter(m_idx)
-            ms.cell(row=total_row, column=m_idx,
-                    value=f"=SUM({col_ltr}{data_start_row}:{col_ltr}{total_row - 1})").number_format = CURRENCY_FMT
+    def _ms_subtotal(label, data_rows, fill=SUB_FILL, font=SUB_FONT):
+        nonlocal cur
+        r = cur
+        ms.cell(row=r, column=1, value=label).font = font
+        ms.cell(row=r, column=1).fill = fill
+        for col in range(2, total_col + 1):
+            ltr  = get_column_letter(col)
+            refs = "+".join(f"{ltr}{dr}" for dr in data_rows)
+            c = ms.cell(row=r, column=col, value=f"={refs}")
+            c.number_format = CURRENCY_FMT
+            c.fill = fill
+            c.font = font
+        cur += 1
+        return r
 
-        # Add stacked bar chart
+    # Income section
+    ms_income_rows = []
+    if income_cats:
+        _ms_sec_header("── INCOME ──")
+        for cat in income_cats:
+            ms_income_rows.append(_ms_cat_row(cat, "Income"))
+        ms_income_subtotal = _ms_subtotal("TOTAL INCOME", ms_income_rows)
+        cur += 1
+
+    # Rental Expense section
+    ms_rental_rows = []
+    if rental_exp_cats:
+        _ms_sec_header("── RENTAL EXPENSES ──")
+        for cat in rental_exp_cats:
+            ms_rental_rows.append(_ms_cat_row(cat, "Expense"))
+        ms_rental_subtotal = _ms_subtotal("TOTAL RENTAL EXPENSE", ms_rental_rows)
+        cur += 1
+
+    # Personal Expense section
+    ms_personal_rows = []
+    if personal_exp_cats:
+        _ms_sec_header("── PERSONAL EXPENSES ──")
+        for cat in personal_exp_cats:
+            ms_personal_rows.append(_ms_cat_row(cat, "Expense"))
+        ms_personal_subtotal = _ms_subtotal("TOTAL PERSONAL EXPENSE", ms_personal_rows)
+        cur += 1
+
+    # Grand Total Expense
+    exp_subs = [r for r in [ms_rental_subtotal, ms_personal_subtotal] if r]
+    ms_grand_expense = None
+    if exp_subs:
+        ms_grand_expense = cur
+        ms.cell(row=cur, column=1, value="TOTAL EXPENSE").font = GRAND_FONT
+        ms.cell(row=cur, column=1).fill = GRAND_FILL
+        for col in range(2, total_col + 1):
+            ltr  = get_column_letter(col)
+            refs = "+".join(f"{ltr}{r}" for r in exp_subs)
+            c = ms.cell(row=cur, column=col, value=f"={refs}")
+            c.number_format = CURRENCY_FMT
+            c.fill = GRAND_FILL
+            c.font = GRAND_FONT
+        cur += 1
+
+    # Stacked bar chart (expense categories only)
+    all_exp_rows = ms_rental_rows + ms_personal_rows
+    if all_exp_rows:
         try:
             chart = BarChart()
-            chart.type = "col"
+            chart.type     = "col"
             chart.grouping = "stacked"
-            chart.title = f"Monthly Spending by Category — {year}"
+            chart.title    = f"Monthly Spending by Category — {year}"
             chart.y_axis.title = "Amount ($)"
             chart.x_axis.title = "Month"
-            chart.width = 30
-            chart.height = 18
-
-            for r_idx2 in range(data_start_row, total_row):
-                data_ref = Reference(ms, min_col=2, max_col=len(MONTHS) + 1,
-                                     min_row=r_idx2, max_row=r_idx2)
-                from openpyxl.chart import Series
-                series = Series(data_ref, title=ms.cell(row=r_idx2, column=1).value)
+            chart.width    = 32
+            chart.height   = 18
+            from openpyxl.chart import Series
+            for r in all_exp_rows:
+                series = Series(
+                    Reference(ms, min_col=2, max_col=len(MONTHS) + 1, min_row=r, max_row=r),
+                    title=ms.cell(row=r, column=1).value,
+                )
                 chart.series.append(series)
-
-            cats_ref = Reference(ms, min_col=2, max_col=len(MONTHS) + 1, min_row=2)
-            chart.set_categories(cats_ref)
-            ms.add_chart(chart, f"A{total_row + 2}")
+            chart.set_categories(Reference(ms, min_col=2, max_col=len(MONTHS) + 1, min_row=2))
+            ms.add_chart(chart, f"A{cur + 1}")
         except Exception:
-            pass  # chart is a nice-to-have
+            pass
 
-    # ---- YTD Summary ----
+    # ════════════════════════════════════════════════════════════════════════
+    # YTD SUMMARY
+    # ════════════════════════════════════════════════════════════════════════
     ytd = wb["YTD Summary"]
-    for row in ytd.iter_rows(min_row=2):
-        for cell in row:
-            cell.value = None
+    _clear_ws(ytd, from_row=2)
+    cur = 2
 
-    today = date.today().strftime("%Y-%m-%d")
-    ytd_start = f"{year}-01-01"
+    ytd_income_subtotal   = None
+    ytd_rental_subtotal   = None
+    ytd_personal_subtotal = None
+    ytd_grand_expense     = None
 
-    for r_idx, cat in enumerate(categories, 2):
-        ytd.cell(row=r_idx, column=1, value=cat).font = Font(name="Arial", size=10)
-        formula = (
-            f'=SUMPRODUCT((Transactions!D$2:D$10000="{cat}")*'
-            f'(Transactions!E$2:E$10000="Expense")*'
-            f'(Transactions!A$2:A$10000>="{ytd_start}")*'
-            f'(Transactions!A$2:A$10000<="{today}")*'
-            f'Transactions!F$2:F$10000)'
-        )
-        ytd.cell(row=r_idx, column=2, value=formula).number_format = CURRENCY_FMT
+    def _ytd_sec_header(label):
+        nonlocal cur
+        ytd.cell(row=cur, column=1, value=label).font = SEC_FONT
+        ytd.cell(row=cur, column=1).fill = SEC_FILL
+        for col in [2, 3]:
+            ytd.cell(row=cur, column=col).fill = SEC_FILL
+        cur += 1
 
-    # % of total
-    if categories:
-        last_data = 1 + len(categories)
-        total_cell_addr = f"B{last_data + 1}"
-        ytd.cell(row=last_data + 1, column=1, value="TOTAL").font = Font(name="Arial", bold=True)
-        ytd.cell(row=last_data + 1, column=2,
-                 value=f"=SUM(B2:B{last_data})").number_format = CURRENCY_FMT
+    def _ytd_cat_row(cat, tx_type):
+        nonlocal cur
+        r = cur
+        ytd.cell(row=r, column=1, value=cat).font = Font(name="Arial", size=10)
+        ytd.cell(row=r, column=2,
+                 value=_sp(cat, tx_type, ytd_start, today)).number_format = CURRENCY_FMT
+        cur += 1
+        return r
 
-        for r_idx in range(2, last_data + 1):
-            ytd.cell(row=r_idx, column=3,
-                     value=f"=IF({total_cell_addr}=0,\"\",B{r_idx}/{total_cell_addr})").number_format = "0.0%"
+    def _ytd_subtotal(label, data_rows, fill=SUB_FILL, font=SUB_FONT):
+        nonlocal cur
+        r = cur
+        ytd.cell(row=r, column=1, value=label).font = font
+        ytd.cell(row=r, column=1).fill = fill
+        refs = "+".join(f"B{dr}" for dr in data_rows)
+        c = ytd.cell(row=r, column=2, value=f"={refs}")
+        c.number_format = CURRENCY_FMT
+        c.fill = fill
+        c.font = font
+        cur += 1
+        return r
 
-    # ---- YoY Trends ----
+    def _ytd_fill_pct(data_rows, denom_row, fill=None, font=None):
+        for r in data_rows:
+            c = ytd.cell(row=r, column=3,
+                         value=f"=IF(B{denom_row}=0,\"\",B{r}/B{denom_row})")
+            c.number_format = "0.0%"
+            if fill: c.fill = fill
+            if font: c.font = font
+
+    # Income
+    ytd_income_rows = []
+    if income_cats:
+        _ytd_sec_header("── INCOME ──")
+        for cat in income_cats:
+            ytd_income_rows.append(_ytd_cat_row(cat, "Income"))
+        ytd_income_subtotal = _ytd_subtotal("TOTAL INCOME", ytd_income_rows)
+        _ytd_fill_pct(ytd_income_rows, ytd_income_subtotal)
+        ytd.cell(row=ytd_income_subtotal, column=3,
+                 value="100%").number_format = "0.0%"
+        ytd.cell(row=ytd_income_subtotal, column=3).font = SUB_FONT
+        ytd.cell(row=ytd_income_subtotal, column=3).fill = SUB_FILL
+        cur += 1
+
+    # Rental Expense
+    ytd_rental_rows = []
+    if rental_exp_cats:
+        _ytd_sec_header("── RENTAL EXPENSES ──")
+        for cat in rental_exp_cats:
+            ytd_rental_rows.append(_ytd_cat_row(cat, "Expense"))
+        ytd_rental_subtotal = _ytd_subtotal("TOTAL RENTAL EXPENSE", ytd_rental_rows)
+        cur += 1
+
+    # Personal Expense
+    ytd_personal_rows = []
+    if personal_exp_cats:
+        _ytd_sec_header("── PERSONAL EXPENSES ──")
+        for cat in personal_exp_cats:
+            ytd_personal_rows.append(_ytd_cat_row(cat, "Expense"))
+        ytd_personal_subtotal = _ytd_subtotal("TOTAL PERSONAL EXPENSE", ytd_personal_rows)
+        cur += 1
+
+    # Grand Total Expense
+    exp_subs_ytd = [r for r in [ytd_rental_subtotal, ytd_personal_subtotal] if r]
+    if exp_subs_ytd:
+        ytd_grand_expense = cur
+        ytd.cell(row=cur, column=1, value="TOTAL EXPENSE").font = GRAND_FONT
+        ytd.cell(row=cur, column=1).fill = GRAND_FILL
+        refs = "+".join(f"B{r}" for r in exp_subs_ytd)
+        c = ytd.cell(row=cur, column=2, value=f"={refs}")
+        c.number_format = CURRENCY_FMT
+        c.fill = GRAND_FILL
+        c.font = GRAND_FONT
+        cur += 1
+        # Fill % for all expense category rows and their subtotals
+        all_exp_ytd = ytd_rental_rows + ytd_personal_rows
+        _ytd_fill_pct(all_exp_ytd, ytd_grand_expense)
+        for r in exp_subs_ytd:
+            _ytd_fill_pct([r], ytd_grand_expense, fill=SUB_FILL, font=SUB_FONT)
+
+    # ── Net Summary block ─────────────────────────────────────────────────
+    if ytd_income_subtotal and ytd_grand_expense:
+        cur += 1  # blank separator
+        net_items = [
+            ("Total Income",          f"=B{ytd_income_subtotal}",                              CURRENCY_FMT),
+            ("Total Expense",         f"=B{ytd_grand_expense}",                                CURRENCY_FMT),
+            ("Net (Income − Expense)",f"=B{ytd_income_subtotal}-B{ytd_grand_expense}",         CURRENCY_FMT),
+            ("Net as % of Income",    f"=IF(B{ytd_income_subtotal}=0,\"\","
+                                      f"(B{ytd_income_subtotal}-B{ytd_grand_expense})"
+                                      f"/B{ytd_income_subtotal})",                             "0.0%"),
+        ]
+        for label, formula, fmt in net_items:
+            ytd.cell(row=cur, column=1, value=label).font = NET_FONT
+            ytd.cell(row=cur, column=1).fill = NET_FILL
+            c = ytd.cell(row=cur, column=2, value=formula)
+            c.number_format = fmt
+            c.fill = NET_FILL
+            c.font = NET_FONT
+            cur += 1
+
+    # ════════════════════════════════════════════════════════════════════════
+    # YoY TRENDS
+    # ════════════════════════════════════════════════════════════════════════
     yoy = wb["YoY Trends"]
-    for row in yoy.iter_rows(min_row=3):
-        for cell in row:
-            cell.value = None
+    _clear_ws(yoy, from_row=3)
+    cur = 3
 
-    last_year = year - 1
-    last_year_start = f"{last_year}-01-01"
-    last_year_end = date(last_year, date.today().month, date.today().day).strftime("%Y-%m-%d")
-
-    for r_idx, cat in enumerate(categories, 3):
-        yoy.cell(row=r_idx, column=1, value=cat).font = Font(name="Arial", size=10)
-        ytd_f = (
-            f'=SUMPRODUCT((Transactions!D$2:D$10000="{cat}")*'
-            f'(Transactions!E$2:E$10000="Expense")*'
-            f'(Transactions!A$2:A$10000>="{ytd_start}")*'
-            f'(Transactions!A$2:A$10000<="{today}")*'
-            f'Transactions!F$2:F$10000)'
-        )
-        ly_f = (
-            f'=SUMPRODUCT((Transactions!D$2:D$10000="{cat}")*'
-            f'(Transactions!E$2:E$10000="Expense")*'
-            f'(Transactions!A$2:A$10000>="{last_year_start}")*'
-            f'(Transactions!A$2:A$10000<="{last_year_end}")*'
-            f'Transactions!F$2:F$10000)'
-        )
-        yoy.cell(row=r_idx, column=2, value=ytd_f).number_format = CURRENCY_FMT
-        yoy.cell(row=r_idx, column=3, value=ly_f).number_format = CURRENCY_FMT
-        yoy.cell(row=r_idx, column=4, value=f"=B{r_idx}-C{r_idx}").number_format = CURRENCY_FMT
-        yoy.cell(row=r_idx, column=5, value=f"=IF(C{r_idx}=0,\"\",B{r_idx}/C{r_idx}-1)").number_format = "0.0%"
+    all_cats_typed = (
+        [(c, "Income")  for c in income_cats] +
+        [(c, "Expense") for c in rental_exp_cats] +
+        [(c, "Expense") for c in personal_exp_cats]
+    )
+    for cat, tx_type in all_cats_typed:
+        yoy.cell(row=cur, column=1, value=cat).font = Font(name="Arial", size=10)
+        yoy.cell(row=cur, column=2,
+                 value=_sp(cat, tx_type, ytd_start, today)).number_format = CURRENCY_FMT
+        yoy.cell(row=cur, column=3,
+                 value=_sp(cat, tx_type, ly_start, ly_end)).number_format = CURRENCY_FMT
+        yoy.cell(row=cur, column=4,
+                 value=f"=B{cur}-C{cur}").number_format = CURRENCY_FMT
+        yoy.cell(row=cur, column=5,
+                 value=f"=IF(C{cur}=0,\"\",B{cur}/C{cur}-1)").number_format = "0.0%"
+        cur += 1
 
 
 def write_spending_ledger(filepath: str, new_transactions: list) -> dict:
@@ -252,58 +434,61 @@ def write_spending_ledger(filepath: str, new_transactions: list) -> dict:
 
     if os.path.exists(filepath):
         wb = load_workbook(filepath)
-        if "Transactions" not in wb.sheetnames:
-            wb.create_sheet("Transactions", 0)
-        if "Monthly Summary" not in wb.sheetnames:
-            _build_summary_sheet(wb, year)
-        if "YTD Summary" not in wb.sheetnames:
-            _build_ytd_sheet(wb, year)
-        if "YoY Trends" not in wb.sheetnames:
-            _build_yoy_sheet(wb)
+        if "Transactions"    not in wb.sheetnames: wb.create_sheet("Transactions", 0)
+        if "Monthly Summary" not in wb.sheetnames: _build_summary_sheet(wb, year)
+        if "YTD Summary"     not in wb.sheetnames: _build_ytd_sheet(wb)
+        if "YoY Trends"      not in wb.sheetnames: _build_yoy_sheet(wb)
+        # Migrate: add IncludeInNet column G to existing files that pre-date this column
+        _tx = wb["Transactions"]
+        if _tx["G1"].value != "IncludeInNet":
+            _tx["G1"].value = "IncludeInNet"
+            _tx["G1"].fill  = HEADER_FILL
+            _tx["G1"].font  = HEADER_FONT
+            _tx["G1"].alignment = Alignment(horizontal="center")
+            _tx.column_dimensions["G"].width = 13
+            for row in _tx.iter_rows(min_row=2):
+                if row[0].value:  # only rows that have data
+                    row[6].value = True
     else:
         wb = Workbook()
         wb.remove(wb.active)
         tx_ws = wb.create_sheet("Transactions")
-        _header_row(tx_ws, ["Date", "Description", "Account", "Category", "Type", "Amount"])
+        _header_row(tx_ws, ["Date", "Description", "Account", "Category", "Type", "Amount", "IncludeInNet"])
         tx_ws.column_dimensions["A"].width = 12
         tx_ws.column_dimensions["B"].width = 38
         tx_ws.column_dimensions["C"].width = 18
-        tx_ws.column_dimensions["D"].width = 30
+        tx_ws.column_dimensions["D"].width = 34
         tx_ws.column_dimensions["E"].width = 10
         tx_ws.column_dimensions["F"].width = 14
+        tx_ws.column_dimensions["G"].width = 13
         tx_ws.freeze_panes = "A2"
         _build_summary_sheet(wb, year)
-        _build_ytd_sheet(wb, year)
+        _build_ytd_sheet(wb)
         _build_yoy_sheet(wb)
 
     tx_ws = wb["Transactions"]
     existing_keys = _existing_keys(tx_ws)
 
-    added = 0
-    skipped = 0
+    added = skipped = 0
     for tx in sorted(new_transactions, key=lambda t: t.get("date", ""), reverse=True):
         key = _tx_dedup_key(tx)
         if key in existing_keys:
             skipped += 1
             continue
 
-        cat = tx.get("category", "Uncategorized")
-        row_data = [
-            tx.get("date"),
-            tx.get("name", ""),
-            tx.get("account_label", ""),
-            cat,
-            tx.get("type", "Expense"),
-            tx.get("amount", 0.0),
-        ]
-        row_idx = tx_ws.max_row + 1
+        cat            = tx.get("category", "Uncategorized")
+        include_in_net = not tx.get("exclude_from_net", False)
+        row_idx  = tx_ws.max_row + 1
         row_fill = _category_fill(cat)
-        for col_idx, val in enumerate(row_data, 1):
-            cell = tx_ws.cell(row=row_idx, column=col_idx, value=val)
-            cell.font = BODY_FONT
-            cell.fill = row_fill
+        for col_idx, val in enumerate(
+            [tx.get("date"), tx.get("name", ""), tx.get("account_label", ""),
+             cat, tx.get("type", "Expense"), tx.get("amount", 0.0), include_in_net], 1
+        ):
+            c = tx_ws.cell(row=row_idx, column=col_idx, value=val)
+            c.font = BODY_FONT
+            c.fill = row_fill
             if col_idx == 6:
-                cell.number_format = CURRENCY_FMT
+                c.number_format = CURRENCY_FMT
 
         existing_keys.add(key)
         added += 1

@@ -1,10 +1,13 @@
 import os
+import sys
 import json
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload
 from google.oauth2.service_account import Credentials
 
-from src.utils import clean_env
+from utils import clean_env
 
 
 def get_drive_service():

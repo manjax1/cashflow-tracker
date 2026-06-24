@@ -1,5 +1,10 @@
 import os
+import sys
+import time
 from datetime import date
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from dotenv import load_dotenv
 import plaid
 from plaid.api import plaid_api
@@ -13,13 +18,12 @@ from plaid.model.products import Products
 from plaid.model.country_code import CountryCode
 from plaid.exceptions import ApiException
 
-from src.utils import clean_env
+from utils import clean_env
 
 load_dotenv()
 
-HOST_MAP = {
+PLAID_ENV_MAP = {
     "sandbox": plaid.Environment.Sandbox,
-    "development": plaid.Environment.Development,
     "production": plaid.Environment.Production,
 }
 
@@ -28,13 +32,17 @@ class PlaidClient:
     def __init__(self):
         client_id = clean_env(os.getenv("PLAID_CLIENT_ID"), "PLAID_CLIENT_ID")
         secret = clean_env(os.getenv("PLAID_SECRET"), "PLAID_SECRET")
-        env_str = clean_env(os.getenv("PLAID_ENV", "production"), "PLAID_ENV").lower()
+        env_key = clean_env(os.getenv("PLAID_ENV", "sandbox"), "PLAID_ENV").lower()
 
-        host = HOST_MAP.get(env_str, plaid.Environment.Production)
+        if env_key == "development":
+            print("⚠️  PLAID_ENV=development is deprecated by Plaid; using Production instead")
+            env_key = "production"
+
+        host = PLAID_ENV_MAP.get(env_key, plaid.Environment.Sandbox)
         configuration = plaid.Configuration(host=host, api_key={"clientId": client_id, "secret": secret})
         api_client = plaid.ApiClient(configuration)
         self.client = plaid_api.PlaidApi(api_client)
-        self.env_str = env_str
+        self.env_str = env_key
 
     def get_link_token(self) -> str:
         request = LinkTokenCreateRequest(
@@ -65,22 +73,38 @@ class PlaidClient:
             raise
 
     def get_transactions(self, access_token: str, start_date: date, end_date: date) -> list:
-        all_transactions = []
-        offset = 0
-        while True:
-            request = TransactionsGetRequest(
-                access_token=access_token,
-                start_date=start_date,
-                end_date=end_date,
-                options=TransactionsGetRequestOptions(count=500, offset=offset),
-            )
-            response = self.client.transactions_get(request)
-            transactions = response["transactions"]
-            all_transactions.extend(transactions)
-            if len(all_transactions) >= response["total_transactions"]:
-                break
-            offset += len(transactions)
-        return [self._serialize_transaction(t) for t in all_transactions]
+        max_retries = 4
+        retry_delay = 30
+        for attempt in range(1, max_retries + 1):
+            try:
+                request = TransactionsGetRequest(
+                    access_token=access_token,
+                    start_date=start_date,
+                    end_date=end_date,
+                    options=TransactionsGetRequestOptions(count=500, offset=0),
+                )
+                response = self.client.transactions_get(request)
+                transactions = response.transactions
+                total = response.total_transactions
+                while len(transactions) < total:
+                    request = TransactionsGetRequest(
+                        access_token=access_token,
+                        start_date=start_date,
+                        end_date=end_date,
+                        options=TransactionsGetRequestOptions(count=500, offset=len(transactions)),
+                    )
+                    response = self.client.transactions_get(request)
+                    transactions += response.transactions
+                return [self._serialize_transaction(t) for t in transactions]
+            except ApiException as e:
+                body = e.body if hasattr(e, "body") else str(e)
+                if "PRODUCT_NOT_READY" in str(body):
+                    print(f"⏳ Plaid still preparing transactions (attempt {attempt}/{max_retries}), waiting {retry_delay}s...")
+                    if attempt < max_retries:
+                        time.sleep(retry_delay)
+                        continue
+                raise
+        raise RuntimeError("Plaid transactions not ready after max retries")
 
     def get_accounts(self, access_token: str) -> list:
         response = self.client.accounts_get(AccountsGetRequest(access_token=access_token))

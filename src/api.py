@@ -1,9 +1,13 @@
 import os
+import sys
 import threading
 from datetime import datetime
 from flask import Flask, jsonify, request
 
-from src.utils import clean_env
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from utils import clean_env
 
 app = Flask(__name__)
 
@@ -49,7 +53,7 @@ def sync():
         _sync_running = True
         try:
             from datetime import date
-            from src.main import run_sync
+            from main import run_sync
             from_date = date.fromisoformat(from_date_str) if from_date_str else None
             result = run_sync(from_date)
             _last_run = result
@@ -71,7 +75,7 @@ def sync_test():
 
     # Test Plaid
     try:
-        from src.plaid_client import PlaidClient
+        from plaid_client import PlaidClient
         client = PlaidClient()
         access_token = clean_env(os.getenv("PLAID_ACCESS_TOKEN"), "PLAID_ACCESS_TOKEN")
         if access_token and client.verify_access_token(access_token):
@@ -83,7 +87,7 @@ def sync_test():
 
     # Test Drive
     try:
-        from src.drive_sync import get_drive_service
+        from drive_sync import get_drive_service
         svc = get_drive_service()
         svc.files().list(pageSize=1, fields="files(id)").execute()
         results["drive"] = "connected"

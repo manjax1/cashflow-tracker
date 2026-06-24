@@ -5,7 +5,7 @@ PFC_CATEGORY_MAP = {
     "TRANSPORTATION": "Transportation",
     "ENTERTAINMENT": "Entertainment",
     "TRAVEL": "Travel",
-    "MEDICAL": "Medical",
+    "MEDICAL": "Health and Fitness",
     "INCOME": "Income - Other",
     "TRANSFER_IN": "Income - Other",
     # Everything below maps to catch-all; GENERAL_MERCHANDISE, BANK_FEES, TRANSFER_OUT,

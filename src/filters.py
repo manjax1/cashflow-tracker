@@ -8,8 +8,10 @@ PFC_CATEGORY_MAP = {
     "MEDICAL": "Health and Fitness",
     "INCOME": "Income - Other",
     "TRANSFER_IN": "Income - Other",
-    # Everything below maps to catch-all; GENERAL_MERCHANDISE, BANK_FEES, TRANSFER_OUT,
-    # and OTHER fall through to the type-aware default below.
+    # Explicitly mapped so refunds (negative amount) don't hit the sign-based fallback
+    # and get miscategorized as Income - Other. TRANSFER_OUT and OTHER still fall through.
+    "GENERAL_MERCHANDISE": "Other - Uncategorized",
+    "BANK_FEES": "Other - Uncategorized",
     "PERSONAL_CARE": "Other - Uncategorized",
     "HOME_IMPROVEMENT": "Other - Uncategorized",
     "RENT_AND_UTILITIES": "Other - Uncategorized",

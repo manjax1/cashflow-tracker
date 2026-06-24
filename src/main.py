@@ -87,10 +87,22 @@ def run_sync(from_date: date = None, to_date: date = None) -> dict:
     accounts = client.get_accounts(access_token)
     account_map = {a["account_id"]: _account_label(a) for a in accounts}
 
-    # Exclude accounts by last-4 mask — account 4719 is managed by Prateek (son), not household cash flow
-    excluded_account_ids = {a["account_id"] for a in accounts if a.get("mask") == "4719"}
-    prateek_excluded = [tx for tx in raw_transactions if tx.get("account_id") in excluded_account_ids]
-    raw_transactions  = [tx for tx in raw_transactions if tx.get("account_id") not in excluded_account_ids]
+    # Accounts excluded from household cash-flow tracking (mask → reason).
+    # 6450 (Tanusha credit card) is intentionally NOT listed here — her spending is tracked.
+    EXCLUDED_MASKS = {
+        "4719": "Prateek checking (son)",
+        "0043": "Tanusha checking (daughter)",
+        "5663": "Adv Relationship Banking (2nd checking, no household activity)",
+        "8305": "Primary mortgage loan account (payment already captured via checking debit)",
+    }
+    excluded_account_ids = {a["account_id"] for a in accounts if a.get("mask") in EXCLUDED_MASKS}
+    acct_mask_lookup     = {a["account_id"]: a.get("mask", "?") for a in accounts}
+    excluded_by_account: dict[str, list] = {mask: [] for mask in EXCLUDED_MASKS}
+    for tx in raw_transactions:
+        mask = acct_mask_lookup.get(tx.get("account_id", ""), "")
+        if mask in EXCLUDED_MASKS:
+            excluded_by_account[mask].append(tx)
+    raw_transactions = [tx for tx in raw_transactions if tx.get("account_id") not in excluded_account_ids]
 
     rules = _load_rules_with_fallback()
 
@@ -150,8 +162,12 @@ def run_sync(from_date: date = None, to_date: date = None) -> dict:
         except Exception as e:
             print(f"⚠️  Drive upload failed: {e}")
 
-    if prateek_excluded:
-        print(f"Excluded {len(prateek_excluded)} transactions from account ending 4719 (managed by Prateek)")
+    excl_parts = [
+        f"{len(txns)} from {mask} ({EXCLUDED_MASKS[mask]})"
+        for mask, txns in excluded_by_account.items() if txns
+    ]
+    if excl_parts:
+        print(f"Excluded — {', '.join(excl_parts)}")
     print(f"✅ Sync complete — {added} added, {skipped} skipped, ${total_spend:,.2f} total spend")
     return summary
 

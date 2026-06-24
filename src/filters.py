@@ -1,23 +1,21 @@
 import json
 
 PFC_CATEGORY_MAP = {
-    "FOOD_AND_DRINK": "Food & Drink",
-    "GENERAL_MERCHANDISE": "General Merchandise",
+    "FOOD_AND_DRINK": "Dining",
     "TRANSPORTATION": "Transportation",
     "ENTERTAINMENT": "Entertainment",
-    "PERSONAL_CARE": "Personal Care",
-    "HOME_IMPROVEMENT": "Home Improvement",
-    "RENT_AND_UTILITIES": "Rent & Utilities",
     "TRAVEL": "Travel",
     "MEDICAL": "Medical",
-    "GOVERNMENT_AND_NON_PROFIT": "Government & Non-Profit",
-    "LOAN_PAYMENTS": "Loan Payments",
-    "BANK_FEES": "Bank Fees",
-    "TRANSFER_IN": "Transfer In",
-    "TRANSFER_OUT": "Transfer Out",
-    "INCOME": "Income",
-    "GENERAL_SERVICES": "General Services",
-    "OTHER": "Other",
+    "INCOME": "Income - Other",
+    "TRANSFER_IN": "Income - Other",
+    # Everything below maps to catch-all; GENERAL_MERCHANDISE, BANK_FEES, TRANSFER_OUT,
+    # and OTHER fall through to the type-aware default below.
+    "PERSONAL_CARE": "Other - Uncategorized",
+    "HOME_IMPROVEMENT": "Other - Uncategorized",
+    "RENT_AND_UTILITIES": "Other - Uncategorized",
+    "GOVERNMENT_AND_NON_PROFIT": "Other - Uncategorized",
+    "LOAN_PAYMENTS": "Other - Uncategorized",
+    "GENERAL_SERVICES": "Other - Uncategorized",
 }
 
 
@@ -62,7 +60,9 @@ def categorize(transaction: dict, rules: list, account_label: str = "") -> dict:
 
     # Fall back to Plaid personal_finance_category
     pfc_primary = transaction.get("personal_finance_category", {}).get("primary", "")
-    category = PFC_CATEGORY_MAP.get(pfc_primary, "Uncategorized")
+    category = PFC_CATEGORY_MAP.get(pfc_primary)
+    if category is None:
+        category = "Income - Other" if amount < 0 else "Other - Uncategorized"
 
     tx_type = "Income" if amount < 0 else "Expense"
     return {

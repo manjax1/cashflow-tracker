@@ -29,6 +29,29 @@ def _resolve_ledger_path() -> tuple[str, bool]:
     return path, False
 
 
+def _load_rules_with_fallback() -> list:
+    """Load categorization rules from RULES_JSON env var (Railway) or local file."""
+    import json
+    rules_json_env = clean_env(os.getenv("RULES_JSON"), "RULES_JSON")
+    if rules_json_env:
+        try:
+            rules = json.loads(rules_json_env)
+            print(f"✅ Loaded {len(rules)} rules from RULES_JSON env var")
+            from filters import load_rules as _sort_rules
+            return sorted(rules, key=lambda r: len(r["keyword"]), reverse=True)
+        except Exception as e:
+            print(f"⚠️  RULES_JSON parse failed: {e} — falling back to file")
+
+    if os.path.exists(RULES_PATH):
+        from filters import load_rules
+        rules = load_rules(RULES_PATH)
+        print(f"✅ Loaded {len(rules)} rules from {RULES_PATH}")
+        return rules
+
+    print("⚠️  No spending_rules.json and no RULES_JSON env var — using Plaid categories only.")
+    return []
+
+
 def run_sync(from_date: date = None) -> dict:
     is_cloud = bool(os.getenv("RAILWAY_ENVIRONMENT"))
     plaid_env = clean_env(os.getenv("PLAID_ENV", "production"), "PLAID_ENV")
@@ -69,9 +92,7 @@ def run_sync(from_date: date = None) -> dict:
     prateek_excluded = [tx for tx in raw_transactions if tx.get("account_id") in excluded_account_ids]
     raw_transactions  = [tx for tx in raw_transactions if tx.get("account_id") not in excluded_account_ids]
 
-    rules = load_rules(RULES_PATH) if os.path.exists(RULES_PATH) else []
-    if not rules:
-        print("⚠️  spending_rules.json not found — using Plaid categories only. Copy spending_rules.template.json to get started.")
+    rules = _load_rules_with_fallback()
 
     included, excluded = categorize_batch(raw_transactions, rules, account_map)
 

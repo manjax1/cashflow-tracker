@@ -32,9 +32,78 @@ def load_rules(path: str) -> list:
     return sorted(rules, key=lambda r: len(r["keyword"]), reverse=True)
 
 
+# ── Special-case categorizers ─────────────────────────────────────────────────
+# Each returns {category, note} if it claims the transaction, else None.
+# They run before the keyword-rule loop in categorize().
+
+def categorize_hippo_insurance(transaction: dict) -> dict | None:
+    """Date-window routing for Hippo Insurance charges.
+
+    Aug 16 – Sep 5 of any year = primary residence renewal (HCA-3456835-05).
+    All other dates = one of the 6 rental property policies.
+    """
+    if "HIPPO INSURANCE" not in transaction.get("name", "").upper():
+        return None
+    from datetime import date as date_cls
+    try:
+        tx_date = date_cls.fromisoformat(transaction["date"])
+    except (KeyError, ValueError):
+        return None
+    if date_cls(tx_date.year, 8, 16) <= tx_date <= date_cls(tx_date.year, 9, 5):
+        return {
+            "category": "Primary - Insurance-Home",
+            "note": "Hippo - primary residence (HCA-3456835-05) - date-window match",
+        }
+    return {
+        "category": "Rental - Insurance",
+        "note": "Hippo - one of 6 rental property policies - date-window match",
+    }
+
+
+def categorize_retail_with_refunds(transaction: dict) -> dict | None:
+    """Sign-aware routing for specific retail merchants.
+
+    Uses Plaid sign convention: positive amount = expense/purchase,
+    negative amount = income/credit direction (refund).
+    """
+    RETAILERS = ["ROSS STORES", "UNIQLO", "MARSHALLS", "NORDSTROM"]
+    name_upper = transaction.get("name", "").upper()
+    if not any(r in name_upper for r in RETAILERS):
+        return None
+    amount = transaction.get("amount", 0.0)
+    if amount < 0:
+        return {
+            "category": "Income - Retail Refunds",
+            "note": "Merchandise return - offsets prior purchase",
+        }
+    return {
+        "category": "Shopping",
+        "note": "Retail purchase",
+    }
+
+
+_SPECIAL_CASE_FNS = (categorize_hippo_insurance, categorize_retail_with_refunds)
+
+# ─────────────────────────────────────────────────────────────────────────────
+
+
 def categorize(transaction: dict, rules: list, account_label: str = "") -> dict:
     name = transaction.get("name", "")
     amount = transaction.get("amount", 0.0)
+
+    # Special-case functions run first, before keyword rules.
+    for special_fn in _SPECIAL_CASE_FNS:
+        special = special_fn(transaction)
+        if special is not None:
+            tx_type = "Income" if amount < 0 else "Expense"
+            return {
+                "excluded": False,
+                "category": special["category"],
+                "account_label": account_label,
+                "amount": abs(amount),
+                "type": tx_type,
+                "exclude_from_net": False,
+            }
 
     for rule in rules:
         if rule["keyword"].lower() in name.lower():

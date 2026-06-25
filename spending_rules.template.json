@@ -15,6 +15,7 @@
   {"keyword": "Zelle payment from",         "category": "Rental - Income",                      "note": "Unrecognized incoming Zelle - assumed rent; add a specific tenant rule above once identified"},
 
   {"keyword": "STEADILY INS",               "category": "Rental - Insurance",                   "note": ""},
+  {"keyword": "STATE FARM",                 "category": "Rental - Insurance",                   "note": "Landlord policy - add your property address"},
 
   {"keyword": "SAWGRASS ASSOCIA",           "category": "Rental - Property Tax/HOA",            "note": "HOA"},
   {"keyword": "TIFTON COVE",                "category": "Rental - Property Tax/HOA",            "note": "HOA"},
@@ -60,6 +61,7 @@
   {"keyword": "MERCHANT NAME DISPUTED",                  "category": "Internal Transfer",                         "note": "Fraudulent/disputed charge (later reversed) - exclude both the charge and reversal"},
   {"keyword": "CHASE CREDIT CRD",                        "category": "Other Credit Card Expenses",                "note": "Payment toward external Chase card - statement-level detail pending"},
   {"keyword": "CITI AUTOPAY",                            "category": "Other Credit Card Expenses",                "note": "Payment toward external Citi card - statement-level detail pending"},
+  {"keyword": "COSTCO WHSE",                             "category": "Other Credit Card Expenses",                "note": "Costco warehouse - statement-level detail pending (tracked via Costco Visa)"},
 
   {"keyword": "stock exercise",                          "category": "One-Off - Non-Recurring (excluded from Net)", "note": "Stock/equity settlement - one-time, excluded from net income calc"},
 
@@ -72,6 +74,7 @@
 
   {"keyword": "WHOLE FOODS",                "category": "Groceries",                            "note": ""},
   {"keyword": "TRADER JOE",                 "category": "Groceries",                            "note": ""},
+  {"keyword": "FOOTHILL PRODUCE",           "category": "Groceries",                            "note": "Recurring produce purchase"},
 
   {"keyword": "BKG*BOOKING.COM",            "category": "Travel",                               "note": ""},
   {"keyword": "HOTWIRE",                    "category": "Travel",                               "note": ""},
@@ -85,15 +88,31 @@
   {"keyword": "AMERICAN AIR",               "category": "Travel",                               "note": ""},
   {"keyword": "UNITED ",                    "category": "Travel",                               "note": "Trailing space prevents matching UNITED HEALTH etc."},
 
+  {"keyword": "AMC ",                        "category": "Entertainment",                        "note": "Movie theater chain - trailing space prevents matching unrelated AMC-prefixed merchants"},
   {"keyword": "GAMETIME",                   "category": "Entertainment",                        "note": ""},
 
   {"keyword": "UBER",                       "category": "Transportation",                       "note": ""},
   {"keyword": "LYFT",                       "category": "Transportation",                       "note": ""},
+  {"keyword": "COSTCO GAS",                "category": "Transportation",                       "note": ""},
 
   {"keyword": "NETFLIX",                    "category": "Subscriptions",                        "note": ""},
   {"keyword": "SPOTIFY",                    "category": "Subscriptions",                        "note": ""},
 
   {"keyword": "UNITED TAX",                 "category": "Other - Uncategorized",                "note": "Tax prep fees - longer than UNITED  travel rule (10 > 7 chars), wins on sort"},
   {"keyword": "TARGET",                     "category": "Other - Uncategorized",                "note": ""},
-  {"keyword": "INTEREST CHARGE",            "category": "Other - Uncategorized",                "note": "Credit card interest charge"}
+  {"keyword": "INTEREST CHARGE",            "category": "Other - Uncategorized",                "note": "Credit card interest charge"},
+
+  {"keyword": "GEICO",                      "category": "Primary - Insurance-Auto",              "note": "Auto insurance - non-rental"},
+
+  {"keyword": "STARBUCKS",                 "category": "Dining",                               "note": "National chain - confirmed restaurant"},
+  {"keyword": "TACO BELL",                 "category": "Dining",                               "note": "National chain - confirmed restaurant"},
+  {"keyword": "CHAAT BHAVAN",              "category": "Dining",                               "note": "Recurring restaurant, appeared multiple times in real statement data"},
+  {"keyword": "PINK ONION",               "category": "Dining",                               "note": "Named restaurant - add your own"},
+  {"keyword": "DD *DOORDASH",              "category": "Dining",                               "note": "DoorDash delivery"},
+  {"keyword": "GRUBHUB",                   "category": "Dining",                               "note": "Grubhub delivery"},
+  {"keyword": "SNACK*",                    "category": "Dining",                               "note": "Snackpass - food ordering platform"},
+  {"keyword": "TST *",                     "category": "Dining",                               "note": "Toast POS variant spacing"},
+  {"keyword": "TST*",                      "category": "Dining",                               "note": "Toast POS - common restaurant payment processor, may occasionally catch a non-restaurant Toast user"},
+  {"keyword": "SQ *MERCHANT NAME",         "category": "Transportation",                       "note": "Specific override - confirmed not a restaurant despite SQ* prefix"},
+  {"keyword": "SQ *",                      "category": "Dining",                               "note": "Square POS - common for small restaurants/cafes, may occasionally catch non-food Square merchants"}
 ]

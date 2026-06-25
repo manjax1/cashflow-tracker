@@ -198,6 +198,77 @@ def parse_credit_card_csv(filepath: str) -> list[dict]:
     return transactions
 
 
+def _write_dryrun_file(filepath: str, included: list, timestamp: str) -> str:
+    """Write a complete per-file dry-run report. Returns the output path."""
+    from collections import defaultdict
+
+    stem = os.path.splitext(os.path.abspath(filepath))[0]
+    out_path = f"{stem}.{timestamp}.dryrun.txt"
+
+    cat_counts: dict[str, int]   = defaultdict(int)
+    cat_totals: dict[str, float] = defaultdict(float)
+    type_totals: dict[str, float] = {"Income": 0.0, "Expense": 0.0}
+
+    for tx in included:
+        cat    = tx.get("category", "Uncategorized")
+        amount = tx.get("amount", 0.0)
+        ttype  = tx.get("type", "Expense")
+        cat_counts[cat] += 1
+        cat_totals[cat] += amount
+        type_totals[ttype] += amount
+
+    income  = type_totals["Income"]
+    expense = type_totals["Expense"]
+    net     = income - expense
+
+    sorted_txns = sorted(included, key=lambda t: t.get("date", ""))
+
+    W = 115  # total line width
+
+    with open(out_path, "w", encoding="utf-8") as f:
+        # ── Header ──────────────────────────────────────────────────────────
+        f.write(f"Source:    {os.path.abspath(filepath)}\n")
+        f.write(f"Timestamp: {timestamp}\n")
+        f.write(f"Rows:      {len(included)}\n")
+        f.write("\n")
+
+        # ── Category breakdown ───────────────────────────────────────────────
+        f.write("─" * W + "\n")
+        f.write("Category Breakdown\n")
+        f.write("─" * W + "\n")
+        f.write(f"{'Category':<38} {'Count':>6}   {'Total':>12}\n")
+        f.write("─" * W + "\n")
+        for cat, total in sorted(cat_totals.items(), key=lambda x: x[1], reverse=True):
+            f.write(f"{cat:<38} {cat_counts[cat]:>6}   ${total:>11,.2f}\n")
+
+        # ── Type / Net summary ───────────────────────────────────────────────
+        f.write("\n")
+        f.write("─" * W + "\n")
+        f.write("Type Summary\n")
+        f.write("─" * W + "\n")
+        f.write(f"  Income:   ${income:>12,.2f}\n")
+        f.write(f"  Expense:  ${expense:>12,.2f}\n")
+        f.write(f"  Net:      ${net:>12,.2f}\n")
+
+        # ── Full transaction table ───────────────────────────────────────────
+        f.write("\n")
+        f.write("─" * W + "\n")
+        f.write("Transactions (all rows, sorted by date)\n")
+        f.write("─" * W + "\n")
+        f.write(f"{'Date':<12} {'Description':<46} {'Category':<32} {'Type':<8} {'Amount':>10}\n")
+        f.write("─" * W + "\n")
+        for tx in sorted_txns:
+            f.write(
+                f"{tx['date']:<12} "
+                f"{tx['name'][:45]:<46} "
+                f"{tx.get('category', '')[:31]:<32} "
+                f"{tx.get('type', ''):<8} "
+                f"${tx.get('amount', 0):>9,.2f}\n"
+            )
+
+    return out_path
+
+
 def import_csvs(
     filepaths: list[str],
     csv_type: str,
@@ -213,7 +284,9 @@ def import_csvs(
     if not rules:
         print("⚠️  No spending_rules.json — using Plaid PFC categories only.")
 
-    all_included = []
+    timestamp    = datetime.now().strftime("%Y%m%d-%H%M%S")
+    all_included: list = []
+    dryrun_paths: list[str] = []
 
     for fp in filepaths:
         print(f"\n📄 {fp}")
@@ -228,6 +301,11 @@ def import_csvs(
         account_map = {tx["account_id"]: label for tx in txns}
         included, excluded = categorize_batch(txns, rules, account_map)
         print(f"  Included: {len(included)}  |  Excluded: {len(excluded)}")
+
+        if dry_run:
+            out_path = _write_dryrun_file(fp, included, timestamp)
+            dryrun_paths.append(out_path)
+
         all_included.extend(included)
 
     if not all_included:
@@ -238,7 +316,8 @@ def import_csvs(
     print(f"\nTotal transactions to import: {total}")
 
     if dry_run:
-        print("\n── First 25 rows ────────────────────────────────────────────────────────────────")
+        # Terminal preview — quick glance, not the full record
+        print("\n── First 25 rows (terminal preview) ────────────────────────────────────────────")
         print(f"{'Date':<12} {'Description':<42} {'Category':<30} {'Type':<8} {'Amount':>9}")
         print("─" * 107)
         for tx in sorted(all_included, key=lambda t: t.get("date", ""))[:25]:
@@ -252,6 +331,9 @@ def import_csvs(
         if total > 25:
             print(f"  ... and {total - 25} more")
         print("\n[dry-run] No changes written to ledger.")
+        print("\nDry-run reports written:")
+        for p in dryrun_paths:
+            print(f"  {p}")
         return
 
     result = write_spending_ledger(ledger_path, all_included)

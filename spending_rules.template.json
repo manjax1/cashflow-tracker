@@ -9,6 +9,11 @@
   {"keyword": "LANCELOTS CASTLE",           "category": "Rental - Income",                      "note": ""},
   {"keyword": "BOFA FIN CTR",               "category": "Rental - Income",                      "note": "Branch deposit - verify source before assuming rental income"},
 
+  {"keyword": "TENANT FULL NAME A",         "category": "Rental - Income",                      "note": "Tenant - 123 Property Address"},
+  {"keyword": "TENANT NAME A VARIANT",      "category": "Rental - Income",                      "note": "Tenant - 123 Property Address (name variant seen in bank description)"},
+  {"keyword": "TENANT FULL NAME B",         "category": "Rental - Income",                      "note": "Tenant - 456 Property Address"},
+  {"keyword": "Zelle payment from",         "category": "Rental - Income",                      "note": "Unrecognized incoming Zelle - assumed rent; add a specific tenant rule above once identified"},
+
   {"keyword": "STEADILY INS",               "category": "Rental - Insurance",                   "note": ""},
 
   {"keyword": "SAWGRASS ASSOCIA",           "category": "Rental - Property Tax/HOA",            "note": "HOA"},
@@ -49,6 +54,12 @@
   {"keyword": "Payment Applied to",                      "category": "Internal Transfer",                         "note": "Mortgage payment posting - paired with checking debit"},
   {"keyword": "transfer from CHK XXXX",                  "category": "Internal Transfer",                         "note": "Transfer from another account - verify it's not income"},
   {"keyword": "transfer to CHK XXXX",                    "category": "Internal Transfer",                         "note": "Transfer to another account - verify it's not an expense"},
+  {"keyword": "CONTACT NAME",                            "category": "Internal Transfer",                         "note": "Personal loan repayment from friend/contact - not income"},
+  {"keyword": "CHK YYYY",                                "category": "Internal Transfer",                         "note": "Family member's account - not operated by primary user, exclude all activity"},
+  {"keyword": "BAL ADJ/MERCHANT NAME",                   "category": "Internal Transfer",                         "note": "Reversal of a fraudulent or disputed charge - not real income"},
+  {"keyword": "MERCHANT NAME DISPUTED",                  "category": "Internal Transfer",                         "note": "Fraudulent/disputed charge (later reversed) - exclude both the charge and reversal"},
+  {"keyword": "CHASE CREDIT CRD",                        "category": "Other Credit Card Expenses",                "note": "Payment toward external Chase card - statement-level detail pending"},
+  {"keyword": "CITI AUTOPAY",                            "category": "Other Credit Card Expenses",                "note": "Payment toward external Citi card - statement-level detail pending"},
 
   {"keyword": "stock exercise",                          "category": "One-Off - Non-Recurring (excluded from Net)", "note": "Stock/equity settlement - one-time, excluded from net income calc"},
 
@@ -82,6 +93,7 @@
   {"keyword": "NETFLIX",                    "category": "Subscriptions",                        "note": ""},
   {"keyword": "SPOTIFY",                    "category": "Subscriptions",                        "note": ""},
 
+  {"keyword": "UNITED TAX",                 "category": "Other - Uncategorized",                "note": "Tax prep fees - longer than UNITED  travel rule (10 > 7 chars), wins on sort"},
   {"keyword": "TARGET",                     "category": "Other - Uncategorized",                "note": ""},
   {"keyword": "INTEREST CHARGE",            "category": "Other - Uncategorized",                "note": "Credit card interest charge"}
 ]

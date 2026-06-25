@@ -44,6 +44,9 @@ def _header_row(ws, columns: list, row: int = 1):
 
 
 def _tx_dedup_key(tx: dict) -> str:
+    tid = tx.get("transaction_id")
+    if tid:
+        return str(tid)
     return f"{tx.get('date')}|{tx.get('name', '').strip().lower()}|{abs(tx.get('amount', 0)):.2f}"
 
 
@@ -51,6 +54,10 @@ def _existing_keys(ws) -> set:
     keys = set()
     for row in ws.iter_rows(min_row=2, values_only=True):
         if row[0] and row[1]:
+            # Column H (index 7) stores transaction_id for CSV-imported rows.
+            source_ref = str(row[7]).strip() if len(row) > 7 and row[7] else ""
+            if source_ref:
+                keys.add(source_ref)
             date_val = str(row[0]) if row[0] else ""
             desc_val = str(row[1]).strip().lower() if row[1] else ""
             amt_val  = f"{abs(float(row[5])):.2f}" if row[5] is not None else "0.00"
@@ -496,11 +503,18 @@ def write_spending_ledger(filepath: str, new_transactions: list) -> dict:
             for row in _tx.iter_rows(min_row=2):
                 if row[0].value:  # only rows that have data
                     row[6].value = True
+        # Migrate: add SourceRef column H for CSV-import dedup (existing rows left blank)
+        if _tx["H1"].value != "SourceRef":
+            _tx["H1"].value = "SourceRef"
+            _tx["H1"].fill  = HEADER_FILL
+            _tx["H1"].font  = HEADER_FONT
+            _tx["H1"].alignment = Alignment(horizontal="center")
+            _tx.column_dimensions["H"].width = 32
     else:
         wb = Workbook()
         wb.remove(wb.active)
         tx_ws = wb.create_sheet("Transactions")
-        _header_row(tx_ws, ["Date", "Description", "Account", "Category", "Type", "Amount", "IncludeInNet"])
+        _header_row(tx_ws, ["Date", "Description", "Account", "Category", "Type", "Amount", "IncludeInNet", "SourceRef"])
         tx_ws.column_dimensions["A"].width = 12
         tx_ws.column_dimensions["B"].width = 38
         tx_ws.column_dimensions["C"].width = 18
@@ -508,6 +522,7 @@ def write_spending_ledger(filepath: str, new_transactions: list) -> dict:
         tx_ws.column_dimensions["E"].width = 10
         tx_ws.column_dimensions["F"].width = 14
         tx_ws.column_dimensions["G"].width = 13
+        tx_ws.column_dimensions["H"].width = 32
         tx_ws.freeze_panes = "A2"
         _build_summary_sheet(wb, year)
         _build_ytd_sheet(wb)
@@ -529,7 +544,8 @@ def write_spending_ledger(filepath: str, new_transactions: list) -> dict:
         row_fill = _category_fill(cat)
         for col_idx, val in enumerate(
             [tx.get("date"), tx.get("name", ""), tx.get("account_label", ""),
-             cat, tx.get("type", "Expense"), tx.get("amount", 0.0), include_in_net], 1
+             cat, tx.get("type", "Expense"), tx.get("amount", 0.0), include_in_net,
+             tx.get("transaction_id", "")], 1
         ):
             c = tx_ws.cell(row=row_idx, column=col_idx, value=val)
             c.font = BODY_FONT

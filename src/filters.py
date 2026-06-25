@@ -8,6 +8,10 @@ PFC_CATEGORY_MAP = {
     "MEDICAL": "Health and Fitness",
     "INCOME": "Income - Other",
     "TRANSFER_IN": "Income - Other",
+    # Empty string: CSV-imported rows have no Plaid PFC data. Treat the same as
+    # GENERAL_MERCHANDISE below — prevents refunds (negative amount) from hitting
+    # the sign-based fallback and landing in "Income - Other".
+    "": "Other - Uncategorized",
     # Explicitly mapped so refunds (negative amount) don't hit the sign-based fallback
     # and get miscategorized as Income - Other. TRANSFER_OUT and OTHER still fall through.
     "GENERAL_MERCHANDISE": "Other - Uncategorized",

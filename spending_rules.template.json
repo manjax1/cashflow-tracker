@@ -90,10 +90,13 @@
   {"keyword": "WHOLE FOODS",                "category": "Groceries",                            "note": ""},
   {"keyword": "TRADER JOE",                 "category": "Groceries",                            "note": ""},
   {"keyword": "FOOTHILL PRODUCE",           "category": "Groceries",                            "note": "Recurring produce purchase"},
+  {"keyword": "GROCERY CHAIN ABBREV",       "category": "Groceries",                            "note": "Abbreviated merchant name for a grocery chain - add as it appears in statements"},
+  {"keyword": "ETHNIC GROCERY NAME",        "category": "Groceries",                            "note": "Ethnic/specialty grocery store"},
 
   {"keyword": "BKG*BOOKING.COM",            "category": "Travel",                               "note": ""},
   {"keyword": "HOTEL CHAIN #",              "category": "Travel",                               "note": "Extended-stay or hotel chain - add brand prefix as it appears in statements"},
   {"keyword": "HOTWIRE",                    "category": "Travel",                               "note": ""},
+  {"keyword": "EMPLOYEE DISCOUNT PROGRAM",  "category": "Travel",                               "note": "Employer-provided discount/travel booking program"},
   {"keyword": "AIRBNB",                     "category": "Travel",                               "note": ""},
   {"keyword": "EXPEDIA",                    "category": "Travel",                               "note": ""},
   {"keyword": "MARRIOTT",                   "category": "Travel",                               "note": ""},
@@ -106,10 +109,12 @@
 
   {"keyword": "AMC ",                        "category": "Entertainment",                        "note": "Movie theater chain - trailing space prevents matching unrelated AMC-prefixed merchants"},
   {"keyword": "GAMETIME",                   "category": "Entertainment",                        "note": ""},
+  {"keyword": "ENTERTAINMENT VENUE NAME",   "category": "Entertainment",                        "note": "Named entertainment venue - add your own"},
 
   {"keyword": "UBER",                       "category": "Transportation",                       "note": ""},
   {"keyword": "LYFT",                       "category": "Transportation",                       "note": ""},
   {"keyword": "COSTCO GAS",                "category": "Transportation",                       "note": ""},
+  {"keyword": "TRANSIT AUTHORITY NAME",     "category": "Transportation",                       "note": "Public transit - add your city's transit authority name as it appears in statements"},
 
   {"keyword": "NETFLIX",                    "category": "Subscriptions",                        "note": ""},
   {"keyword": "SPOTIFY",                    "category": "Subscriptions",                        "note": ""},

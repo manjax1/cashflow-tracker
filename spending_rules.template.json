@@ -28,6 +28,7 @@
   {"keyword": "VCN*SJC TTC ONLINE",         "category": "Rental - Property Tax/HOA",            "note": "Property tax payment"},
   {"keyword": "LINK2GOV",                   "category": "Rental - Property Tax/HOA",            "note": "Property tax payment"},
   {"keyword": "COUNTY TAX AUTHORITY",       "category": "Rental - Property Tax/HOA",            "note": "Property tax payment - add your county/state tax authority name as it appears in statements"},
+  {"keyword": "COUNTY DES:B2P",             "category": "Rental - Property Tax/HOA",            "note": "Annual property tax via Bill2Pay portal - use the county prefix as it appears before DES:B2P in statements"},
 
   {"keyword": "WOODLANDS WATER",            "category": "Rental - Utilities",                   "note": ""},
   {"keyword": "ST.JOHNS COUNTY UTL",        "category": "Rental - Utilities",                   "note": ""},
@@ -44,6 +45,7 @@
   {"keyword": "Zelle payment to Lacey Clemons",        "category": "Rental - Maintenance", "note": ""},
   {"keyword": "Zelle payment to Usiel Garcia",         "category": "Rental - Maintenance", "note": ""},
   {"keyword": "CONTRACTOR NAME",                       "category": "Rental - Maintenance", "note": "Contractor - add property address and work description"},
+  {"keyword": "HANDYMAN NAME",                          "category": "Rental - Maintenance", "note": "Handyman - add repair type and property address"},
   {"keyword": "SELLER OR DEPOSIT NAME",                "category": "Rental - Acquisition", "note": "Initial deposit or closing cost for new rental property acquisition"},
 
   {"keyword": "PG&E",                       "category": "Primary - Utilities",                  "note": ""},
@@ -80,6 +82,8 @@
   {"keyword": "UCEAP",                      "category": "Education - Kids",                     "note": "UC Education Abroad Program"},
   {"keyword": "Parchment",                  "category": "Education - Kids",                     "note": "Transcript fees"},
   {"keyword": "HOUSING PROVIDER NAME",      "category": "Education - Kids",                     "note": "Off-campus housing for student - add provider name as it appears in statements"},
+
+  {"keyword": "INDN:FAMILY MEMBER NAME",    "category": "Family - FamilyMember",                "note": "ACH/Venmo payments to a family member - keyword targets the INDN: recipient field in ACH descriptions, specific to this person only"},
 
   {"keyword": "EMPLOYER NAME",              "category": "Income - Salary",                      "note": "Employer payroll - catches both DES:SALARY and DES:DIR DEP description formats. Use the merchant-name prefix as it appears in your bank statements."},
   {"keyword": "EMPLOYER LEGAL NAME",        "category": "Income - Salary",                      "note": "Second salary description variant - some payrolls use the full legal entity name instead of the operating name"},

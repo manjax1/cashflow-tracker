@@ -1,4 +1,5 @@
 [
+  {"keyword": "LENDER DES:LENDER ACH",        "category": "Rental - Mortgage",                    "note": "Lender for your rental property - use full ACH description as it appears in statements"},
   {"keyword": "MORTGAGE SERVICER NAME",      "category": "Rental - Mortgage",                    "note": "Add your mortgage servicer name as it appears in bank statements"},
   {"keyword": "ROCKET MORTGAGE",            "category": "Rental - Mortgage",                    "note": ""},
   {"keyword": "PENNYMAC",                   "category": "Rental - Mortgage",                    "note": ""},
@@ -33,6 +34,8 @@
   {"keyword": "CITY OF STOCKTON UTILITY",   "category": "Rental - Utilities",                   "note": ""},
   {"keyword": "CALWATER SERVICE",           "category": "Rental - Utilities",                   "note": ""},
   {"keyword": "MANTECA*UTILITY",            "category": "Rental - Utilities",                   "note": ""},
+  {"keyword": "UTILITY PROVIDER",           "category": "Rental - Utilities",                   "note": "Add your rental property utility provider name"},
+  {"keyword": "CABLE OR INTERNET PROVIDER", "category": "Rental - Utilities",                   "note": "Rental property cable/internet - confirm all charges in this account are for rental, not primary residence"},
 
   {"keyword": "RANJODH",                               "category": "Rental - Maintenance", "note": ""},
   {"keyword": "Zelle payment to Daniel Garcia",        "category": "Rental - Maintenance", "note": ""},
@@ -46,6 +49,7 @@
   {"keyword": "RECOLOGY",                   "category": "Primary - Utilities",                  "note": ""},
   {"keyword": "XFINITY",                    "category": "Primary - Utilities",                  "note": ""},
 
+  {"keyword": "TRANSFER PROVIDER NAME",                  "category": "Income - Dividends",                        "note": "Investment income via wire/transfer - add the provider name and source institution"},
   {"keyword": "Agent Assisted transfer from BRK",        "category": "Income - Dividends",                        "note": "Merrill dividend income — replace with your actual Merrill transfer description"},
   {"keyword": "Agent Assisted transfer to BRK",          "category": "Investment - Loan Interest",                "note": "Merrill loan interest debit — replace with your actual Merrill transfer description"},
 
@@ -73,9 +77,12 @@
   {"keyword": "UC Berkeley",                "category": "Education - Kids",                     "note": ""},
   {"keyword": "UCEAP",                      "category": "Education - Kids",                     "note": "UC Education Abroad Program"},
   {"keyword": "Parchment",                  "category": "Education - Kids",                     "note": "Transcript fees"},
+  {"keyword": "HOUSING PROVIDER NAME",      "category": "Education - Kids",                     "note": "Off-campus housing for student - add provider name as it appears in statements"},
 
   {"keyword": "EMPLOYER NAME",              "category": "Income - Salary",                      "note": "Employer payroll - catches both DES:SALARY and DES:DIR DEP description formats. Use the merchant-name prefix as it appears in your bank statements."},
+  {"keyword": "EMPLOYER LEGAL NAME",        "category": "Income - Salary",                      "note": "Second salary description variant - some payrolls use the full legal entity name instead of the operating name"},
   {"keyword": "PAYROLL",                    "category": "Income - Salary",                      "note": ""},
+  {"keyword": "EMPLOYER DES:PAYMENTS",       "category": "Income - Reimbursement",               "note": "Expense reimbursement from employer - offsets real expenses already in ledger, INCLUDED in Net"},
   {"keyword": "Interest Earned",            "category": "Income - Other",                       "note": ""},
 
   {"keyword": "WHOLE FOODS",                "category": "Groceries",                            "note": ""},

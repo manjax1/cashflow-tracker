@@ -1,4 +1,5 @@
 [
+  {"keyword": "MORTGAGE SERVICER NAME",      "category": "Rental - Mortgage",                    "note": "Add your mortgage servicer name as it appears in bank statements"},
   {"keyword": "ROCKET MORTGAGE",            "category": "Rental - Mortgage",                    "note": ""},
   {"keyword": "PENNYMAC",                   "category": "Rental - Mortgage",                    "note": ""},
   {"keyword": "FREEDOM DES:MTG",            "category": "Rental - Mortgage",                    "note": ""},
@@ -7,11 +8,14 @@
 
   {"keyword": "UTOPIA MGMT TRST",           "category": "Rental - Income",                      "note": "Property management trust deposit"},
   {"keyword": "LANCELOTS CASTLE",           "category": "Rental - Income",                      "note": ""},
+  {"keyword": "BOFA FIN CTR MM/YY #REFNUM DESCRIPTION",  "category": "Internal Transfer", "note": "Specific one-time non-rental deposit (e.g. loan repayment) - longer keyword beats generic BOFA FIN CTR rule. Add the exact description from your statement."},
   {"keyword": "BOFA FIN CTR",               "category": "Rental - Income",                      "note": "Branch deposit - verify source before assuming rental income"},
 
   {"keyword": "TENANT FULL NAME A",         "category": "Rental - Income",                      "note": "Tenant - 123 Property Address"},
   {"keyword": "TENANT NAME A VARIANT",      "category": "Rental - Income",                      "note": "Tenant - 123 Property Address (name variant seen in bank description)"},
   {"keyword": "TENANT FULL NAME B",         "category": "Rental - Income",                      "note": "Tenant - 456 Property Address"},
+  {"keyword": "Zelle payment from CONTACT NAME ONE",  "category": "Internal Transfer", "note": "Personal loan repayment - not rent, not income. Full-prefix form beats the Zelle payment from catch-all."},
+  {"keyword": "Zelle payment from CONTACT NAME TWO",  "category": "Internal Transfer", "note": "Personal loan repayment - not rent, not income. Full-prefix form beats the Zelle payment from catch-all."},
   {"keyword": "Zelle payment from",         "category": "Rental - Income",                      "note": "Unrecognized incoming Zelle - assumed rent; add a specific tenant rule above once identified"},
 
   {"keyword": "STEADILY INS",               "category": "Rental - Insurance",                   "note": ""},
@@ -35,6 +39,7 @@
   {"keyword": "Zelle payment to Jason and Meredit",    "category": "Rental - Maintenance", "note": ""},
   {"keyword": "Zelle payment to Lacey Clemons",        "category": "Rental - Maintenance", "note": ""},
   {"keyword": "Zelle payment to Usiel Garcia",         "category": "Rental - Maintenance", "note": ""},
+  {"keyword": "CONTRACTOR NAME",                       "category": "Rental - Maintenance", "note": "Contractor - add property address and work description"},
 
   {"keyword": "PG&E",                       "category": "Primary - Utilities",                  "note": ""},
   {"keyword": "SAN JOSE WATER",             "category": "Primary - Utilities",                  "note": ""},
@@ -69,6 +74,7 @@
   {"keyword": "UCEAP",                      "category": "Education - Kids",                     "note": "UC Education Abroad Program"},
   {"keyword": "Parchment",                  "category": "Education - Kids",                     "note": "Transcript fees"},
 
+  {"keyword": "EMPLOYER NAME",              "category": "Income - Salary",                      "note": "Employer payroll - catches both DES:SALARY and DES:DIR DEP description formats. Use the merchant-name prefix as it appears in your bank statements."},
   {"keyword": "PAYROLL",                    "category": "Income - Salary",                      "note": ""},
   {"keyword": "Interest Earned",            "category": "Income - Other",                       "note": ""},
 

@@ -27,6 +27,7 @@
   {"keyword": "HEATHERWOOD OF P",           "category": "Rental - Property Tax/HOA",            "note": "HOA"},
   {"keyword": "VCN*SJC TTC ONLINE",         "category": "Rental - Property Tax/HOA",            "note": "Property tax payment"},
   {"keyword": "LINK2GOV",                   "category": "Rental - Property Tax/HOA",            "note": "Property tax payment"},
+  {"keyword": "COUNTY TAX AUTHORITY",       "category": "Rental - Property Tax/HOA",            "note": "Property tax payment - add your county/state tax authority name as it appears in statements"},
 
   {"keyword": "WOODLANDS WATER",            "category": "Rental - Utilities",                   "note": ""},
   {"keyword": "ST.JOHNS COUNTY UTL",        "category": "Rental - Utilities",                   "note": ""},
@@ -43,6 +44,7 @@
   {"keyword": "Zelle payment to Lacey Clemons",        "category": "Rental - Maintenance", "note": ""},
   {"keyword": "Zelle payment to Usiel Garcia",         "category": "Rental - Maintenance", "note": ""},
   {"keyword": "CONTRACTOR NAME",                       "category": "Rental - Maintenance", "note": "Contractor - add property address and work description"},
+  {"keyword": "SELLER OR DEPOSIT NAME",                "category": "Rental - Acquisition", "note": "Initial deposit or closing cost for new rental property acquisition"},
 
   {"keyword": "PG&E",                       "category": "Primary - Utilities",                  "note": ""},
   {"keyword": "SAN JOSE WATER",             "category": "Primary - Utilities",                  "note": ""},
@@ -90,6 +92,7 @@
   {"keyword": "FOOTHILL PRODUCE",           "category": "Groceries",                            "note": "Recurring produce purchase"},
 
   {"keyword": "BKG*BOOKING.COM",            "category": "Travel",                               "note": ""},
+  {"keyword": "HOTEL CHAIN #",              "category": "Travel",                               "note": "Extended-stay or hotel chain - add brand prefix as it appears in statements"},
   {"keyword": "HOTWIRE",                    "category": "Travel",                               "note": ""},
   {"keyword": "AIRBNB",                     "category": "Travel",                               "note": ""},
   {"keyword": "EXPEDIA",                    "category": "Travel",                               "note": ""},
@@ -115,6 +118,7 @@
   {"keyword": "TARGET",                     "category": "Other - Uncategorized",                "note": ""},
   {"keyword": "INTEREST CHARGE",            "category": "Other - Uncategorized",                "note": "Credit card interest charge"},
 
+  {"keyword": "GYM OR FITNESS CHAIN",       "category": "Health and Fitness",                   "note": "Gym membership or fitness subscription"},
   {"keyword": "GEICO",                      "category": "Primary - Insurance-Auto",              "note": "Auto insurance - non-rental"},
 
   {"keyword": "STARBUCKS",                 "category": "Dining",                               "note": "National chain - confirmed restaurant"},

@@ -61,14 +61,28 @@ def categorize_hippo_insurance(transaction: dict) -> dict | None:
 
 
 def categorize_retail_with_refunds(transaction: dict) -> dict | None:
-    """Sign-aware routing for specific retail merchants.
+    """Sign-aware routing for specific retail/restaurant merchants.
 
     Uses Plaid sign convention: positive amount = expense/purchase,
     negative amount = income/credit direction (refund).
+
+    Each merchant maps to its own purchase-side category; all share
+    "Income - Retail Refunds" on the refund side.
     """
-    RETAILERS = ["ROSS STORES", "UNIQLO", "MARSHALLS", "NORDSTROM"]
+    RETAILER_CATEGORIES = {
+        "ROSS STORES":  "Shopping",
+        "UNIQLO":       "Shopping",
+        "MARSHALLS":    "Shopping",
+        "NORDSTROM":    "Shopping",
+        "COSTCO WHSE":  "Other Credit Card Expenses",
+        "CHIPOTLE":     "Dining",
+    }
     name_upper = transaction.get("name", "").upper()
-    if not any(r in name_upper for r in RETAILERS):
+    purchase_category = next(
+        (cat for kw, cat in RETAILER_CATEGORIES.items() if kw in name_upper),
+        None,
+    )
+    if purchase_category is None:
         return None
     amount = transaction.get("amount", 0.0)
     if amount < 0:
@@ -77,7 +91,7 @@ def categorize_retail_with_refunds(transaction: dict) -> dict | None:
             "note": "Merchandise return - offsets prior purchase",
         }
     return {
-        "category": "Shopping",
+        "category": purchase_category,
         "note": "Retail purchase",
     }
 

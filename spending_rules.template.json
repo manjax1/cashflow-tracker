@@ -83,6 +83,7 @@
   {"keyword": "BAL ADJ/MERCHANT NAME",                   "category": "Internal Transfer",                         "note": "Reversal of a fraudulent or disputed charge - not real income"},
   {"keyword": "MERCHANT NAME DISPUTED",                  "category": "Internal Transfer",                         "note": "Fraudulent/disputed charge (later reversed) - exclude both the charge and reversal"},
   {"keyword": "AIRLINE REFNUM CANCELLED",                "category": "Internal Transfer",                         "note": "Cancelled airline booking refunded same/next day - use the full reference number from the transaction name so the specific rule (longer) beats the generic airline keyword rule (shorter). Both the charge and refund rows are excluded."},
+  {"keyword": "MERCHANT NAME BILLING REVERSAL",          "category": "Internal Transfer",                         "note": "Charge reversed days later where both description variants share a common substring - single keyword excludes both if that substring is unique to this merchant. Confirm no other transactions from this merchant should remain visible."},
   {"keyword": "NOTE - AMOUNT-AWARE CORRECTIONS",         "category": "Internal Transfer",                         "note": "When a provider has two transactions with identical description text but different amounts (e.g. $103.50 original charge + $10.00 real co-pay from same merchant), keyword rules cannot distinguish them. Use the categorize_billing_corrections() special-case function in filters.py instead — it checks name AND abs(amount) together. Add a tuple (KEYWORD, TARGET_AMOUNT) to the CORRECTIONS list in that function."},
   {"keyword": "CHASE CREDIT CRD",                        "category": "Other Credit Card Expenses",                "note": "Payment toward external Chase card - statement-level detail pending"},
   {"keyword": "CITI AUTOPAY",                            "category": "Other Credit Card Expenses",                "note": "Payment toward external Citi card - statement-level detail pending"},
@@ -127,6 +128,9 @@
   {"keyword": "AMERICAN AIR",               "category": "Travel",                               "note": ""},
   {"keyword": "AIRLINE NAME",              "category": "Travel",                               "note": "Generic airline keyword - add specific cancelled-booking reference-number rules (longer) to override this for cancelled/refunded pairs"},
   {"keyword": "TRAVEL AGENCY REF CODE",   "category": "Travel",                               "note": "Travel agency booking fee tied to a specific trip reference code"},
+  {"keyword": "TRAVEL SERVICES",          "category": "Travel",                               "note": "Travel booking/services agency"},
+  {"keyword": "USCUSTOMS TRUSTEDTRAVELER","category": "Travel",                               "note": "Global Entry or TSA PreCheck enrollment/renewal fee"},
+  {"keyword": "AMTRAK.COM",               "category": "Travel",                               "note": "Amtrak long-distance train travel"},
   {"keyword": "UNITED ",                    "category": "Travel",                               "note": "Trailing space prevents matching UNITED HEALTH etc."},
 
   {"keyword": "AMC ",                        "category": "Entertainment",                        "note": "Movie theater chain - trailing space prevents matching unrelated AMC-prefixed merchants"},

@@ -71,8 +71,9 @@
   {"keyword": "CREDIT CARD Bill",                        "category": "Credit Card Payment",                       "note": "Avoid double counting - internal transfer"},
   {"keyword": "PAYMENT - THANK YOU",                     "category": "Credit Card Payment",                       "note": "Avoid double counting - internal transfer"},
 
-  {"keyword": "Online Banking transfer from BRK",        "category": "Internal Transfer",                         "note": "Brokerage/loan draw - not income — add your account number suffix"},
-  {"keyword": "Online Banking transfer to BRK",          "category": "Internal Transfer",                         "note": "Brokerage/loan repayment - not expense — add your account number suffix"},
+  {"keyword": "Online Banking transfer from BRK LOAN#",  "category": "Internal Transfer",                         "note": "Loan account draw - not income; add your specific loan account number suffix to avoid matching dividend brokerage accounts"},
+  {"keyword": "Online Banking transfer to BRK LOAN#",    "category": "Internal Transfer",                         "note": "Loan account repayment - not expense; add your specific loan account number suffix"},
+  {"keyword": "Online Banking transfer from BRK INVEST#","category": "Income - Dividends",                        "note": "Dividend/investment transfer from brokerage to checking - use the investment account number suffix to distinguish from loan account transfers"},
   {"keyword": "BANK OF AMERICA DES:MORTGAGE",            "category": "Internal Transfer",                         "note": "Mortgage debit from checking - paired with Payment Applied posting"},
   {"keyword": "Payment Applied to",                      "category": "Internal Transfer",                         "note": "Mortgage payment posting - paired with checking debit"},
   {"keyword": "transfer from CHK XXXX",                  "category": "Internal Transfer",                         "note": "Transfer from another account - verify it's not income"},
@@ -84,6 +85,7 @@
   {"keyword": "BAL ADJ/MERCHANT NAME",                   "category": "Internal Transfer",                         "note": "Reversal of a fraudulent or disputed charge - not real income"},
   {"keyword": "MERCHANT NAME DISPUTED",                  "category": "Internal Transfer",                         "note": "Fraudulent/disputed charge (later reversed) - exclude both the charge and reversal"},
   {"keyword": "AIRLINE REFNUM CANCELLED",                "category": "Internal Transfer",                         "note": "Cancelled airline booking refunded same/next day - use the full reference number from the transaction name so the specific rule (longer) beats the generic airline keyword rule (shorter). Both the charge and refund rows are excluded."},
+  {"keyword": "BNF BK:BANK NAME",                       "category": "Internal Transfer",                         "note": "International wire to a specific bank (beneficiary bank field in wire description) - more targeted than WIRE TYPE:INTL OUT which would catch all outgoing international wires. Use if only wires to this specific bank are capital transfers; wires to other banks may be real expenses."},
   {"keyword": "MERCHANT NAME BILLING REVERSAL",          "category": "Internal Transfer",                         "note": "Charge reversed days later where both description variants share a common substring - single keyword excludes both if that substring is unique to this merchant. Confirm no other transactions from this merchant should remain visible."},
   {"keyword": "NOTE - AMOUNT-AWARE CORRECTIONS",         "category": "Internal Transfer",                         "note": "When a provider has two transactions with identical description text but different amounts (e.g. $103.50 original charge + $10.00 real co-pay from same merchant), keyword rules cannot distinguish them. Use the categorize_billing_corrections() special-case function in filters.py instead — it checks name AND abs(amount) together. Add a tuple (KEYWORD, TARGET_AMOUNT) to the CORRECTIONS list in that function."},
   {"keyword": "CHASE CREDIT CRD",                        "category": "Other Credit Card Expenses",                "note": "Payment toward external Chase card - statement-level detail pending"},
@@ -99,6 +101,7 @@
   {"keyword": "HOUSING PROVIDER NAME",      "category": "Education - Kids",                     "note": "Off-campus housing for student - add provider name as it appears in statements"},
   {"keyword": "LANDLORD NAME landlord",     "category": "Education - Kids",                     "note": "Child's rent paid to named landlord - include 'landlord' suffix if that appears in the Zelle/ACH description"},
   {"keyword": "CAMPUS BOOKSTORE NAME",      "category": "Education - Kids",                     "note": "University campus bookstore"},
+  {"keyword": "UNIVERSITY STUDENT DES:",   "category": "Education - Kids",                     "note": "University ACH payment with student/department prefix - add university-specific prefix as it appears in statements"},
 
   {"keyword": "INDN:FAMILY MEMBER NAME",    "category": "Family - FamilyMember",                "note": "ACH/Venmo payments to a family member - keyword targets the INDN: recipient field in ACH descriptions, specific to this person only"},
 
@@ -150,6 +153,7 @@
   {"keyword": "SPOTIFY",                    "category": "Subscriptions",                        "note": ""},
 
   {"keyword": "UNITED TAX",                 "category": "Other - Uncategorized",                "note": "Tax prep fees - longer than UNITED  travel rule (10 > 7 chars), wins on sort"},
+  {"keyword": "INSURER HEALTHCAR",          "category": "Other - Uncategorized",                "note": "Health insurance company whose name starts with UNITED - longer keyword overrides the UNITED  travel rule on sort"},
   {"keyword": "TARGET",                     "category": "Other - Uncategorized",                "note": ""},
   {"keyword": "ONLINE RETAILER NAME",       "category": "Shopping",                             "note": "Online retail marketplace - use a plain keyword rule when no sign-aware refund routing is needed (unlike RETAILER_CATEGORIES in filters.py which handles sign-aware routing)"},
   {"keyword": "STATE DMV NAME",              "category": "Personal - DMV/Vehicle",               "note": "State DMV vehicle registration - add your state DMV name as it appears in statements"},

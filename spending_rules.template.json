@@ -57,6 +57,7 @@
   {"keyword": "SELLER OR DEPOSIT NAME",                "category": "Rental - Acquisition", "note": "Initial deposit or closing cost for new rental property acquisition"},
 
   {"keyword": "COUNTY TAX AUTHORITY DTAC",  "category": "Primary - Property Tax",               "note": "Primary residence property tax - use county-specific keyword; distinct from rental property tax rules. Routes to TOTAL PERSONAL EXPENSE (not Rental)."},
+  {"keyword": "STATE FRANCHISE TAX",        "category": "Primary - Income Tax",                 "note": "State income tax estimated payment - routes to TOTAL PERSONAL EXPENSE (not Rental). Use your state's tax board abbreviation as it appears in ACH descriptions."},
   {"keyword": "PG&E",                       "category": "Primary - Utilities",                  "note": ""},
   {"keyword": "SAN JOSE WATER",             "category": "Primary - Utilities",                  "note": ""},
   {"keyword": "RECOLOGY",                   "category": "Primary - Utilities",                  "note": ""},
@@ -86,6 +87,8 @@
   {"keyword": "MERCHANT NAME DISPUTED",                  "category": "Internal Transfer",                         "note": "Fraudulent/disputed charge (later reversed) - exclude both the charge and reversal"},
   {"keyword": "AIRLINE REFNUM CANCELLED",                "category": "Internal Transfer",                         "note": "Cancelled airline booking refunded same/next day - use the full reference number from the transaction name so the specific rule (longer) beats the generic airline keyword rule (shorter). Both the charge and refund rows are excluded."},
   {"keyword": "BNF BK:BANK NAME",                       "category": "Internal Transfer",                         "note": "International wire to a specific bank (beneficiary bank field in wire description) - more targeted than WIRE TYPE:INTL OUT which would catch all outgoing international wires. Use if only wires to this specific bank are capital transfers; wires to other banks may be real expenses."},
+  {"keyword": "FOREIGN BANK DES:EDI PAYMTS",            "category": "Internal Transfer",                         "note": "ACH EDI payment to foreign bank for investment product - capital outflow, not household expense"},
+  {"keyword": "REMITTANCE PROVIDER DES:REMITTANCE",     "category": "Internal Transfer",                         "note": "International remittance for investment capital - CAUTION: this keyword matches ALL transfers from this remittance provider, regardless of destination. Only use if you are confident all transfers from this provider are investment capital; otherwise categorize month-by-month."},
   {"keyword": "MERCHANT NAME BILLING REVERSAL",          "category": "Internal Transfer",                         "note": "Charge reversed days later where both description variants share a common substring - single keyword excludes both if that substring is unique to this merchant. Confirm no other transactions from this merchant should remain visible."},
   {"keyword": "NOTE - AMOUNT-AWARE CORRECTIONS",         "category": "Internal Transfer",                         "note": "When a provider has two transactions with identical description text but different amounts (e.g. $103.50 original charge + $10.00 real co-pay from same merchant), keyword rules cannot distinguish them. Use the categorize_billing_corrections() special-case function in filters.py instead — it checks name AND abs(amount) together. Add a tuple (KEYWORD, TARGET_AMOUNT) to the CORRECTIONS list in that function."},
   {"keyword": "CHASE CREDIT CRD",                        "category": "Other Credit Card Expenses",                "note": "Payment toward external Chase card - statement-level detail pending"},
@@ -110,6 +113,8 @@
   {"keyword": "PAYROLL",                    "category": "Income - Salary",                      "note": ""},
   {"keyword": "EMPLOYER DES:PAYMENTS",       "category": "Income - Reimbursement",               "note": "Expense reimbursement from employer - offsets real expenses already in ledger, INCLUDED in Net"},
   {"keyword": "EMPLOYER BENEFIT REFNUM",    "category": "Income - Reimbursement",               "note": "Employer benefit reimbursement with unique numeric ID in description (e.g. internet stipend) - use the numeric prefix to distinguish from salary deposits at same employer"},
+  {"keyword": "BANK NAME DES:CASHREWARD",   "category": "Income - One-Time Rewards",            "note": "Large cash-back redemption from accumulated credit card rewards - tracked separately from regular income for visibility; included in Net (exclude_from_net=False) since it is real money"},
+  {"keyword": "IRS TREAS 310",              "category": "Income - Other",                       "note": "Federal tax refund - one-time, unpredictable income"},
   {"keyword": "GOVERNMENT BENEFIT DES:",    "category": "Income - Other",                       "note": "Government benefit deposit (unemployment, disability, etc.) - add the agency prefix as it appears in statements"},
   {"keyword": "Interest Earned",            "category": "Income - Other",                       "note": ""},
 

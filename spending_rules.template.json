@@ -81,6 +81,7 @@
   {"keyword": "CHK YYYY",                                "category": "Internal Transfer",                         "note": "Family member's account - not operated by primary user, exclude all activity"},
   {"keyword": "BAL ADJ/MERCHANT NAME",                   "category": "Internal Transfer",                         "note": "Reversal of a fraudulent or disputed charge - not real income"},
   {"keyword": "MERCHANT NAME DISPUTED",                  "category": "Internal Transfer",                         "note": "Fraudulent/disputed charge (later reversed) - exclude both the charge and reversal"},
+  {"keyword": "AIRLINE REFNUM CANCELLED",                "category": "Internal Transfer",                         "note": "Cancelled airline booking refunded same/next day - use the full reference number from the transaction name so the specific rule (longer) beats the generic airline keyword rule (shorter). Both the charge and refund rows are excluded."},
   {"keyword": "CHASE CREDIT CRD",                        "category": "Other Credit Card Expenses",                "note": "Payment toward external Chase card - statement-level detail pending"},
   {"keyword": "CITI AUTOPAY",                            "category": "Other Credit Card Expenses",                "note": "Payment toward external Citi card - statement-level detail pending"},
   {"keyword": "COSTCO WHSE",                             "category": "Other Credit Card Expenses",                "note": "Costco warehouse - statement-level detail pending (tracked via Costco Visa)"},
@@ -122,6 +123,8 @@
   {"keyword": "SOUTHWEST",                  "category": "Travel",                               "note": ""},
   {"keyword": "ALASKA AIR",                 "category": "Travel",                               "note": ""},
   {"keyword": "AMERICAN AIR",               "category": "Travel",                               "note": ""},
+  {"keyword": "AIRLINE NAME",              "category": "Travel",                               "note": "Generic airline keyword - add specific cancelled-booking reference-number rules (longer) to override this for cancelled/refunded pairs"},
+  {"keyword": "TRAVEL AGENCY REF CODE",   "category": "Travel",                               "note": "Travel agency booking fee tied to a specific trip reference code"},
   {"keyword": "UNITED ",                    "category": "Travel",                               "note": "Trailing space prevents matching UNITED HEALTH etc."},
 
   {"keyword": "AMC ",                        "category": "Entertainment",                        "note": "Movie theater chain - trailing space prevents matching unrelated AMC-prefixed merchants"},

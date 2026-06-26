@@ -22,6 +22,7 @@
   {"keyword": "STEADILY INS",               "category": "Rental - Insurance",                   "note": ""},
   {"keyword": "STATE FARM",                 "category": "Rental - Insurance",                   "note": "Landlord policy - add your property address"},
   {"keyword": "INSURANCE PROVIDER NAME",   "category": "Rental - Insurance",                   "note": "Landlord/rental property insurance - add your provider name"},
+  {"keyword": "P&C INSURER NAME",          "category": "Rental - Insurance",                   "note": "Property and casualty insurance for a rental property"},
 
   {"keyword": "SAWGRASS ASSOCIA",           "category": "Rental - Property Tax/HOA",            "note": "HOA"},
   {"keyword": "TIFTON COVE",                "category": "Rental - Property Tax/HOA",            "note": "HOA"},
@@ -45,10 +46,7 @@
   {"keyword": "WASTE PROVIDER NAME",        "category": "Rental - Utilities",                   "note": "Trash/waste removal for a rental property"},
 
   {"keyword": "RANJODH",                               "category": "Rental - Maintenance", "note": ""},
-  {"keyword": "Zelle payment to Daniel Garcia",        "category": "Rental - Maintenance", "note": ""},
-  {"keyword": "Zelle payment to Jason and Meredit",    "category": "Rental - Maintenance", "note": ""},
-  {"keyword": "Zelle payment to Lacey Clemons",        "category": "Rental - Maintenance", "note": ""},
-  {"keyword": "Zelle payment to Usiel Garcia",         "category": "Rental - Maintenance", "note": ""},
+  {"keyword": "CONTRACTOR LAST NAME",                  "category": "Rental - Maintenance", "note": "Contractor - use surname or unique name substring to catch both 'Zelle payment to' and 'Zelle Scheduled payment to' format variants"},
   {"keyword": "CONTRACTOR NAME",                       "category": "Rental - Maintenance", "note": "Contractor - add property address and work description"},
   {"keyword": "HANDYMAN NAME",                          "category": "Rental - Maintenance", "note": "Handyman - add repair type and property address"},
   {"keyword": "ELECTRICIAN OR PLUMBER NAME",            "category": "Rental - Maintenance", "note": "Licensed electrician or plumber - add company name, trade, and property address"},
@@ -107,6 +105,7 @@
   {"keyword": "UNIVERSITY STUDENT DES:",   "category": "Education - Kids",                     "note": "University ACH payment with student/department prefix - add university-specific prefix as it appears in statements"},
 
   {"keyword": "INDN:FAMILY MEMBER NAME",    "category": "Family - FamilyMember",                "note": "ACH/Venmo payments to a family member - keyword targets the INDN: recipient field in ACH descriptions, specific to this person only"},
+  {"keyword": "RECIPIENT NAME",            "category": "Charitable - Donations",               "note": "Charitable contribution to a named individual or organization - routes to TOTAL PERSONAL EXPENSE"},
 
   {"keyword": "EMPLOYER NAME",              "category": "Income - Salary",                      "note": "Employer payroll - catches both DES:SALARY and DES:DIR DEP description formats. Use the merchant-name prefix as it appears in your bank statements."},
   {"keyword": "EMPLOYER LEGAL NAME",        "category": "Income - Salary",                      "note": "Second salary description variant - some payrolls use the full legal entity name instead of the operating name"},

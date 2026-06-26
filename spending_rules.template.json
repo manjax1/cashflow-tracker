@@ -50,6 +50,7 @@
   {"keyword": "Zelle payment to Usiel Garcia",         "category": "Rental - Maintenance", "note": ""},
   {"keyword": "CONTRACTOR NAME",                       "category": "Rental - Maintenance", "note": "Contractor - add property address and work description"},
   {"keyword": "HANDYMAN NAME",                          "category": "Rental - Maintenance", "note": "Handyman - add repair type and property address"},
+  {"keyword": "ELECTRICIAN OR PLUMBER NAME",            "category": "Rental - Maintenance", "note": "Licensed electrician or plumber - add company name, trade, and property address"},
   {"keyword": "BKOFAMERICA BC",                         "category": "Rental - Maintenance", "note": "Branch-counter cash withdrawal for contractor/handyman payment - distinct from BKOFAMERICA ATM (unresolved) and BKOFAMERICA MOBILE (check deposit)"},
   {"keyword": "BKOFAMERICA MOBILE",                     "category": "Income - Reimbursement", "note": "Mobile check deposit - confirm source before applying; example use: insurance reimbursement. exclude_from_net=False (included in Net)."},
   {"keyword": "SELLER OR DEPOSIT NAME",                "category": "Rental - Acquisition", "note": "Initial deposit or closing cost for new rental property acquisition"},

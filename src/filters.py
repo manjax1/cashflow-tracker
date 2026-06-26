@@ -76,6 +76,7 @@ def categorize_retail_with_refunds(transaction: dict) -> dict | None:
         "NORDSTROM":    "Shopping",
         "COSTCO WHSE":  "Other Credit Card Expenses",
         "CHIPOTLE":     "Dining",
+        "TARGET":       "Other - Uncategorized",
     }
     name_upper = transaction.get("name", "").upper()
     purchase_category = next(

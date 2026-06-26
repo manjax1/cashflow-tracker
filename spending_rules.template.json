@@ -29,6 +29,7 @@
   {"keyword": "LINK2GOV",                   "category": "Rental - Property Tax/HOA",            "note": "Property tax payment"},
   {"keyword": "COUNTY TAX AUTHORITY",       "category": "Rental - Property Tax/HOA",            "note": "Property tax payment - add your county/state tax authority name as it appears in statements"},
   {"keyword": "COUNTY DES:B2P",             "category": "Rental - Property Tax/HOA",            "note": "Annual property tax via Bill2Pay portal - use the county prefix as it appears before DES:B2P in statements"},
+  {"keyword": "B2P*COUNTY NAME DMV",        "category": "Rental - Property Tax/HOA",            "note": "Property tax DMV-suffixed variant via Bill2Pay - add your county name as it appears in statements"},
 
   {"keyword": "WOODLANDS WATER",            "category": "Rental - Utilities",                   "note": ""},
   {"keyword": "ST.JOHNS COUNTY UTL",        "category": "Rental - Utilities",                   "note": ""},
@@ -37,6 +38,7 @@
   {"keyword": "CALWATER SERVICE",           "category": "Rental - Utilities",                   "note": ""},
   {"keyword": "MANTECA*UTILITY",            "category": "Rental - Utilities",                   "note": ""},
   {"keyword": "UTILITY PROVIDER",           "category": "Rental - Utilities",                   "note": "Add your rental property utility provider name"},
+  {"keyword": "UTILITY PROVIDER VARIANT",   "category": "Rental - Utilities",                   "note": "Second description variant for same utility provider - some utilities use different ACH company names across billing cycles"},
   {"keyword": "CABLE OR INTERNET PROVIDER", "category": "Rental - Utilities",                   "note": "Rental property cable/internet - confirm all charges in this account are for rental, not primary residence"},
 
   {"keyword": "RANJODH",                               "category": "Rental - Maintenance", "note": ""},
@@ -46,6 +48,8 @@
   {"keyword": "Zelle payment to Usiel Garcia",         "category": "Rental - Maintenance", "note": ""},
   {"keyword": "CONTRACTOR NAME",                       "category": "Rental - Maintenance", "note": "Contractor - add property address and work description"},
   {"keyword": "HANDYMAN NAME",                          "category": "Rental - Maintenance", "note": "Handyman - add repair type and property address"},
+  {"keyword": "BKOFAMERICA BC",                         "category": "Rental - Maintenance", "note": "Branch-counter cash withdrawal for contractor/handyman payment - distinct from BKOFAMERICA ATM (unresolved) and BKOFAMERICA MOBILE (check deposit)"},
+  {"keyword": "BKOFAMERICA MOBILE",                     "category": "Income - Reimbursement", "note": "Mobile check deposit - confirm source before applying; example use: insurance reimbursement. exclude_from_net=False (included in Net)."},
   {"keyword": "SELLER OR DEPOSIT NAME",                "category": "Rental - Acquisition", "note": "Initial deposit or closing cost for new rental property acquisition"},
 
   {"keyword": "PG&E",                       "category": "Primary - Utilities",                  "note": ""},
@@ -69,12 +73,14 @@
   {"keyword": "transfer from CHK XXXX",                  "category": "Internal Transfer",                         "note": "Transfer from another account - verify it's not income"},
   {"keyword": "transfer to CHK XXXX",                    "category": "Internal Transfer",                         "note": "Transfer to another account - verify it's not an expense"},
   {"keyword": "CONTACT NAME",                            "category": "Internal Transfer",                         "note": "Personal loan repayment from friend/contact - not income"},
+  {"keyword": "FAMILY MEMBER NAME",                      "category": "Internal Transfer",                         "note": "Personal payment to a family member - not an expense, internal"},
   {"keyword": "CHK YYYY",                                "category": "Internal Transfer",                         "note": "Family member's account - not operated by primary user, exclude all activity"},
   {"keyword": "BAL ADJ/MERCHANT NAME",                   "category": "Internal Transfer",                         "note": "Reversal of a fraudulent or disputed charge - not real income"},
   {"keyword": "MERCHANT NAME DISPUTED",                  "category": "Internal Transfer",                         "note": "Fraudulent/disputed charge (later reversed) - exclude both the charge and reversal"},
   {"keyword": "CHASE CREDIT CRD",                        "category": "Other Credit Card Expenses",                "note": "Payment toward external Chase card - statement-level detail pending"},
   {"keyword": "CITI AUTOPAY",                            "category": "Other Credit Card Expenses",                "note": "Payment toward external Citi card - statement-level detail pending"},
   {"keyword": "COSTCO WHSE",                             "category": "Other Credit Card Expenses",                "note": "Costco warehouse - statement-level detail pending (tracked via Costco Visa)"},
+  {"keyword": "ANNUAL FEE",                             "category": "Other Credit Card Expenses",                "note": "Credit card annual fee"},
 
   {"keyword": "stock exercise",                          "category": "One-Off - Non-Recurring (excluded from Net)", "note": "Stock/equity settlement - one-time, excluded from net income calc"},
 
@@ -82,6 +88,7 @@
   {"keyword": "UCEAP",                      "category": "Education - Kids",                     "note": "UC Education Abroad Program"},
   {"keyword": "Parchment",                  "category": "Education - Kids",                     "note": "Transcript fees"},
   {"keyword": "HOUSING PROVIDER NAME",      "category": "Education - Kids",                     "note": "Off-campus housing for student - add provider name as it appears in statements"},
+  {"keyword": "CAMPUS BOOKSTORE NAME",      "category": "Education - Kids",                     "note": "University campus bookstore"},
 
   {"keyword": "INDN:FAMILY MEMBER NAME",    "category": "Family - FamilyMember",                "note": "ACH/Venmo payments to a family member - keyword targets the INDN: recipient field in ACH descriptions, specific to this person only"},
 
@@ -89,6 +96,7 @@
   {"keyword": "EMPLOYER LEGAL NAME",        "category": "Income - Salary",                      "note": "Second salary description variant - some payrolls use the full legal entity name instead of the operating name"},
   {"keyword": "PAYROLL",                    "category": "Income - Salary",                      "note": ""},
   {"keyword": "EMPLOYER DES:PAYMENTS",       "category": "Income - Reimbursement",               "note": "Expense reimbursement from employer - offsets real expenses already in ledger, INCLUDED in Net"},
+  {"keyword": "GOVERNMENT BENEFIT DES:",    "category": "Income - Other",                       "note": "Government benefit deposit (unemployment, disability, etc.) - add the agency prefix as it appears in statements"},
   {"keyword": "Interest Earned",            "category": "Income - Other",                       "note": ""},
 
   {"keyword": "WHOLE FOODS",                "category": "Groceries",                            "note": ""},
@@ -125,6 +133,8 @@
 
   {"keyword": "UNITED TAX",                 "category": "Other - Uncategorized",                "note": "Tax prep fees - longer than UNITED  travel rule (10 > 7 chars), wins on sort"},
   {"keyword": "TARGET",                     "category": "Other - Uncategorized",                "note": ""},
+  {"keyword": "STATE DMV NAME",              "category": "Personal - DMV/Vehicle",               "note": "State DMV vehicle registration - add your state DMV name as it appears in statements"},
+  {"keyword": "STATE DMV FEE",              "category": "Personal - DMV/Vehicle",               "note": "State DMV fee variant - add your state prefix"},
   {"keyword": "INTEREST CHARGE",            "category": "Other - Uncategorized",                "note": "Credit card interest charge"},
 
   {"keyword": "GYM OR FITNESS CHAIN",       "category": "Health and Fitness",                   "note": "Gym membership or fitness subscription"},

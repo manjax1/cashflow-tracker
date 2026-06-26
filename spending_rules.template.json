@@ -35,11 +35,13 @@
   {"keyword": "ST.JOHNS COUNTY UTL",        "category": "Rental - Utilities",                   "note": ""},
   {"keyword": "Beaches Energy",             "category": "Rental - Utilities",                   "note": ""},
   {"keyword": "CITY OF STOCKTON UTILITY",   "category": "Rental - Utilities",                   "note": ""},
+  {"keyword": "CITY NAME ",                 "category": "Rental - Utilities",                   "note": "City utility bill - shorter variant missing 'UTILITY' suffix (trailing space prevents overlap; longer specific rule always wins on sort when full suffix is present)"},
   {"keyword": "CALWATER SERVICE",           "category": "Rental - Utilities",                   "note": ""},
   {"keyword": "MANTECA*UTILITY",            "category": "Rental - Utilities",                   "note": ""},
   {"keyword": "UTILITY PROVIDER",           "category": "Rental - Utilities",                   "note": "Add your rental property utility provider name"},
   {"keyword": "UTILITY PROVIDER VARIANT",   "category": "Rental - Utilities",                   "note": "Second description variant for same utility provider - some utilities use different ACH company names across billing cycles"},
   {"keyword": "CABLE OR INTERNET PROVIDER", "category": "Rental - Utilities",                   "note": "Rental property cable/internet - confirm all charges in this account are for rental, not primary residence"},
+  {"keyword": "WASTE PROVIDER NAME",        "category": "Rental - Utilities",                   "note": "Trash/waste removal for a rental property"},
 
   {"keyword": "RANJODH",                               "category": "Rental - Maintenance", "note": ""},
   {"keyword": "Zelle payment to Daniel Garcia",        "category": "Rental - Maintenance", "note": ""},
@@ -72,6 +74,7 @@
   {"keyword": "Payment Applied to",                      "category": "Internal Transfer",                         "note": "Mortgage payment posting - paired with checking debit"},
   {"keyword": "transfer from CHK XXXX",                  "category": "Internal Transfer",                         "note": "Transfer from another account - verify it's not income"},
   {"keyword": "transfer to CHK XXXX",                    "category": "Internal Transfer",                         "note": "Transfer to another account - verify it's not an expense"},
+  {"keyword": "BILLING CORRECTION NAME",                 "category": "Internal Transfer",                         "note": "Billing reversal/correction that nets to zero - not a real expense or income"},
   {"keyword": "CONTACT NAME",                            "category": "Internal Transfer",                         "note": "Personal loan repayment from friend/contact - not income"},
   {"keyword": "FAMILY MEMBER NAME",                      "category": "Internal Transfer",                         "note": "Personal payment to a family member - not an expense, internal"},
   {"keyword": "CHK YYYY",                                "category": "Internal Transfer",                         "note": "Family member's account - not operated by primary user, exclude all activity"},
@@ -107,6 +110,7 @@
 
   {"keyword": "BKG*BOOKING.COM",            "category": "Travel",                               "note": ""},
   {"keyword": "HOTEL CHAIN #",              "category": "Travel",                               "note": "Extended-stay or hotel chain - add brand prefix as it appears in statements"},
+  {"keyword": "HOTEL CHAIN FULLNAME",       "category": "Travel",                               "note": "Extended-stay hotel full-name variant - add when the chain appears without a # prefix in statements"},
   {"keyword": "HOTWIRE",                    "category": "Travel",                               "note": ""},
   {"keyword": "EMPLOYEE DISCOUNT PROGRAM",  "category": "Travel",                               "note": "Employer-provided discount/travel booking program"},
   {"keyword": "AIRBNB",                     "category": "Travel",                               "note": ""},
@@ -138,6 +142,7 @@
   {"keyword": "INTEREST CHARGE",            "category": "Other - Uncategorized",                "note": "Credit card interest charge"},
 
   {"keyword": "GYM OR FITNESS CHAIN",       "category": "Health and Fitness",                   "note": "Gym membership or fitness subscription"},
+  {"keyword": "FITNESS SUBSCRIPTION",       "category": "Health and Fitness",                   "note": "Fitness class subscription service"},
   {"keyword": "GEICO",                      "category": "Primary - Insurance-Auto",              "note": "Auto insurance - non-rental"},
 
   {"keyword": "STARBUCKS",                 "category": "Dining",                               "note": "National chain - confirmed restaurant"},

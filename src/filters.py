@@ -98,7 +98,31 @@ def categorize_retail_with_refunds(transaction: dict) -> dict | None:
     }
 
 
-_SPECIAL_CASE_FNS = (categorize_hippo_insurance, categorize_retail_with_refunds)
+def categorize_billing_corrections(transaction: dict) -> dict | None:
+    """Amount-aware exclusion for billing correction pairs that net to zero.
+
+    A keyword rule alone cannot distinguish a $103.50 original charge from a
+    $10.00 co-pay at the same provider when both share identical description text.
+    Checking name + abs(amount) together targets only the matched pair.
+
+    Returns an Internal Transfer result (excluded) when both conditions match.
+    Returns None otherwise, allowing the real charge to fall through normally.
+    """
+    CORRECTIONS = [
+        ("SILICON VALLEY EYE PHY", 103.50),
+    ]
+    name_upper = transaction.get("name", "").upper()
+    amount = transaction.get("amount", 0.0)
+    for keyword, target_amount in CORRECTIONS:
+        if keyword in name_upper and abs(round(amount, 2)) == target_amount:
+            return {
+                "category": "Internal Transfer",
+                "note": f"Billing correction - {keyword} ${target_amount:.2f} charge reversed, nets to zero",
+            }
+    return None
+
+
+_SPECIAL_CASE_FNS = (categorize_hippo_insurance, categorize_retail_with_refunds, categorize_billing_corrections)
 
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -111,10 +135,17 @@ def categorize(transaction: dict, rules: list, account_label: str = "") -> dict:
     for special_fn in _SPECIAL_CASE_FNS:
         special = special_fn(transaction)
         if special is not None:
+            cat = special["category"]
+            if cat in ("Credit Card Payment", "Internal Transfer"):
+                return {
+                    "excluded": True,
+                    "reason": f"{cat} - internal transfer",
+                    "category": cat,
+                }
             tx_type = "Income" if amount < 0 else "Expense"
             return {
                 "excluded": False,
-                "category": special["category"],
+                "category": cat,
                 "account_label": account_label,
                 "amount": abs(amount),
                 "type": tx_type,

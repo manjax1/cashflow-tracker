@@ -55,6 +55,7 @@
   {"keyword": "BKOFAMERICA MOBILE",                     "category": "Income - Reimbursement", "note": "Mobile check deposit - confirm source before applying; example use: insurance reimbursement. exclude_from_net=False (included in Net)."},
   {"keyword": "SELLER OR DEPOSIT NAME",                "category": "Rental - Acquisition", "note": "Initial deposit or closing cost for new rental property acquisition"},
 
+  {"keyword": "COUNTY TAX AUTHORITY DTAC",  "category": "Primary - Property Tax",               "note": "Primary residence property tax - use county-specific keyword; distinct from rental property tax rules. Routes to TOTAL PERSONAL EXPENSE (not Rental)."},
   {"keyword": "PG&E",                       "category": "Primary - Utilities",                  "note": ""},
   {"keyword": "SAN JOSE WATER",             "category": "Primary - Utilities",                  "note": ""},
   {"keyword": "RECOLOGY",                   "category": "Primary - Utilities",                  "note": ""},
@@ -82,6 +83,7 @@
   {"keyword": "BAL ADJ/MERCHANT NAME",                   "category": "Internal Transfer",                         "note": "Reversal of a fraudulent or disputed charge - not real income"},
   {"keyword": "MERCHANT NAME DISPUTED",                  "category": "Internal Transfer",                         "note": "Fraudulent/disputed charge (later reversed) - exclude both the charge and reversal"},
   {"keyword": "AIRLINE REFNUM CANCELLED",                "category": "Internal Transfer",                         "note": "Cancelled airline booking refunded same/next day - use the full reference number from the transaction name so the specific rule (longer) beats the generic airline keyword rule (shorter). Both the charge and refund rows are excluded."},
+  {"keyword": "NOTE - AMOUNT-AWARE CORRECTIONS",         "category": "Internal Transfer",                         "note": "When a provider has two transactions with identical description text but different amounts (e.g. $103.50 original charge + $10.00 real co-pay from same merchant), keyword rules cannot distinguish them. Use the categorize_billing_corrections() special-case function in filters.py instead — it checks name AND abs(amount) together. Add a tuple (KEYWORD, TARGET_AMOUNT) to the CORRECTIONS list in that function."},
   {"keyword": "CHASE CREDIT CRD",                        "category": "Other Credit Card Expenses",                "note": "Payment toward external Chase card - statement-level detail pending"},
   {"keyword": "CITI AUTOPAY",                            "category": "Other Credit Card Expenses",                "note": "Payment toward external Citi card - statement-level detail pending"},
   {"keyword": "COSTCO WHSE",                             "category": "Other Credit Card Expenses",                "note": "Costco warehouse - statement-level detail pending (tracked via Costco Visa)"},
@@ -141,6 +143,7 @@
 
   {"keyword": "UNITED TAX",                 "category": "Other - Uncategorized",                "note": "Tax prep fees - longer than UNITED  travel rule (10 > 7 chars), wins on sort"},
   {"keyword": "TARGET",                     "category": "Other - Uncategorized",                "note": ""},
+  {"keyword": "ONLINE RETAILER NAME",       "category": "Shopping",                             "note": "Online retail marketplace - use a plain keyword rule when no sign-aware refund routing is needed (unlike RETAILER_CATEGORIES in filters.py which handles sign-aware routing)"},
   {"keyword": "STATE DMV NAME",              "category": "Personal - DMV/Vehicle",               "note": "State DMV vehicle registration - add your state DMV name as it appears in statements"},
   {"keyword": "STATE DMV FEE",              "category": "Personal - DMV/Vehicle",               "note": "State DMV fee variant - add your state prefix"},
   {"keyword": "INTEREST CHARGE",            "category": "Other - Uncategorized",                "note": "Credit card interest charge"},

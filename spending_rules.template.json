@@ -106,6 +106,7 @@
   {"keyword": "EMPLOYER LEGAL NAME",        "category": "Income - Salary",                      "note": "Second salary description variant - some payrolls use the full legal entity name instead of the operating name"},
   {"keyword": "PAYROLL",                    "category": "Income - Salary",                      "note": ""},
   {"keyword": "EMPLOYER DES:PAYMENTS",       "category": "Income - Reimbursement",               "note": "Expense reimbursement from employer - offsets real expenses already in ledger, INCLUDED in Net"},
+  {"keyword": "EMPLOYER BENEFIT REFNUM",    "category": "Income - Reimbursement",               "note": "Employer benefit reimbursement with unique numeric ID in description (e.g. internet stipend) - use the numeric prefix to distinguish from salary deposits at same employer"},
   {"keyword": "GOVERNMENT BENEFIT DES:",    "category": "Income - Other",                       "note": "Government benefit deposit (unemployment, disability, etc.) - add the agency prefix as it appears in statements"},
   {"keyword": "Interest Earned",            "category": "Income - Other",                       "note": ""},
 
@@ -131,6 +132,7 @@
   {"keyword": "AIRLINE NAME",              "category": "Travel",                               "note": "Generic airline keyword - add specific cancelled-booking reference-number rules (longer) to override this for cancelled/refunded pairs"},
   {"keyword": "TRAVEL AGENCY REF CODE",   "category": "Travel",                               "note": "Travel agency booking fee tied to a specific trip reference code"},
   {"keyword": "TRAVEL SERVICES",          "category": "Travel",                               "note": "Travel booking/services agency"},
+  {"keyword": "LANDLORD NAME housing",    "category": "Travel",                               "note": "Extended-stay housing paid to a named individual for work travel - if later reimbursed by employer, both the expense and income reimbursement appear in ledger and net correctly"},
   {"keyword": "USCUSTOMS TRUSTEDTRAVELER","category": "Travel",                               "note": "Global Entry or TSA PreCheck enrollment/renewal fee"},
   {"keyword": "AMTRAK.COM",               "category": "Travel",                               "note": "Amtrak long-distance train travel"},
   {"keyword": "UNITED ",                    "category": "Travel",                               "note": "Trailing space prevents matching UNITED HEALTH etc."},

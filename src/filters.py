@@ -122,7 +122,26 @@ def categorize_billing_corrections(transaction: dict) -> dict | None:
     return None
 
 
-_SPECIAL_CASE_FNS = (categorize_hippo_insurance, categorize_retail_with_refunds, categorize_billing_corrections)
+def categorize_exact_amount_date(transaction: dict) -> dict | None:
+    """Returns a category override for specific one-off transactions that
+    can only be identified by exact amount + date (no unique description
+    text available). Each entry here is a deliberate, manually-confirmed
+    exclusion - not a pattern, a single specific real-world event.
+    """
+    EXACT_MATCHES = {
+        ("2026-04-28", 5754.70): {
+            "category": "Internal Transfer",
+            "note": "Computer purchase for son Prateek's work - later reimbursed, nets to zero. Matched by amount+date since Plaid reports no descriptive text beyond bare 'Venmo'.",
+        },
+    }
+    name_upper = transaction.get("name", "").upper()
+    if "VENMO" not in name_upper:
+        return None
+    key = (transaction.get("date"), round(abs(transaction.get("amount", 0)), 2))
+    return EXACT_MATCHES.get(key)
+
+
+_SPECIAL_CASE_FNS = (categorize_hippo_insurance, categorize_retail_with_refunds, categorize_billing_corrections, categorize_exact_amount_date)
 
 # ─────────────────────────────────────────────────────────────────────────────
 

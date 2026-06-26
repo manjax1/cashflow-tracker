@@ -21,6 +21,7 @@
 
   {"keyword": "STEADILY INS",               "category": "Rental - Insurance",                   "note": ""},
   {"keyword": "STATE FARM",                 "category": "Rental - Insurance",                   "note": "Landlord policy - add your property address"},
+  {"keyword": "INSURANCE PROVIDER NAME",   "category": "Rental - Insurance",                   "note": "Landlord/rental property insurance - add your provider name"},
 
   {"keyword": "SAWGRASS ASSOCIA",           "category": "Rental - Property Tax/HOA",            "note": "HOA"},
   {"keyword": "TIFTON COVE",                "category": "Rental - Property Tax/HOA",            "note": "HOA"},
@@ -96,6 +97,7 @@
   {"keyword": "UCEAP",                      "category": "Education - Kids",                     "note": "UC Education Abroad Program"},
   {"keyword": "Parchment",                  "category": "Education - Kids",                     "note": "Transcript fees"},
   {"keyword": "HOUSING PROVIDER NAME",      "category": "Education - Kids",                     "note": "Off-campus housing for student - add provider name as it appears in statements"},
+  {"keyword": "LANDLORD NAME landlord",     "category": "Education - Kids",                     "note": "Child's rent paid to named landlord - include 'landlord' suffix if that appears in the Zelle/ACH description"},
   {"keyword": "CAMPUS BOOKSTORE NAME",      "category": "Education - Kids",                     "note": "University campus bookstore"},
 
   {"keyword": "INDN:FAMILY MEMBER NAME",    "category": "Family - FamilyMember",                "note": "ACH/Venmo payments to a family member - keyword targets the INDN: recipient field in ACH descriptions, specific to this person only"},

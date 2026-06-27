@@ -61,12 +61,14 @@
   {"keyword": "SAN JOSE WATER",             "category": "Primary - Utilities",                  "note": ""},
   {"keyword": "RECOLOGY",                   "category": "Primary - Utilities",                  "note": ""},
   {"keyword": "XFINITY",                    "category": "Primary - Utilities",                  "note": ""},
+  {"keyword": "GARDENER OR HANDYMAN NAME",  "category": "Primary - Maintenance",                "note": "Gardener/handyman for primary residence - routes to TOTAL PERSONAL EXPENSE, NOT Rental. Use name as it appears in Zelle/ACH descriptions."},
 
   {"keyword": "TRANSFER PROVIDER NAME",                  "category": "Income - Dividends",                        "note": "Investment income via wire/transfer - add the provider name and source institution"},
   {"keyword": "Agent Assisted transfer from BRK",        "category": "Income - Dividends",                        "note": "Merrill dividend income — replace with your actual Merrill transfer description"},
   {"keyword": "Agent Assisted transfer to BRK",          "category": "Investment - Loan Interest",                "note": "Merrill loan interest debit — replace with your actual Merrill transfer description"},
 
   {"keyword": "Online Scheduled Payment to ACCT#",       "category": "Credit Card Payment",                       "note": "Card bill pay from checking — add your account number"},
+  {"keyword": "Online Scheduled Payment to ACCT# YYYY",  "category": "Other Credit Card Expenses",                "note": "Bill pay to a tracked-separately card (not the primary connected card) - add last-4 of that card; longer keyword beats the generic ACCT# rule above"},
   {"keyword": "PAYMENT FROM CHK",                        "category": "Credit Card Payment",                       "note": "Card bill pay credit side — add your checking account number"},
   {"keyword": "CREDIT CARD Bill",                        "category": "Credit Card Payment",                       "note": "Avoid double counting - internal transfer"},
   {"keyword": "PAYMENT - THANK YOU",                     "category": "Credit Card Payment",                       "note": "Avoid double counting - internal transfer"},
@@ -103,7 +105,8 @@
   {"keyword": "HOUSING PROVIDER NAME",      "category": "Education - Kids",                     "note": "Off-campus housing for student - add provider name as it appears in statements"},
   {"keyword": "LANDLORD NAME landlord",     "category": "Education - Kids",                     "note": "Child's rent paid to named landlord - include 'landlord' suffix if that appears in the Zelle/ACH description"},
   {"keyword": "CAMPUS BOOKSTORE NAME",      "category": "Education - Kids",                     "note": "University campus bookstore"},
-  {"keyword": "UNIVERSITY STUDENT DES:",   "category": "Education - Kids",                     "note": "University ACH payment with student/department prefix - add university-specific prefix as it appears in statements"},
+  {"keyword": "UNIVERSITY STUDENT DES:",    "category": "Education - Kids",                     "note": "University ACH payment with student/department prefix - add university-specific prefix as it appears in statements"},
+  {"keyword": "UNIVERSITY ECOLL",           "category": "Education - Kids",                     "note": "University e-collections portal (e.g. NUS ECOLL2.0, UCB ECOLL) - add your university's specific prefix as it appears in statements"},
 
   {"keyword": "INDN:FAMILY MEMBER NAME",    "category": "Family - FamilyMember",                "note": "ACH/Venmo payments to a family member - keyword targets the INDN: recipient field in ACH descriptions, specific to this person only"},
   {"keyword": "RECIPIENT NAME",            "category": "Charitable - Donations",               "note": "Charitable contribution to a named individual or organization - routes to TOTAL PERSONAL EXPENSE"},
@@ -157,6 +160,7 @@
 
   {"keyword": "NETFLIX",                    "category": "Subscriptions",                        "note": ""},
   {"keyword": "SPOTIFY",                    "category": "Subscriptions",                        "note": ""},
+  {"keyword": "APPLE.COM/BILL",             "category": "Subscriptions",                        "note": "Recurring Apple app/subscription charges"},
 
   {"keyword": "UNITED TAX",                 "category": "Primary - Income Tax",                 "note": "Tax prep fees - longer than UNITED travel rule (10 > 7 chars), wins on sort. Grouped with Primary - Income Tax alongside Franchise Tax Board."},
   {"keyword": "INSURER HEALTHCAR",          "category": "Other - Uncategorized",                "note": "Health insurance company whose name starts with UNITED - longer keyword overrides the UNITED  travel rule on sort"},
@@ -164,7 +168,9 @@
   {"keyword": "ONLINE RETAILER NAME",       "category": "Shopping",                             "note": "Online retail marketplace - use a plain keyword rule when no sign-aware refund routing is needed (unlike RETAILER_CATEGORIES in filters.py which handles sign-aware routing)"},
   {"keyword": "STATE DMV NAME",              "category": "Personal - DMV/Vehicle",               "note": "State DMV vehicle registration - add your state DMV name as it appears in statements"},
   {"keyword": "STATE DMV FEE",              "category": "Personal - DMV/Vehicle",               "note": "State DMV fee variant - add your state prefix"},
-  {"keyword": "INTEREST CHARGE",            "category": "Other - Uncategorized",                "note": "Credit card interest charge"},
+  {"keyword": "INTEREST CHARGE ADJUSTMENT", "category": "Income - Other",                       "note": "Credit card interest-charge reversal/correction - longer keyword (26) beats INTEREST CHARGE (15), so adjustments route here while base charges still hit Other - Uncategorized"},
+  {"keyword": "LATE CHARGE ADJUSTMENT",    "category": "Income - Other",                       "note": "Credit card late-fee reversal/correction"},
+  {"keyword": "INTEREST CHARGE",           "category": "Other - Uncategorized",                "note": "Credit card interest charge"},
 
   {"keyword": "GYM OR FITNESS CHAIN",       "category": "Health and Fitness",                   "note": "Gym membership or fitness subscription"},
   {"keyword": "FITNESS SUBSCRIPTION",       "category": "Health and Fitness",                   "note": "Fitness class subscription service"},

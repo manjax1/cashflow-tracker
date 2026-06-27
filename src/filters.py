@@ -75,7 +75,9 @@ def categorize_retail_with_refunds(transaction: dict) -> dict | None:
         "MARSHALLS":    "Shopping",
         "NORDSTROM":    "Shopping",
         "NIKE":         "Shopping",
+        "COSTCO GAS":   "Transportation",
         "COSTCO WHSE":  "Other Credit Card Expenses",
+        "COSTCO":       "Other Credit Card Expenses",
         "CHIPOTLE":     "Dining",
         "TARGET":       "Other - Uncategorized",
     }

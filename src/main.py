@@ -108,11 +108,15 @@ def run_sync(from_date: date = None, to_date: date = None) -> dict:
 
     included, excluded = categorize_batch(raw_transactions, rules, account_map)
 
-    # Count excluded rental specifically
+    # Warn if any excluded transaction's name contains rental-related signals —
+    # guards against broad exclusion rules accidentally suppressing rental income
+    # or expenses (the same class of bug as the Hari Vasantapu keyword-shadowing
+    # fix). CC payments are always intentional and excluded from this count.
+    _RENTAL_NAME_SIGNALS = ("rent", "tenant", "lease")
     excluded_rental_count = sum(
         1 for tx in excluded
-        if "rental" in (tx.get("reason") or "").lower()
-        or tx.get("category") != "Credit Card Payment"
+        if tx.get("category") != "Credit Card Payment"
+        and any(sig in (tx.get("name") or "").lower() for sig in _RENTAL_NAME_SIGNALS)
     )
 
     result = write_spending_ledger(ledger_path, included)

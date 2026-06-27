@@ -1,7 +1,7 @@
 import os
 import sys
 import threading
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from flask import Flask, jsonify, request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -277,6 +277,134 @@ def ledger_info():
             "expense": round(expense,          2),
             "net":     round(income - expense, 2),
             "generated_at": _get_local_time(),
+        })
+
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route("/transactions")
+def transactions():
+    """Read-only: return ledger transactions filtered by date range, category, and account."""
+    today = date.today()
+
+    since_str     = request.args.get("since")
+    from_date_str = request.args.get("from_date")
+    to_date_str   = request.args.get("to_date")
+
+    if since_str and (from_date_str or to_date_str):
+        return jsonify({"status": "error",
+                        "message": "'since' cannot be combined with from_date or to_date"}), 400
+
+    if since_str:
+        from_date, err = _parse_date_param(since_str, "since")
+        if err:
+            return err
+        to_date = today
+    else:
+        if from_date_str:
+            from_date, err = _parse_date_param(from_date_str, "from_date")
+            if err:
+                return err
+        else:
+            from_date = today - timedelta(days=30)
+
+        if to_date_str:
+            to_date, err = _parse_date_param(to_date_str, "to_date")
+            if err:
+                return err
+        else:
+            to_date = today
+
+    if to_date < from_date:
+        return jsonify({"status": "error",
+                        "message": f"to_date ({to_date}) must not be before from_date ({from_date})"}), 400
+
+    category_filter = request.args.get("category")
+    account_filter  = request.args.get("account")
+
+    ledger_path, _ = resolve_ledger_path()
+    if not ledger_path:
+        return jsonify({"status": "error", "message": "SPENDING_LEDGER_FILE_PATH not set"}), 500
+    if not os.path.exists(ledger_path):
+        return jsonify({"status": "error", "message": f"Ledger not found at {ledger_path}"}), 404
+
+    try:
+        import openpyxl
+        wb = openpyxl.load_workbook(ledger_path, read_only=True, data_only=True)
+        ws = wb["Transactions"]
+
+        raw_header = [c.value for c in next(ws.iter_rows(min_row=1, max_row=1))]
+        col      = {name: i for i, name in enumerate(raw_header) if name}
+        date_idx = col.get("Date",         0)
+        desc_idx = col.get("Description",  1)
+        acct_idx = col.get("Account",      2)
+        cat_idx  = col.get("Category",     3)
+        type_idx = col.get("Type",         4)
+        amt_idx  = col.get("Amount",       5)
+        net_idx  = col.get("IncludeInNet", 6)
+
+        txns          = []
+        total_income  = 0.0
+        total_expense = 0.0
+
+        for row in ws.iter_rows(min_row=2, values_only=True):
+            if not row[0]:
+                continue
+
+            dv = row[date_idx]
+            try:
+                d = dv.date() if hasattr(dv, "date") else date.fromisoformat(str(dv)[:10])
+            except Exception:
+                continue
+
+            if d < from_date or d > to_date:
+                continue
+
+            cat   = str(row[cat_idx]  or "")
+            acct  = str(row[acct_idx] or "")
+
+            if category_filter and cat  != category_filter:
+                continue
+            if account_filter  and acct != account_filter:
+                continue
+
+            ttype = str(row[type_idx] or "")
+            amt   = float(row[amt_idx] or 0)
+
+            txns.append({
+                "date":        str(d),
+                "description": str(row[desc_idx] or ""),
+                "account":     acct,
+                "category":    cat,
+                "type":        ttype,
+                "amount":      round(amt, 2),
+            })
+
+            if row[net_idx] is not False:
+                if ttype == "Income":
+                    total_income  += amt
+                elif ttype == "Expense":
+                    total_expense += amt
+
+        wb.close()
+
+        txns.sort(key=lambda t: t["date"], reverse=True)
+
+        active_filters = {k: v for k, v in
+                          [("category", category_filter), ("account", account_filter)] if v}
+
+        return jsonify({
+            "from_date": str(from_date),
+            "to_date":   str(to_date),
+            "filters":   active_filters,
+            "summary": {
+                "count":         len(txns),
+                "total_income":  round(total_income,              2),
+                "total_expense": round(total_expense,             2),
+                "net":           round(total_income - total_expense, 2),
+            },
+            "transactions": txns,
         })
 
     except Exception as e:

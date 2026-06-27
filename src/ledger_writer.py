@@ -592,8 +592,7 @@ def write_spending_ledger(filepath: str, new_transactions: list) -> dict:
         existing_keys.add(key)
         added += 1
 
-    if added > 0:
-        _refresh_summary_formulas(wb, year)
+    _refresh_summary_formulas(wb, year)
 
     wb.save(filepath)
     return {"added": added, "skipped": skipped}

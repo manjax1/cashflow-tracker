@@ -15,9 +15,15 @@ from plaid_client import PlaidClient
 from filters import load_rules, categorize_batch
 from ledger_writer import write_spending_ledger
 from email_notifier import send_sync_summary
-from drive_sync import download_ledger, upload_ledger
+from drive_sync import download_ledger, upload_ledger, snapshot_ledger, snapshot_exists_for_month
 
 RULES_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "spending_rules.json")
+
+# Drive folder IDs confirmed via direct API lookup 2026-06-26.
+# Base folder ("Cashflow tracker") is the parent of the live ledger file (GOOGLE_DRIVE_FILE_ID).
+# Snapshots go into the dedicated subfolder ("Ledger Snapshots"), NOT the base folder.
+GOOGLE_DRIVE_BASE_FOLDER_ID      = "1_iuGyDS0A2MFEQxmw3AD5kVvDrG8x9U8"
+GOOGLE_DRIVE_SNAPSHOTS_FOLDER_ID = "1UQkaoofB3o8I9xG7ZZ-gvmTfL2aaVaM6"
 
 
 def _resolve_ledger_path() -> tuple[str, bool]:
@@ -156,10 +162,25 @@ def run_sync(from_date: date = None, to_date: date = None) -> dict:
         print(f"⚠️  Email failed: {e}")
 
     if is_cloud and file_id:
+        upload_ok = False
         try:
             upload_ledger(file_id, ledger_path)
+            upload_ok = True
         except Exception as e:
             print(f"⚠️  Drive upload failed: {e}")
+
+        if upload_ok:
+            try:
+                year_month = date.today().strftime("%Y-%m")
+                snapshot_name = f"cashflow-tracker-snapshot-{year_month}.xlsx"
+                if snapshot_exists_for_month(GOOGLE_DRIVE_SNAPSHOTS_FOLDER_ID, year_month):
+                    print(f"📸 Snapshot already exists for {year_month} — skipping.")
+                else:
+                    new_id = snapshot_ledger(ledger_path, GOOGLE_DRIVE_SNAPSHOTS_FOLDER_ID, snapshot_name)
+                    summary["snapshot_id"] = new_id
+                    summary["snapshot_name"] = snapshot_name
+            except Exception as e:
+                print(f"⚠️  Monthly snapshot failed (non-fatal): {e}")
 
     excl_parts = [
         f"{len(txns)} from {mask} ({EXCLUDED_MASKS[mask]})"

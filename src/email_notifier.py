@@ -89,12 +89,16 @@ def _build_html(summary: dict) -> str:
 """
 
 
-def send_via_resend(recipient: str, subject: str, html_body: str, api_key: str, sender: str) -> bool:
+def send_via_resend(recipient: str, subject: str, html_body: str, api_key: str, sender: str,
+                    attachments: list[dict] | None = None) -> bool:
+    payload: dict = {"from": sender, "to": [recipient], "subject": subject, "html": html_body}
+    if attachments:
+        payload["attachments"] = attachments
     resp = requests.post(
         "https://api.resend.com/emails",
         headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-        json={"from": sender, "to": [recipient], "subject": subject, "html": html_body},
-        timeout=15,
+        json=payload,
+        timeout=30,
     )
     resp.raise_for_status()
     return True
@@ -128,7 +132,7 @@ def send_via_sendgrid(recipient: str, subject: str, html_body: str, api_key: str
     return True
 
 
-def send_sync_summary(summary: dict):
+def send_sync_summary(summary: dict, attachments: list[dict] | None = None):
     recipient = clean_env(os.getenv("EMAIL_RECIPIENT"), "EMAIL_RECIPIENT")
     sender = clean_env(os.getenv("EMAIL_SENDER", "onboarding@resend.dev"), "EMAIL_SENDER")
     resend_key = clean_env(os.getenv("RESEND_API_KEY"), "RESEND_API_KEY")
@@ -143,7 +147,8 @@ def send_sync_summary(summary: dict):
 
     try:
         if resend_key:
-            send_via_resend(recipient, subject, html_body, resend_key, "Spending Tracker <onboarding@resend.dev>")
+            send_via_resend(recipient, subject, html_body, resend_key,
+                            "Spending Tracker <onboarding@resend.dev>", attachments)
             print("✅ Email sent via Resend")
             return
     except Exception as e:

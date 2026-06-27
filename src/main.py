@@ -1,5 +1,6 @@
 import os
 import sys
+import base64
 import argparse
 from datetime import date, timedelta, datetime
 from collections import defaultdict
@@ -13,17 +14,12 @@ load_dotenv()
 from utils import clean_env, resolve_ledger_path
 from plaid_client import PlaidClient
 from filters import load_rules, categorize_batch
-from ledger_writer import write_spending_ledger
+from openpyxl import load_workbook
+from ledger_writer import write_spending_ledger, get_last_snapshot_month, set_last_snapshot_month
 from email_notifier import send_sync_summary
-from drive_sync import download_ledger, upload_ledger, snapshot_ledger, snapshot_exists_for_month
+from drive_sync import download_ledger, upload_ledger
 
 RULES_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "spending_rules.json")
-
-# Drive folder IDs confirmed via direct API lookup 2026-06-26.
-# Base folder ("Cashflow tracker") is the parent of the live ledger file (GOOGLE_DRIVE_FILE_ID).
-# Snapshots go into the dedicated subfolder ("Ledger Snapshots"), NOT the base folder.
-GOOGLE_DRIVE_BASE_FOLDER_ID      = "1_iuGyDS0A2MFEQxmw3AD5kVvDrG8x9U8"
-GOOGLE_DRIVE_SNAPSHOTS_FOLDER_ID = "1UQkaoofB3o8I9xG7ZZ-gvmTfL2aaVaM6"
 
 
 def _resolve_ledger_path() -> tuple[str, bool]:
@@ -156,10 +152,9 @@ def run_sync(from_date: date = None, to_date: date = None) -> dict:
         "plaid_env": plaid_env,
     }
 
-    try:
-        send_sync_summary(summary)
-    except Exception as e:
-        print(f"⚠️  Email failed: {e}")
+    need_snapshot    = False
+    snapshot_attachment: list[dict] | None = None
+    year_month = date.today().strftime("%Y-%m")
 
     if is_cloud and file_id:
         upload_ok = False
@@ -171,16 +166,39 @@ def run_sync(from_date: date = None, to_date: date = None) -> dict:
 
         if upload_ok:
             try:
-                year_month = date.today().strftime("%Y-%m")
-                snapshot_name = f"cashflow-tracker-snapshot-{year_month}.xlsx"
-                if snapshot_exists_for_month(GOOGLE_DRIVE_SNAPSHOTS_FOLDER_ID, year_month):
-                    print(f"📸 Snapshot already exists for {year_month} — skipping.")
+                wb_meta = load_workbook(ledger_path, read_only=True)
+                last = get_last_snapshot_month(wb_meta)
+                wb_meta.close()
+                if last != year_month:
+                    need_snapshot = True
+                    with open(ledger_path, "rb") as _f:
+                        encoded = base64.b64encode(_f.read()).decode()
+                    snapshot_attachment = [{
+                        "filename": f"cashflow-tracker-snapshot-{year_month}.xlsx",
+                        "content": encoded,
+                    }]
+                    print(f"📸 New month ({year_month}) — ledger will be attached to sync email.")
                 else:
-                    new_id = snapshot_ledger(ledger_path, GOOGLE_DRIVE_SNAPSHOTS_FOLDER_ID, snapshot_name)
-                    summary["snapshot_id"] = new_id
-                    summary["snapshot_name"] = snapshot_name
+                    print(f"📸 Snapshot already sent for {year_month} — no attachment this run.")
             except Exception as e:
-                print(f"⚠️  Monthly snapshot failed (non-fatal): {e}")
+                print(f"⚠️  _Meta read failed (non-fatal): {e}")
+
+    email_ok = False
+    try:
+        send_sync_summary(summary, attachments=snapshot_attachment)
+        email_ok = True
+    except Exception as e:
+        print(f"⚠️  Email failed: {e}")
+
+    if need_snapshot and email_ok and is_cloud and file_id:
+        try:
+            wb_meta = load_workbook(ledger_path)
+            set_last_snapshot_month(wb_meta, year_month)
+            wb_meta.save(ledger_path)
+            upload_ledger(file_id, ledger_path)
+            print(f"📸 _Meta updated and re-uploaded for {year_month}")
+        except Exception as e:
+            print(f"⚠️  _Meta update/re-upload failed (non-fatal): {e}")
 
     excl_parts = [
         f"{len(txns)} from {mask} ({EXCLUDED_MASKS[mask]})"

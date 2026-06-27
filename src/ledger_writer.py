@@ -584,3 +584,30 @@ def write_spending_ledger(filepath: str, new_transactions: list) -> dict:
 
     wb.save(filepath)
     return {"added": added, "skipped": skipped}
+
+
+def get_last_snapshot_month(wb) -> str | None:
+    """Read the last year-month a snapshot email was sent from the hidden _Meta sheet.
+    Returns None if the sheet or key is absent (triggers snapshot on next cloud sync).
+    Compatible with workbooks opened read_only=True.
+    """
+    if "_Meta" not in wb.sheetnames:
+        return None
+    ws = wb["_Meta"]
+    for row in ws.iter_rows(min_row=1, max_row=20, values_only=True):
+        if row and row[0] == "last_snapshot_month":
+            return str(row[1]) if row[1] else None
+    return None
+
+
+def set_last_snapshot_month(wb, year_month: str) -> None:
+    """Write the year-month marker into the hidden _Meta sheet, creating it if absent.
+    Caller must save the workbook after this call.
+    """
+    if "_Meta" not in wb.sheetnames:
+        ws = wb.create_sheet("_Meta")
+        ws.sheet_state = "hidden"
+    else:
+        ws = wb["_Meta"]
+    ws["A1"] = "last_snapshot_month"
+    ws["B1"] = year_month

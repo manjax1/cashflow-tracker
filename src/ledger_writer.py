@@ -292,6 +292,19 @@ def _refresh_summary_formulas(wb, year: int):
             c.font = GRAND_FONT
         cur += 1
 
+    # Net Income (Total Income − Total Expense) — per-month column formulas
+    if ms_income_subtotal and ms_grand_expense:
+        ms.cell(row=cur, column=1, value="NET INCOME").font = NET_FONT
+        ms.cell(row=cur, column=1).fill = NET_FILL
+        for col in range(2, total_col + 1):
+            ltr = get_column_letter(col)
+            c = ms.cell(row=cur, column=col,
+                        value=f"={ltr}{ms_income_subtotal}-{ltr}{ms_grand_expense}")
+            c.number_format = CURRENCY_FMT
+            c.fill = NET_FILL
+            c.font = NET_FONT
+        cur += 1
+
     # Stacked bar chart (expense categories only)
     all_exp_rows = ms_rental_rows + ms_personal_rows
     if all_exp_rows:

@@ -43,6 +43,9 @@ def _build_html(summary: dict) -> str:
         if excluded_rental > 0 else ""
     )
 
+    from datetime import timedelta
+    next_sync = (date.today() + timedelta(days=1)).strftime("%Y-%m-%d")
+
     return f"""
 <html><body style='font-family:Arial,sans-serif;max-width:700px;margin:auto'>
 <h2 style='color:#1F3864'>Spending Tracker — {run_date}</h2>
@@ -83,7 +86,7 @@ def _build_html(summary: dict) -> str:
   </table>
 </details>
 <p style='font-size:11px;color:#888;margin-top:24px'>
-  Ledger: {ledger_path} &nbsp;|&nbsp; Plaid: {plaid_env} &nbsp;|&nbsp; Next sync: Monday
+  Ledger: {ledger_path} &nbsp;|&nbsp; Plaid: {plaid_env} &nbsp;|&nbsp; Next sync: {next_sync}
 </p>
 </body></html>
 """

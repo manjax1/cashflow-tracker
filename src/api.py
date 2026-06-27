@@ -201,5 +201,87 @@ def sync_test():
     return jsonify(results)
 
 
+@app.route("/ledger/info")
+def ledger_info():
+    """Diagnostic: read the live ledger file and return real row-level totals.
+    Completely read-only — opens with read_only=True, data_only=True, no writes.
+    """
+    ledger_path = clean_env(os.getenv("SPENDING_LEDGER_FILE_PATH"), "SPENDING_LEDGER_FILE_PATH")
+    if not ledger_path:
+        return jsonify({"status": "error", "message": "SPENDING_LEDGER_FILE_PATH not set"}), 500
+    if not os.path.exists(ledger_path):
+        return jsonify({"status": "error", "message": f"Ledger not found at {ledger_path}"}), 404
+
+    try:
+        import openpyxl
+        wb = openpyxl.load_workbook(ledger_path, read_only=True, data_only=True)
+        ws = wb["Transactions"]
+
+        # Map column positions from the actual header row so renames don't silently break this.
+        # Expected order: Date, Description, Account, Category, Type, Amount, IncludeInNet, SourceRef
+        raw_header = [c.value for c in next(ws.iter_rows(min_row=1, max_row=1))]
+        col = {name: i for i, name in enumerate(raw_header) if name}
+        date_idx = col.get("Date",         0)
+        type_idx = col.get("Type",         4)
+        amt_idx  = col.get("Amount",       5)
+        net_idx  = col.get("IncludeInNet", 6)
+
+        total   = 0
+        income  = 0.0
+        expense = 0.0
+        earliest = None
+        latest   = None
+
+        for row in ws.iter_rows(min_row=2, values_only=True):
+            if not row[0]:          # skip blank rows
+                continue
+            total += 1
+
+            # Parse date — openpyxl may return datetime, date, or ISO string
+            dv = row[date_idx]
+            try:
+                if hasattr(dv, "date"):
+                    d = dv.date()
+                elif isinstance(dv, str):
+                    from datetime import date as _date
+                    d = _date.fromisoformat(str(dv)[:10])
+                else:
+                    d = None
+                if d:
+                    if earliest is None or d < earliest:
+                        earliest = d
+                    if latest is None or d > latest:
+                        latest = d
+            except Exception:
+                pass
+
+            # Sum Income / Expense (skip rows excluded from net)
+            amt     = row[amt_idx]
+            include = row[net_idx]
+            if amt is not None and include is not False:
+                ttype = str(row[type_idx] or "")
+                if ttype == "Income":
+                    income  += float(amt)
+                elif ttype == "Expense":
+                    expense += float(amt)
+
+        wb.close()
+
+        return jsonify({
+            "status":       "ok",
+            "ledger_path":  ledger_path,
+            "row_count":    total,
+            "earliest_date": str(earliest) if earliest else None,
+            "latest_date":   str(latest)   if latest   else None,
+            "income":  round(income,           2),
+            "expense": round(expense,          2),
+            "net":     round(income - expense, 2),
+            "generated_at": _get_local_time(),
+        })
+
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.getenv("PORT", 8080)))

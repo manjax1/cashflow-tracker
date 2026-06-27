@@ -30,9 +30,10 @@ import openpyxl
 from csv_importer import parse_checking_csv, parse_credit_card_csv, RULES_PATH
 from filters import load_rules, categorize_batch
 from ledger_writer import write_spending_ledger
+from utils import clean_env
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
-LEDGER_PATH = "/Users/manjax/Documents/cashflow-tracker.xlsx"
+LEDGER_PATH = clean_env(os.getenv("SPENDING_LEDGER_FILE_PATH"), "SPENDING_LEDGER_FILE_PATH")
 REPORT_PATH = "/Users/manjax/Downloads/BoA/FULL_IMPORT_REPORT_2025-07_to_2026-03.txt"
 W = 115  # line width — matches dry-run report format
 

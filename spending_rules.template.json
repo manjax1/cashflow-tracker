@@ -156,7 +156,7 @@
   {"keyword": "NETFLIX",                    "category": "Subscriptions",                        "note": ""},
   {"keyword": "SPOTIFY",                    "category": "Subscriptions",                        "note": ""},
 
-  {"keyword": "UNITED TAX",                 "category": "Other - Uncategorized",                "note": "Tax prep fees - longer than UNITED  travel rule (10 > 7 chars), wins on sort"},
+  {"keyword": "UNITED TAX",                 "category": "Primary - Income Tax",                 "note": "Tax prep fees - longer than UNITED travel rule (10 > 7 chars), wins on sort. Grouped with Primary - Income Tax alongside Franchise Tax Board."},
   {"keyword": "INSURER HEALTHCAR",          "category": "Other - Uncategorized",                "note": "Health insurance company whose name starts with UNITED - longer keyword overrides the UNITED  travel rule on sort"},
   {"keyword": "TARGET",                     "category": "Other - Uncategorized",                "note": ""},
   {"keyword": "ONLINE RETAILER NAME",       "category": "Shopping",                             "note": "Online retail marketplace - use a plain keyword rule when no sign-aware refund routing is needed (unlike RETAILER_CATEGORIES in filters.py which handles sign-aware routing)"},

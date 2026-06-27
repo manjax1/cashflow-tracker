@@ -23,6 +23,7 @@
   {"keyword": "STATE FARM",                 "category": "Rental - Insurance",                   "note": "Landlord policy - add your property address"},
   {"keyword": "INSURANCE PROVIDER NAME",   "category": "Rental - Insurance",                   "note": "Landlord/rental property insurance - add your provider name"},
   {"keyword": "P&C INSURER NAME",          "category": "Rental - Insurance",                   "note": "Property and casualty insurance for a rental property"},
+  {"keyword": "PAYMENT PROCESSOR NAME",   "category": "Rental - Insurance",                   "note": "Payment processor for rental property insurance - use the processor name as it appears in statements (e.g. Lightspeed Speci)"},
 
   {"keyword": "SAWGRASS ASSOCIA",           "category": "Rental - Property Tax/HOA",            "note": "HOA"},
   {"keyword": "TIFTON COVE",                "category": "Rental - Property Tax/HOA",            "note": "HOA"},
@@ -112,6 +113,7 @@
   {"keyword": "PAYROLL",                    "category": "Income - Salary",                      "note": ""},
   {"keyword": "EMPLOYER DES:PAYMENTS",       "category": "Income - Reimbursement",               "note": "Expense reimbursement from employer - offsets real expenses already in ledger, INCLUDED in Net"},
   {"keyword": "EMPLOYER BENEFIT REFNUM",    "category": "Income - Reimbursement",               "note": "Employer benefit reimbursement with unique numeric ID in description (e.g. internet stipend) - use the numeric prefix to distinguish from salary deposits at same employer"},
+  {"keyword": "EMPLOYER BENEFIT REFNUM2",  "category": "Income - Reimbursement",               "note": "Second employer benefit reimbursement ID - same type as EMPLOYER BENEFIT REFNUM, different transaction ID (e.g. internet stipend issued under a new payment reference)"},
   {"keyword": "BANK NAME DES:CASHREWARD",   "category": "Income - One-Time Rewards",            "note": "Large cash-back redemption from accumulated credit card rewards - tracked separately from regular income for visibility; included in Net (exclude_from_net=False) since it is real money"},
   {"keyword": "IRS TREAS 310",              "category": "Income - Other",                       "note": "Federal tax refund - one-time, unpredictable income"},
   {"keyword": "GOVERNMENT BENEFIT DES:",    "category": "Income - Other",                       "note": "Government benefit deposit (unemployment, disability, etc.) - add the agency prefix as it appears in statements"},

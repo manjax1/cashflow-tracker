@@ -1,4 +1,5 @@
 import os
+from calendar import monthrange as _cal_mrange
 from datetime import date
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, PatternFill, Alignment
@@ -128,7 +129,22 @@ def _refresh_summary_formulas(wb, year: int):
     except ValueError:
         ly_end = f"{last_year}-12-31"
 
-    total_col = len(MONTHS) + 2  # column N in Monthly Summary
+    # Scan Transactions for the actual (year, month) pairs present in the data.
+    # This drives dynamic column generation so July–December 2025 data isn't
+    # silently zeroed by formulas that only match the current calendar year.
+    ym_set: set = set()
+    for _scan_row in tx_ws.iter_rows(min_row=2, values_only=True):
+        _dv = _scan_row[0]
+        if not _dv:
+            continue
+        try:
+            _d = _dv.date() if hasattr(_dv, "date") else date.fromisoformat(str(_dv))
+            ym_set.add((_d.year, _d.month))
+        except Exception:
+            continue
+    # [(2025, 7), (2025, 8), …, (2026, 3)] — chronological; fall back to current year if empty
+    active_months: list[tuple[int, int]] = sorted(ym_set) or [(year, m) for m in range(1, 13)]
+    total_col = len(active_months) + 2   # A=category, dynamic month cols, last col=Total
 
     # Scan Transactions sheet: build ordered category lists by type.
     # Skip categories where IncludeInNet (col G) is False — those rows are
@@ -164,18 +180,23 @@ def _refresh_summary_formulas(wb, year: int):
             f'Transactions!F$2:F$10000)'
         )
 
-    def _month_end(month_num):
-        end_day = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month_num - 1]
-        if month_num == 2 and (year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)):
-            end_day = 29
-        return f"{year}-{month_num:02d}-{end_day:02d}"
+    def _month_end_str(yr: int, mn: int) -> str:
+        return f"{yr}-{mn:02d}-{_cal_mrange(yr, mn)[1]:02d}"
 
     # ════════════════════════════════════════════════════════════════════════
     # MONTHLY SUMMARY
     # ════════════════════════════════════════════════════════════════════════
     ms  = wb["Monthly Summary"]
-    _clear_ws(ms, from_row=3)
-    cur = 3  # next writable row
+    _clear_ws(ms, from_row=2)   # also rebuilds the month-header row
+    cur = 3                     # first data row; row 2 is rebuilt below as dynamic headers
+
+    # Rebuild month header row (row 2) with "MMM YYYY" labels per active month
+    month_labels = [f"{MONTHS[mn - 1]} {yr}" for yr, mn in active_months]
+    _header_row(ms, ["Category"] + month_labels + ["Total"], row=2)
+    for col_idx in range(2, total_col + 1):
+        ms.cell(row=2, column=col_idx).alignment = Alignment(horizontal="center")
+        ms.column_dimensions[get_column_letter(col_idx)].width = 13 if col_idx == total_col else 11
+    ms.freeze_panes = "B3"
 
     # tracks row numbers for subtotals so we can reference them in grand totals
     ms_income_subtotal    = None
@@ -200,15 +221,14 @@ def _refresh_summary_formulas(wb, year: int):
         cf = _category_fill(cat)
         ms.cell(row=r, column=1, value=cat).fill = cf
         ms.cell(row=r, column=1).font = Font(name="Arial", size=10)
-        for m_idx in range(2, len(MONTHS) + 2):
-            mn = m_idx - 1
-            c = ms.cell(row=r, column=m_idx,
-                        value=_sp(cat, tx_type, f"{year}-{mn:02d}-01", _month_end(mn)))
+        for col_idx, (yr, mn) in enumerate(active_months, start=2):
+            c = ms.cell(row=r, column=col_idx,
+                        value=_sp(cat, tx_type, f"{yr}-{mn:02d}-01", _month_end_str(yr, mn)))
             c.number_format = CURRENCY_FMT
             c.font  = Font(name="Arial", size=10)
             c.fill  = cf
         b = get_column_letter(2)
-        m = get_column_letter(1 + len(MONTHS))
+        m = get_column_letter(1 + len(active_months))
         ms.cell(row=r, column=total_col,
                 value=f"=SUM({b}{r}:{m}{r})").number_format = CURRENCY_FMT
         cur += 1
@@ -276,22 +296,28 @@ def _refresh_summary_formulas(wb, year: int):
     all_exp_rows = ms_rental_rows + ms_personal_rows
     if all_exp_rows:
         try:
+            ms._charts.clear()
             chart = BarChart()
             chart.type     = "col"
             chart.grouping = "stacked"
-            chart.title    = f"Monthly Spending by Category — {year}"
+            _ym_lo, _ym_hi = active_months[0], active_months[-1]
+            chart.title    = (
+                f"Monthly Spending by Category  "
+                f"{MONTHS[_ym_lo[1] - 1]} {_ym_lo[0]}–{MONTHS[_ym_hi[1] - 1]} {_ym_hi[0]}"
+            )
             chart.y_axis.title = "Amount ($)"
             chart.x_axis.title = "Month"
             chart.width    = 32
             chart.height   = 18
+            _n_months = len(active_months)
             from openpyxl.chart import Series
             for r in all_exp_rows:
                 series = Series(
-                    Reference(ms, min_col=2, max_col=len(MONTHS) + 1, min_row=r, max_row=r),
+                    Reference(ms, min_col=2, max_col=_n_months + 1, min_row=r, max_row=r),
                     title=ms.cell(row=r, column=1).value,
                 )
                 chart.series.append(series)
-            chart.set_categories(Reference(ms, min_col=2, max_col=len(MONTHS) + 1, min_row=2))
+            chart.set_categories(Reference(ms, min_col=2, max_col=_n_months + 1, min_row=2))
             ms.add_chart(chart, f"A{cur + 1}")
         except Exception:
             pass
@@ -318,23 +344,20 @@ def _refresh_summary_formulas(wb, year: int):
                     row_date = date_val.date() if hasattr(date_val, "date") else date_val
                 else:
                     row_date = date.fromisoformat(str(date_val))
-                if row_date.year != year:
-                    continue
             except Exception:
                 continue
-            monthly_totals[row_date.month][cat] += abs(float(amount))
+            monthly_totals[(row_date.year, row_date.month)][cat] += abs(float(amount))
 
-        for m_idx in range(1, len(MONTHS) + 1):
-            month_data = monthly_totals.get(m_idx, {})
+        for col_idx, ym in enumerate(active_months, start=2):
+            month_data = monthly_totals.get(ym, {})
             if not month_data:
                 continue
             max_val = max(month_data.values())
             if max_val == 0:
                 continue
-            col = m_idx + 1  # month 1 → column B (col index 2)
             for cat, val in month_data.items():
                 if val == max_val:
-                    cell = ms.cell(row=ms_cat_row_map[cat], column=col)
+                    cell = ms.cell(row=ms_cat_row_map[cat], column=col_idx)
                     cell.fill = HIGHLIGHT_FILL
                     cell.font = HIGHLIGHT_FONT
 

@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from utils import clean_env
+from utils import clean_env, resolve_ledger_path
 from plaid_client import PlaidClient
 from filters import load_rules, categorize_batch
 from ledger_writer import write_spending_ledger
@@ -21,12 +21,7 @@ RULES_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "spending_
 
 
 def _resolve_ledger_path() -> tuple[str, bool]:
-    """Returns (ledger_path, is_cloud)."""
-    is_cloud = bool(os.getenv("RAILWAY_ENVIRONMENT"))
-    if is_cloud:
-        return "/tmp/cashflow-tracker.xlsx", True
-    path = clean_env(os.getenv("SPENDING_LEDGER_FILE_PATH"), "SPENDING_LEDGER_FILE_PATH")
-    return path, False
+    return resolve_ledger_path()
 
 
 def _load_rules_with_fallback() -> list:

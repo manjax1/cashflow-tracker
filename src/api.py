@@ -7,7 +7,7 @@ from flask import Flask, jsonify, request
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from utils import clean_env
+from utils import clean_env, resolve_ledger_path
 
 app = Flask(__name__)
 
@@ -206,7 +206,7 @@ def ledger_info():
     """Diagnostic: read the live ledger file and return real row-level totals.
     Completely read-only — opens with read_only=True, data_only=True, no writes.
     """
-    ledger_path = clean_env(os.getenv("SPENDING_LEDGER_FILE_PATH"), "SPENDING_LEDGER_FILE_PATH")
+    ledger_path, _ = resolve_ledger_path()
     if not ledger_path:
         return jsonify({"status": "error", "message": "SPENDING_LEDGER_FILE_PATH not set"}), 500
     if not os.path.exists(ledger_path):

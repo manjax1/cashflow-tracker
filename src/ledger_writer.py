@@ -616,10 +616,12 @@ def _refresh_summary_formulas(wb, year: int):
         c.font = _label_font
 
     # Row 4: FILTER formula — spills when B2 has content, returns "" when empty.
-    # Written in GS syntax (not Excel): FILTER takes separate condition args,
-    # no if_empty 3rd arg; IFERROR handles the zero-results case.
+    # _xlfn._xlws. prefix is required: openpyxl writes bare FILTER, which GS
+    # wraps in DUMMYFUNCTION (unexecutable). The prefix matches what Excel 365
+    # stores internally for dynamic array functions, and GS translates it to its
+    # native FILTER on open.
     dd.cell(row=4, column=1,
-            value='=IF(B2="","",IFERROR(FILTER(Transactions!A2:F10000,'
+            value='=IF(B2="","",IFERROR(_xlfn._xlws.FILTER(Transactions!A2:F10000,'
                   'ISNUMBER(SEARCH(B2,Transactions!B2:B10000)),'
                   'Transactions!A2:A10000<>""),"No matching transactions"))')
 
@@ -644,13 +646,17 @@ def _refresh_summary_formulas(wb, year: int):
         c.fill = _label_fill
         c.font = _label_font
 
-    # Row 33: FILTER formula — "All Months"/"All Categories" OR-addition trick:
-    # (B31="All Months") evaluates to 1 (truthy) for every row when selected,
-    # making the month condition always pass.  Same pattern for categories.
+    # Row 33: FILTER formula.  Month condition uses IF+YEAR/MONTH instead of
+    # TEXT() string comparison because GS auto-converts "May 2026" → date when
+    # the user selects from the dropdown, making TEXT(...)=B31 always false.
+    # YEAR()/MONTH() work correctly whether B31 holds a date or a date-like string.
+    # Category condition uses OR-addition: (E31="All Categories") is scalar 1
+    # (truthy) when selected, making every row pass.
     # Multiple FILTER condition args are ANDed by GS automatically.
     dd.cell(row=33, column=1,
-            value='=IFERROR(FILTER(Transactions!A2:F10000,'
-                  '(B31="All Months")+(TEXT(Transactions!A2:A10000,"MMM YYYY")=B31),'
+            value='=IFERROR(_xlfn._xlws.FILTER(Transactions!A2:F10000,'
+                  'IF(B31="All Months",TRUE,'
+                  '(YEAR(Transactions!A2:A10000)=YEAR(B31))*(MONTH(Transactions!A2:A10000)=MONTH(B31))),'
                   '(E31="All Categories")+(Transactions!D2:D10000=E31),'
                   'Transactions!A2:A10000<>""),"No matching transactions")')
 

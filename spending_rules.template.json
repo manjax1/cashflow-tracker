@@ -107,6 +107,7 @@
   {"keyword": "CAMPUS BOOKSTORE NAME",      "category": "Education - Kids",                     "note": "University campus bookstore"},
   {"keyword": "UNIVERSITY STUDENT DES:",    "category": "Education - Kids",                     "note": "University ACH payment with student/department prefix - add university-specific prefix as it appears in statements"},
   {"keyword": "UNIVERSITY ECOLL",           "category": "Education - Kids",                     "note": "University e-collections portal (e.g. NUS ECOLL2.0, UCB ECOLL) - add your university's specific prefix as it appears in statements"},
+  {"keyword": "FOREIGN TRANSACTION FEE",   "category": "Education - Kids",                     "note": "Foreign transaction fees tied to student's overseas university expenses"},
 
   {"keyword": "INDN:FAMILY MEMBER NAME",    "category": "Family - FamilyMember",                "note": "ACH/Venmo payments to a family member - keyword targets the INDN: recipient field in ACH descriptions, specific to this person only"},
   {"keyword": "RECIPIENT NAME",            "category": "Charitable - Donations",               "note": "Charitable contribution to a named individual or organization - routes to TOTAL PERSONAL EXPENSE"},
@@ -161,6 +162,8 @@
   {"keyword": "NETFLIX",                    "category": "Subscriptions",                        "note": ""},
   {"keyword": "SPOTIFY",                    "category": "Subscriptions",                        "note": ""},
   {"keyword": "APPLE.COM/BILL",             "category": "Subscriptions",                        "note": "Recurring Apple app/subscription charges"},
+  {"keyword": "A MEDIUM CORPORATION",      "category": "Subscriptions",                        "note": "Online computing forum subscription (e.g. Medium)"},
+  {"keyword": "OPENAI",                    "category": "Subscriptions",                        "note": "AI tool monthly subscription (e.g. ChatGPT Plus)"},
 
   {"keyword": "UNITED TAX",                 "category": "Primary - Income Tax",                 "note": "Tax prep fees - longer than UNITED travel rule (10 > 7 chars), wins on sort. Grouped with Primary - Income Tax alongside Franchise Tax Board."},
   {"keyword": "INSURER HEALTHCAR",          "category": "Other - Uncategorized",                "note": "Health insurance company whose name starts with UNITED - longer keyword overrides the UNITED  travel rule on sort"},

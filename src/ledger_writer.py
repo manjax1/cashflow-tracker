@@ -584,7 +584,7 @@ def _refresh_summary_formulas(wb, year: int):
     # Written in gray italic so they recede visually.  DataValidation dropdowns
     # reference these ranges on the same sheet (most reliable in GS xlsx import).
     distinct_categories = income_cats + rental_exp_cats + personal_exp_cats
-    month_vals = ["All Months"] + [f"{MONTHS[mn - 1]} {yr}" for yr, mn in active_months]
+    month_vals = ["All Months"] + [f"M{yr}-{mn:02d}" for yr, mn in active_months]
     cat_vals   = ["All Categories"] + distinct_categories
 
     for i, val in enumerate(month_vals, start=1):
@@ -607,7 +607,7 @@ def _refresh_summary_formulas(wb, year: int):
     # Row 2: search term input label (B2 left blank — user types here)
     dd.cell(row=2, column=1, value="Search term:").font = _body_bold
 
-    # Row 3: column headers above FILTER output
+    # Row 3: column headers above QUERY output
     for col_idx, label in enumerate(
         ["Date", "Description", "Account", "Category", "Type", "Amount"], start=1
     ):
@@ -615,15 +615,12 @@ def _refresh_summary_formulas(wb, year: int):
         c.fill = _label_fill
         c.font = _label_font
 
-    # Row 4: FILTER formula — spills when B2 has content, returns "" when empty.
-    # _xlfn._xlws. prefix is required: openpyxl writes bare FILTER, which GS
-    # wraps in DUMMYFUNCTION (unexecutable). The prefix matches what Excel 365
-    # stores internally for dynamic array functions, and GS translates it to its
-    # native FILTER on open.
+    # Row 4: QUERY formula — spills results when B2 has content, "" when empty.
+    # QUERY() with lower()/like confirmed working in GS from openpyxl-written xlsx.
     dd.cell(row=4, column=1,
-            value='=IF(B2="","",IFERROR(_xlfn._xlws.FILTER(Transactions!A2:F10000,'
-                  'ISNUMBER(SEARCH(B2,Transactions!B2:B10000)),'
-                  'Transactions!A2:A10000<>""),"No matching transactions"))')
+            value='=IF(B2="","",IFERROR(QUERY(Transactions!A2:F10000,'
+                  '"select * where Col1 is not null and lower(Col2) like \'%"'
+                  '&LOWER(B2)&"%\'",0),"No matching transactions"))')
 
     # ── Section 2: Month + Category Lookup ──────────────────────────────
     # Row 30: section header band (leaves rows 5-29 as spill space for Section 1)
@@ -638,7 +635,7 @@ def _refresh_summary_formulas(wb, year: int):
     dd.cell(row=31, column=4, value="Category:").font = _body_bold
     # B31 and E31 left blank — populated at runtime via DataValidation dropdowns
 
-    # Row 32: column headers above FILTER output
+    # Row 32: column headers above QUERY output
     for col_idx, label in enumerate(
         ["Date", "Description", "Account", "Category", "Type", "Amount"], start=1
     ):
@@ -646,24 +643,30 @@ def _refresh_summary_formulas(wb, year: int):
         c.fill = _label_fill
         c.font = _label_font
 
-    # Row 33: FILTER formula.  Month condition uses IF+YEAR/MONTH instead of
-    # TEXT() string comparison because GS auto-converts "May 2026" → date when
-    # the user selects from the dropdown, making TEXT(...)=B31 always false.
-    # YEAR()/MONTH() work correctly whether B31 holds a date or a date-like string.
-    # Category condition uses OR-addition: (E31="All Categories") is scalar 1
-    # (truthy) when selected, making every row pass.
-    # Multiple FILTER condition args are ANDed by GS automatically.
+    # Row 33: QUERY formula — WHERE clause built dynamically from B31/E31.
+    # Month format "M{year}-{month:02d}" avoids GS date auto-conversion.
+    # GQL month() is 0-indexed (Jan=0…Dec=11), so VALUE(RIGHT(B31,2))-1 converts
+    # the 1-indexed month in the M-format string to the GQL-expected value.
     dd.cell(row=33, column=1,
-            value='=IFERROR(_xlfn._xlws.FILTER(Transactions!A2:F10000,'
-                  'IF(B31="All Months",TRUE,'
-                  '(YEAR(Transactions!A2:A10000)=YEAR(B31))*(MONTH(Transactions!A2:A10000)=MONTH(B31))),'
-                  '(E31="All Categories")+(Transactions!D2:D10000=E31),'
-                  'Transactions!A2:A10000<>""),"No matching transactions")')
+            value='=IFERROR(QUERY(Transactions!A2:F10000,'
+                  '"select * where Col1 is not null"'
+                  '&IF(B31="All Months",""," and year(Col1) = "&VALUE(MID(B31,2,4))&" and month(Col1) = "&(VALUE(RIGHT(B31,2))-1))'
+                  '&IF(E31="All Categories",""," and Col4 = \'"&E31&"\'"),'
+                  '0),"No matching transactions")')
 
     # ── DataValidation dropdowns ─────────────────────────────────────────
-    # showDropDown=False → dropdown arrow IS visible (openpyxl parameter is inverted).
-    dv_month = DataValidation(type="list", formula1=month_dv_range, showDropDown=False)
-    dv_cat   = DataValidation(type="list", formula1=cat_dv_range,   showDropDown=False)
+    # showDropDown=False → arrow IS visible (openpyxl name is inverted).
+    # showErrorMessage=True + default errorStyle "stop" → rejects invalid entries.
+    dv_month = DataValidation(
+        type="list", formula1=month_dv_range, showDropDown=False,
+        allow_blank=True, showErrorMessage=True,
+        errorTitle="Invalid month", error="Select a value from the dropdown list.",
+    )
+    dv_cat = DataValidation(
+        type="list", formula1=cat_dv_range, showDropDown=False,
+        allow_blank=True, showErrorMessage=True,
+        errorTitle="Invalid category", error="Select a value from the dropdown list.",
+    )
     dd.add_data_validation(dv_month)
     dd.add_data_validation(dv_cat)
     dv_month.add("B31")

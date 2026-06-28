@@ -92,6 +92,12 @@ def _build_summary_sheet(wb, year: int):
     tc.fill = HEADER_FILL
     tc.alignment = Alignment(horizontal="center")
     ws.column_dimensions[get_column_letter(total_col)].width = 13
+    avg_col = total_col + 1
+    ac = ws.cell(row=2, column=avg_col, value="Trailing 12-Mo Avg")
+    ac.font = HEADER_FONT
+    ac.fill = HEADER_FILL
+    ac.alignment = Alignment(horizontal="center")
+    ws.column_dimensions[get_column_letter(avg_col)].width = 16
     ws.freeze_panes = "B3"
     return ws
 
@@ -145,6 +151,11 @@ def _refresh_summary_formulas(wb, year: int):
     # [(2025, 7), (2025, 8), …, (2026, 3)] — chronological; fall back to current year if empty
     active_months: list[tuple[int, int]] = sorted(ym_set) or [(year, m) for m in range(1, 13)]
     total_col = len(active_months) + 2   # A=category, dynamic month cols, last col=Total
+    avg_col   = total_col + 1            # Trailing 12-Mo Avg (rightmost column)
+    # AVERAGE range spans the last min(N, 12) month columns (never the Total column).
+    # Month cols run from 2 to total_col-1; trailing-12 start = max(2, total_col-12).
+    _avg_start = get_column_letter(max(2, total_col - 12))
+    _avg_end   = get_column_letter(total_col - 1)
 
     # Scan Transactions sheet: build ordered category lists by type.
     # Skip categories where IncludeInNet (col G) is False — those rows are
@@ -192,10 +203,15 @@ def _refresh_summary_formulas(wb, year: int):
 
     # Rebuild month header row (row 2) with "MMM YYYY" labels per active month
     month_labels = [f"{MONTHS[mn - 1]} {yr}" for yr, mn in active_months]
-    _header_row(ms, ["Category"] + month_labels + ["Total"], row=2)
-    for col_idx in range(2, total_col + 1):
+    _header_row(ms, ["Category"] + month_labels + ["Total", "Trailing 12-Mo Avg"], row=2)
+    for col_idx in range(2, avg_col + 1):
         ms.cell(row=2, column=col_idx).alignment = Alignment(horizontal="center")
-        ms.column_dimensions[get_column_letter(col_idx)].width = 13 if col_idx == total_col else 11
+        if col_idx == avg_col:
+            ms.column_dimensions[get_column_letter(col_idx)].width = 16
+        elif col_idx == total_col:
+            ms.column_dimensions[get_column_letter(col_idx)].width = 13
+        else:
+            ms.column_dimensions[get_column_letter(col_idx)].width = 11
     ms.freeze_panes = "B3"
 
     # tracks row numbers for subtotals so we can reference them in grand totals
@@ -207,7 +223,7 @@ def _refresh_summary_formulas(wb, year: int):
 
     def _ms_sec_header(label):
         nonlocal cur
-        for col in range(1, total_col + 1):
+        for col in range(1, avg_col + 1):
             c = ms.cell(row=cur, column=col)
             c.fill  = SEC_FILL
             c.font  = SEC_FONT if col == 1 else Font(name="Arial", size=10)
@@ -231,6 +247,11 @@ def _refresh_summary_formulas(wb, year: int):
         m = get_column_letter(1 + len(active_months))
         ms.cell(row=r, column=total_col,
                 value=f"=SUM({b}{r}:{m}{r})").number_format = CURRENCY_FMT
+        avg_c = ms.cell(row=r, column=avg_col,
+                        value=f"=AVERAGE({_avg_start}{r}:{_avg_end}{r})")
+        avg_c.number_format = CURRENCY_FMT
+        avg_c.font  = Font(name="Arial", size=10)
+        avg_c.fill  = cf
         cur += 1
         return r
 
@@ -246,6 +267,11 @@ def _refresh_summary_formulas(wb, year: int):
             c.number_format = CURRENCY_FMT
             c.fill = fill
             c.font = font
+        avg_c = ms.cell(row=r, column=avg_col,
+                        value=f"=AVERAGE({_avg_start}{r}:{_avg_end}{r})")
+        avg_c.number_format = CURRENCY_FMT
+        avg_c.fill = fill
+        avg_c.font = font
         cur += 1
         return r
 
@@ -290,6 +316,11 @@ def _refresh_summary_formulas(wb, year: int):
             c.number_format = CURRENCY_FMT
             c.fill = GRAND_FILL
             c.font = GRAND_FONT
+        ge_avg = ms.cell(row=cur, column=avg_col,
+                         value=f"=AVERAGE({_avg_start}{cur}:{_avg_end}{cur})")
+        ge_avg.number_format = CURRENCY_FMT
+        ge_avg.fill = GRAND_FILL
+        ge_avg.font = GRAND_FONT
         cur += 1
 
     # Net Income (Total Income − Total Expense) — per-month column formulas
@@ -303,6 +334,11 @@ def _refresh_summary_formulas(wb, year: int):
             c.number_format = CURRENCY_FMT
             c.fill = NET_FILL
             c.font = NET_FONT
+        ni_avg = ms.cell(row=cur, column=avg_col,
+                         value=f"=AVERAGE({_avg_start}{cur}:{_avg_end}{cur})")
+        ni_avg.number_format = CURRENCY_FMT
+        ni_avg.fill = NET_FILL
+        ni_avg.font = NET_FONT
         cur += 1
 
     # Stacked bar chart (expense categories only)

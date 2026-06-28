@@ -650,13 +650,14 @@ def _refresh_summary_formulas(wb, year: int):
         c.font = _label_font
 
     # Row 33: QUERY formula — WHERE clause built dynamically from I31/L31.
-    # Month format "M{year}-{month:02d}" avoids GS date auto-conversion.
-    # GQL month() is 0-indexed (Jan=0…Dec=11), so VALUE(RIGHT(I31,2))-1 converts
-    # the 1-indexed month in the M-format string to the GQL-expected value.
+    # Month format "M{year}-{month:02d}" (e.g. "M2026-06"); MID(I31,2,7) strips
+    # the "M" prefix to get "2026-06" for GQL "starts with" text matching.
+    # Dates in Transactions are stored as text strings ("2026-06-22"), so
+    # year()/month() GQL functions cannot be used — they require a true Date column.
     dd.cell(row=33, column=8,
             value='=IFERROR(QUERY(Transactions!A2:F10000,'
                   '"select * where Col1 is not null"'
-                  '&IF(I31="All Months",""," and year(Col1) = "&VALUE(MID(I31,2,4))&" and month(Col1) = "&(VALUE(RIGHT(I31,2))-1))'
+                  '&IF(I31="All Months",""," and Col1 starts with \'"&MID(I31,2,7)&"\'")'
                   '&IF(L31="All Categories",""," and Col4 = \'"&L31&"\'"),'
                   '0),"No matching transactions")')
 

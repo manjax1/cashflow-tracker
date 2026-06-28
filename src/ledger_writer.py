@@ -5,6 +5,7 @@ from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.chart import BarChart, Reference
 from openpyxl.utils import get_column_letter
+from openpyxl.worksheet.datavalidation import DataValidation
 
 HEADER_FILL  = PatternFill("solid", fgColor="1F3864")
 HEADER_FONT  = Font(name="Arial", bold=True, color="FFFFFF", size=11)
@@ -119,6 +120,19 @@ def _build_yoy_sheet(wb):
     ws.column_dimensions["A"].width = 34
     for col in "BCDE":
         ws.column_dimensions[col].width = 18
+    return ws
+
+
+def _build_drilldown_sheet(wb):
+    ws = wb.create_sheet("Drill-down")
+    ws.column_dimensions["A"].width = 12   # Date
+    ws.column_dimensions["B"].width = 38   # Description
+    ws.column_dimensions["C"].width = 18   # Account
+    ws.column_dimensions["D"].width = 34   # Category
+    ws.column_dimensions["E"].width = 10   # Type
+    ws.column_dimensions["F"].width = 14   # Amount
+    ws.column_dimensions["I"].width = 14   # helper: month list
+    ws.column_dimensions["J"].width = 36   # helper: category list
     return ws
 
 
@@ -554,6 +568,101 @@ def _refresh_summary_formulas(wb, year: int):
                  value=f"=IF(C{cur}=0,\"\",B{cur}/C{cur}-1)").number_format = "0.0%"
         cur += 1
 
+    # ════════════════════════════════════════════════════════════════════════
+    # DRILL-DOWN
+    # ════════════════════════════════════════════════════════════════════════
+    dd = wb["Drill-down"]
+    _clear_ws(dd, from_row=1)
+    dd.data_validations.dataValidation = []   # drop stale dropdowns before re-adding
+
+    _helper_font = Font(name="Arial", size=9, italic=True, color="AAAAAA")
+    _label_fill  = PatternFill("solid", fgColor="D6DCE4")
+    _label_font  = Font(name="Arial", bold=True, size=10)
+    _body_bold   = Font(name="Arial", bold=True, size=10)
+
+    # ── Helper column I: months;  column J: categories ───────────────────
+    # Written in gray italic so they recede visually.  DataValidation dropdowns
+    # reference these ranges on the same sheet (most reliable in GS xlsx import).
+    distinct_categories = income_cats + rental_exp_cats + personal_exp_cats
+    month_vals = ["All Months"] + [f"{MONTHS[mn - 1]} {yr}" for yr, mn in active_months]
+    cat_vals   = ["All Categories"] + distinct_categories
+
+    for i, val in enumerate(month_vals, start=1):
+        dd.cell(row=i, column=9, value=val).font = _helper_font
+
+    for j, val in enumerate(cat_vals, start=1):
+        dd.cell(row=j, column=10, value=val).font = _helper_font
+
+    month_dv_range = f"$I$1:$I${len(month_vals)}"
+    cat_dv_range   = f"$J$1:$J${len(cat_vals)}"
+
+    # ── Section 1: Quick Search ──────────────────────────────────────────
+    # Row 1: section header band
+    for col in range(1, 7):
+        c = dd.cell(row=1, column=col)
+        c.fill  = SEC_FILL
+        c.font  = SEC_FONT if col == 1 else Font(name="Arial", size=10)
+        c.value = "Quick Search" if col == 1 else None
+
+    # Row 2: search term input label (B2 left blank — user types here)
+    dd.cell(row=2, column=1, value="Search term:").font = _body_bold
+
+    # Row 3: column headers above FILTER output
+    for col_idx, label in enumerate(
+        ["Date", "Description", "Account", "Category", "Type", "Amount"], start=1
+    ):
+        c = dd.cell(row=3, column=col_idx, value=label)
+        c.fill = _label_fill
+        c.font = _label_font
+
+    # Row 4: FILTER formula — spills when B2 has content, returns "" when empty.
+    # Written in GS syntax (not Excel): FILTER takes separate condition args,
+    # no if_empty 3rd arg; IFERROR handles the zero-results case.
+    dd.cell(row=4, column=1,
+            value='=IF(B2="","",IFERROR(FILTER(Transactions!A2:F10000,'
+                  'ISNUMBER(SEARCH(B2,Transactions!B2:B10000)),'
+                  'Transactions!A2:A10000<>""),"No matching transactions"))')
+
+    # ── Section 2: Month + Category Lookup ──────────────────────────────
+    # Row 30: section header band (leaves rows 5-29 as spill space for Section 1)
+    for col in range(1, 7):
+        c = dd.cell(row=30, column=col)
+        c.fill  = SEC_FILL
+        c.font  = SEC_FONT if col == 1 else Font(name="Arial", size=10)
+        c.value = "Month & Category Lookup" if col == 1 else None
+
+    # Row 31: dropdown input labels + cells
+    dd.cell(row=31, column=1, value="Month:").font    = _body_bold
+    dd.cell(row=31, column=4, value="Category:").font = _body_bold
+    # B31 and E31 left blank — populated at runtime via DataValidation dropdowns
+
+    # Row 32: column headers above FILTER output
+    for col_idx, label in enumerate(
+        ["Date", "Description", "Account", "Category", "Type", "Amount"], start=1
+    ):
+        c = dd.cell(row=32, column=col_idx, value=label)
+        c.fill = _label_fill
+        c.font = _label_font
+
+    # Row 33: FILTER formula — "All Months"/"All Categories" OR-addition trick:
+    # (B31="All Months") evaluates to 1 (truthy) for every row when selected,
+    # making the month condition always pass.  Same pattern for categories.
+    # Multiple FILTER condition args are ANDed by GS automatically.
+    dd.cell(row=33, column=1,
+            value='=IFERROR(FILTER(Transactions!A2:F10000,'
+                  '(B31="All Months")+(TEXT(Transactions!A2:A10000,"MMM YYYY")=B31),'
+                  '(E31="All Categories")+(Transactions!D2:D10000=E31),'
+                  'Transactions!A2:A10000<>""),"No matching transactions")')
+
+    # ── DataValidation dropdowns ─────────────────────────────────────────
+    # showDropDown=False → dropdown arrow IS visible (openpyxl parameter is inverted).
+    dv_month = DataValidation(type="list", formula1=month_dv_range, showDropDown=False)
+    dv_cat   = DataValidation(type="list", formula1=cat_dv_range,   showDropDown=False)
+    dd.add_data_validation(dv_month)
+    dd.add_data_validation(dv_cat)
+    dv_month.add("B31")
+    dv_cat.add("E31")
+
 
 def write_spending_ledger(filepath: str, new_transactions: list) -> dict:
     year = date.today().year
@@ -564,6 +673,7 @@ def write_spending_ledger(filepath: str, new_transactions: list) -> dict:
         if "Monthly Summary" not in wb.sheetnames: _build_summary_sheet(wb, year)
         if "YTD Summary"     not in wb.sheetnames: _build_ytd_sheet(wb)
         if "YoY Trends"      not in wb.sheetnames: _build_yoy_sheet(wb)
+        if "Drill-down"      not in wb.sheetnames: _build_drilldown_sheet(wb)
         # Migrate: add IncludeInNet column G to existing files that pre-date this column
         _tx = wb["Transactions"]
         if _tx["G1"].value != "IncludeInNet":
@@ -599,6 +709,7 @@ def write_spending_ledger(filepath: str, new_transactions: list) -> dict:
         _build_summary_sheet(wb, year)
         _build_ytd_sheet(wb)
         _build_yoy_sheet(wb)
+        _build_drilldown_sheet(wb)
 
     tx_ws = wb["Transactions"]
     existing_keys = _existing_keys(tx_ws)

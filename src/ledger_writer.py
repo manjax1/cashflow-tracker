@@ -125,14 +125,20 @@ def _build_yoy_sheet(wb):
 
 def _build_drilldown_sheet(wb):
     ws = wb.create_sheet("Drill-down")
-    ws.column_dimensions["A"].width = 12   # Date
-    ws.column_dimensions["B"].width = 38   # Description
-    ws.column_dimensions["C"].width = 18   # Account
-    ws.column_dimensions["D"].width = 34   # Category
-    ws.column_dimensions["E"].width = 10   # Type
-    ws.column_dimensions["F"].width = 14   # Amount
-    ws.column_dimensions["I"].width = 14   # helper: month list
-    ws.column_dimensions["J"].width = 36   # helper: category list
+    ws.column_dimensions["A"].width = 12   # Section 1: Date
+    ws.column_dimensions["B"].width = 38   # Section 1: Description
+    ws.column_dimensions["C"].width = 18   # Section 1: Account
+    ws.column_dimensions["D"].width = 34   # Section 1: Category
+    ws.column_dimensions["E"].width = 10   # Section 1: Type
+    ws.column_dimensions["F"].width = 14   # Section 1: Amount
+    ws.column_dimensions["H"].width = 12   # Section 2: Date
+    ws.column_dimensions["I"].width = 38   # Section 2: Description
+    ws.column_dimensions["J"].width = 18   # Section 2: Account
+    ws.column_dimensions["K"].width = 34   # Section 2: Category
+    ws.column_dimensions["L"].width = 10   # Section 2: Type
+    ws.column_dimensions["M"].width = 14   # Section 2: Amount
+    ws.column_dimensions["N"].width = 14   # helper: month list
+    ws.column_dimensions["O"].width = 36   # helper: category list
     return ws
 
 
@@ -588,13 +594,13 @@ def _refresh_summary_formulas(wb, year: int):
     cat_vals   = ["All Categories"] + distinct_categories
 
     for i, val in enumerate(month_vals, start=1):
-        dd.cell(row=i, column=9, value=val).font = _helper_font
+        dd.cell(row=i, column=14, value=val).font = _helper_font
 
     for j, val in enumerate(cat_vals, start=1):
-        dd.cell(row=j, column=10, value=val).font = _helper_font
+        dd.cell(row=j, column=15, value=val).font = _helper_font
 
-    month_dv_range = f"$I$1:$I${len(month_vals)}"
-    cat_dv_range   = f"$J$1:$J${len(cat_vals)}"
+    month_dv_range = f"$N$1:$N${len(month_vals)}"
+    cat_dv_range   = f"$O$1:$O${len(cat_vals)}"
 
     # ── Section 1: Quick Search ──────────────────────────────────────────
     # Row 1: section header band
@@ -623,35 +629,35 @@ def _refresh_summary_formulas(wb, year: int):
                   '&LOWER(B2)&"%\'",0),"No matching transactions"))')
 
     # ── Section 2: Month + Category Lookup ──────────────────────────────
-    # Row 30: section header band (leaves rows 5-29 as spill space for Section 1)
-    for col in range(1, 7):
+    # Row 30: section header band — H:M (Section 2 occupies H30:M33+)
+    for col in range(8, 14):
         c = dd.cell(row=30, column=col)
         c.fill  = SEC_FILL
-        c.font  = SEC_FONT if col == 1 else Font(name="Arial", size=10)
-        c.value = "Month & Category Lookup" if col == 1 else None
+        c.font  = SEC_FONT if col == 8 else Font(name="Arial", size=10)
+        c.value = "Month & Category Lookup" if col == 8 else None
 
-    # Row 31: dropdown input labels + cells
-    dd.cell(row=31, column=1, value="Month:").font    = _body_bold
-    dd.cell(row=31, column=4, value="Category:").font = _body_bold
-    # B31 and E31 left blank — populated at runtime via DataValidation dropdowns
+    # Row 31: dropdown input labels + cells (H31="Month:", I31=dropdown; K31="Category:", L31=dropdown)
+    dd.cell(row=31, column=8,  value="Month:").font    = _body_bold   # H31
+    dd.cell(row=31, column=11, value="Category:").font = _body_bold   # K31
+    # I31 and L31 left blank — populated at runtime via DataValidation dropdowns
 
     # Row 32: column headers above QUERY output
     for col_idx, label in enumerate(
         ["Date", "Description", "Account", "Category", "Type", "Amount"], start=1
     ):
-        c = dd.cell(row=32, column=col_idx, value=label)
+        c = dd.cell(row=32, column=col_idx + 7, value=label)
         c.fill = _label_fill
         c.font = _label_font
 
-    # Row 33: QUERY formula — WHERE clause built dynamically from B31/E31.
+    # Row 33: QUERY formula — WHERE clause built dynamically from I31/L31.
     # Month format "M{year}-{month:02d}" avoids GS date auto-conversion.
-    # GQL month() is 0-indexed (Jan=0…Dec=11), so VALUE(RIGHT(B31,2))-1 converts
+    # GQL month() is 0-indexed (Jan=0…Dec=11), so VALUE(RIGHT(I31,2))-1 converts
     # the 1-indexed month in the M-format string to the GQL-expected value.
-    dd.cell(row=33, column=1,
+    dd.cell(row=33, column=8,
             value='=IFERROR(QUERY(Transactions!A2:F10000,'
                   '"select * where Col1 is not null"'
-                  '&IF(B31="All Months",""," and year(Col1) = "&VALUE(MID(B31,2,4))&" and month(Col1) = "&(VALUE(RIGHT(B31,2))-1))'
-                  '&IF(E31="All Categories",""," and Col4 = \'"&E31&"\'"),'
+                  '&IF(I31="All Months",""," and year(Col1) = "&VALUE(MID(I31,2,4))&" and month(Col1) = "&(VALUE(RIGHT(I31,2))-1))'
+                  '&IF(L31="All Categories",""," and Col4 = \'"&L31&"\'"),'
                   '0),"No matching transactions")')
 
     # ── DataValidation dropdowns ─────────────────────────────────────────
@@ -669,8 +675,8 @@ def _refresh_summary_formulas(wb, year: int):
     )
     dd.add_data_validation(dv_month)
     dd.add_data_validation(dv_cat)
-    dv_month.add("B31")
-    dv_cat.add("E31")
+    dv_month.add("I31")
+    dv_cat.add("L31")
 
 
 def write_spending_ledger(filepath: str, new_transactions: list) -> dict:

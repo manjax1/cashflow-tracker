@@ -125,11 +125,11 @@ def _build_yoy_sheet(wb):
 
 def _build_drilldown_sheet(wb):
     ws = wb.create_sheet("Drill-down")
-    ws.column_dimensions["A"].width = 12   # Section 1: Date
-    ws.column_dimensions["B"].width = 38   # Section 1: Description
+    ws.column_dimensions["A"].width = 14   # Section 1: Date
+    ws.column_dimensions["B"].width = 52   # Section 1: Description
     ws.column_dimensions["C"].width = 18   # Section 1: Account
     ws.column_dimensions["D"].width = 34   # Section 1: Category
-    ws.column_dimensions["E"].width = 10   # Section 1: Type
+    ws.column_dimensions["E"].width = 12   # Section 1: Type
     ws.column_dimensions["F"].width = 14   # Section 1: Amount
     ws.column_dimensions["H"].width = 12   # Section 2: Date
     ws.column_dimensions["I"].width = 38   # Section 2: Description
@@ -139,6 +139,7 @@ def _build_drilldown_sheet(wb):
     ws.column_dimensions["M"].width = 14   # Section 2: Amount
     ws.column_dimensions["N"].width = 14   # helper: month list
     ws.column_dimensions["O"].width = 36   # helper: category list
+    ws.column_dimensions["P"].width = 12   # helper: year list
     return ws
 
 
@@ -586,12 +587,13 @@ def _refresh_summary_formulas(wb, year: int):
     _label_font  = Font(name="Arial", bold=True, size=10)
     _body_bold   = Font(name="Arial", bold=True, size=10)
 
-    # ── Helper column I: months;  column J: categories ───────────────────
+    # ── Helper columns N (months), O (categories), P (years) ─────────────
     # Written in gray italic so they recede visually.  DataValidation dropdowns
     # reference these ranges on the same sheet (most reliable in GS xlsx import).
     distinct_categories = income_cats + rental_exp_cats + personal_exp_cats
     month_vals = ["All Months"] + [f"M{yr}-{mn:02d}" for yr, mn in active_months]
     cat_vals   = ["All Categories"] + distinct_categories
+    year_vals  = ["All Years"] + [str(yr) for yr in sorted(set(yr for yr, mn in active_months))]
 
     for i, val in enumerate(month_vals, start=1):
         dd.cell(row=i, column=14, value=val).font = _helper_font
@@ -599,8 +601,12 @@ def _refresh_summary_formulas(wb, year: int):
     for j, val in enumerate(cat_vals, start=1):
         dd.cell(row=j, column=15, value=val).font = _helper_font
 
+    for k, val in enumerate(year_vals, start=1):
+        dd.cell(row=k, column=16, value=val).font = _helper_font
+
     month_dv_range = f"$N$1:$N${len(month_vals)}"
     cat_dv_range   = f"$O$1:$O${len(cat_vals)}"
+    year_dv_range  = f"$P$1:$P${len(year_vals)}"
 
     # ── Section 1: Quick Search ──────────────────────────────────────────
     # Row 1: section header band
@@ -626,46 +632,46 @@ def _refresh_summary_formulas(wb, year: int):
         c.font = _label_font
 
     # Row 4: QUERY formula — spills results when B2 has content, "" when empty.
-    # D2 = optional year (e.g. "2026"); F2 = optional month (e.g. "M2026-05").
-    # Month takes precedence over Year. Both blank = no Col1 condition at all.
+    # D2 = optional year ("2026" or "All Years"); F2 = optional month ("M2026-05" or "All Months").
+    # Month takes precedence over Year. "All X" sentinels and blank both mean no filter.
     dd.cell(row=4, column=1,
             value='=IF(B2="","",IFERROR(QUERY(Transactions!A2:F10000,'
                   '"select * where Col1 is not null and lower(Col2) like \'%"'
                   '&LOWER(B2)&"%\'"'
-                  '&IF(F2<>""," and Col1 starts with \'"&MID(F2,2,7)&"\'",IF(D2<>""," and Col1 starts with \'"&D2&"\'","")),'
+                  '&IF(AND(F2<>"",F2<>"All Months")," and Col1 starts with \'"&MID(F2,2,7)&"\'",IF(AND(D2<>"",D2<>"All Years")," and Col1 starts with \'"&D2&"\'","")),'
                   '0),"No matching transactions"))')
 
     # ── Section 2: Month + Category Lookup ──────────────────────────────
-    # Row 30: section header band — H:M (Section 2 occupies H30:M33+)
+    # Row 1: section header band — H:M (aligns with Section 1, both start at row 1)
     for col in range(8, 14):
-        c = dd.cell(row=30, column=col)
+        c = dd.cell(row=1, column=col)
         c.fill  = SEC_FILL
         c.font  = SEC_FONT if col == 8 else Font(name="Arial", size=10)
         c.value = "Month & Category Lookup" if col == 8 else None
 
-    # Row 31: dropdown input labels + cells (H31="Month:", I31=dropdown; K31="Category:", L31=dropdown)
-    dd.cell(row=31, column=8,  value="Month:").font    = _body_bold   # H31
-    dd.cell(row=31, column=11, value="Category:").font = _body_bold   # K31
-    # I31 and L31 left blank — populated at runtime via DataValidation dropdowns
+    # Row 2: dropdown input labels + cells (H2="Month:", I2=dropdown; K2="Category:", L2=dropdown)
+    dd.cell(row=2, column=8,  value="Month:").font    = _body_bold   # H2
+    dd.cell(row=2, column=11, value="Category:").font = _body_bold   # K2
+    # I2 and L2 left blank — populated at runtime via DataValidation dropdowns
 
-    # Row 32: column headers above QUERY output
+    # Row 3: column headers above QUERY output
     for col_idx, label in enumerate(
         ["Date", "Description", "Account", "Category", "Type", "Amount"], start=1
     ):
-        c = dd.cell(row=32, column=col_idx + 7, value=label)
+        c = dd.cell(row=3, column=col_idx + 7, value=label)
         c.fill = _label_fill
         c.font = _label_font
 
-    # Row 33: QUERY formula — WHERE clause built dynamically from I31/L31.
-    # Month format "M{year}-{month:02d}" (e.g. "M2026-06"); MID(I31,2,7) strips
+    # Row 4: QUERY formula — WHERE clause built dynamically from I2/L2.
+    # Month format "M{year}-{month:02d}" (e.g. "M2026-06"); MID(I2,2,7) strips
     # the "M" prefix to get "2026-06" for GQL "starts with" text matching.
     # Dates in Transactions are stored as text strings ("2026-06-22"), so
     # year()/month() GQL functions cannot be used — they require a true Date column.
-    dd.cell(row=33, column=8,
+    dd.cell(row=4, column=8,
             value='=IFERROR(QUERY(Transactions!A2:F10000,'
                   '"select * where Col1 is not null"'
-                  '&IF(I31="All Months",""," and Col1 starts with \'"&MID(I31,2,7)&"\'")'
-                  '&IF(L31="All Categories",""," and Col4 = \'"&L31&"\'"),'
+                  '&IF(I2="All Months",""," and Col1 starts with \'"&MID(I2,2,7)&"\'")'
+                  '&IF(L2="All Categories",""," and Col4 = \'"&L2&"\'"),'
                   '0),"No matching transactions")')
 
     # ── DataValidation dropdowns ─────────────────────────────────────────
@@ -681,10 +687,18 @@ def _refresh_summary_formulas(wb, year: int):
         allow_blank=True, showErrorMessage=True,
         errorTitle="Invalid category", error="Select a value from the dropdown list.",
     )
+    dv_year = DataValidation(
+        type="list", formula1=year_dv_range, showDropDown=False,
+        allow_blank=True, showErrorMessage=True,
+        errorTitle="Invalid year", error="Select a value from the dropdown list.",
+    )
     dd.add_data_validation(dv_month)
     dd.add_data_validation(dv_cat)
-    dv_month.add("I31")
-    dv_cat.add("L31")
+    dd.add_data_validation(dv_year)
+    dv_month.add("F2")   # Section 1 month filter
+    dv_month.add("I2")   # Section 2 month dropdown
+    dv_cat.add("L2")
+    dv_year.add("D2")
 
 
 def write_spending_ledger(filepath: str, new_transactions: list) -> dict:

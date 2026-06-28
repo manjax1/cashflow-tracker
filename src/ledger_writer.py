@@ -610,8 +610,12 @@ def _refresh_summary_formulas(wb, year: int):
         c.font  = SEC_FONT if col == 1 else Font(name="Arial", size=10)
         c.value = "Quick Search" if col == 1 else None
 
-    # Row 2: search term input label (B2 left blank — user types here)
+    # Row 2: search term (B2), optional Year filter (D2), optional Month filter (F2).
+    # B2, D2, F2 left blank — user types here.  Month (M-format) takes precedence
+    # over Year when both are filled; blank = no time filter on that dimension.
     dd.cell(row=2, column=1, value="Search term:").font = _body_bold
+    dd.cell(row=2, column=3, value="Year:").font         = _body_bold
+    dd.cell(row=2, column=5, value="Month:").font        = _body_bold
 
     # Row 3: column headers above QUERY output
     for col_idx, label in enumerate(
@@ -622,11 +626,14 @@ def _refresh_summary_formulas(wb, year: int):
         c.font = _label_font
 
     # Row 4: QUERY formula — spills results when B2 has content, "" when empty.
-    # QUERY() with lower()/like confirmed working in GS from openpyxl-written xlsx.
+    # D2 = optional year (e.g. "2026"); F2 = optional month (e.g. "M2026-05").
+    # Month takes precedence over Year. Both blank = no Col1 condition at all.
     dd.cell(row=4, column=1,
             value='=IF(B2="","",IFERROR(QUERY(Transactions!A2:F10000,'
                   '"select * where Col1 is not null and lower(Col2) like \'%"'
-                  '&LOWER(B2)&"%\'",0),"No matching transactions"))')
+                  '&LOWER(B2)&"%\'"'
+                  '&IF(F2<>""," and Col1 starts with \'"&MID(F2,2,7)&"\'",IF(D2<>""," and Col1 starts with \'"&D2&"\'","")),'
+                  '0),"No matching transactions"))')
 
     # ── Section 2: Month + Category Lookup ──────────────────────────────
     # Row 30: section header band — H:M (Section 2 occupies H30:M33+)

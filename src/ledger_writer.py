@@ -593,7 +593,7 @@ def _refresh_summary_formulas(wb, year: int):
     distinct_categories = income_cats + rental_exp_cats + personal_exp_cats
     month_vals = ["All Months"] + [f"M{yr}-{mn:02d}" for yr, mn in active_months]
     cat_vals   = ["All Categories"] + distinct_categories
-    year_vals  = ["All Years"] + [str(yr) for yr in sorted(set(yr for yr, mn in active_months))]
+    year_vals  = ["All Years"] + [f"Y{yr}" for yr in sorted(set(yr for yr, mn in active_months))]
 
     for i, val in enumerate(month_vals, start=1):
         dd.cell(row=i, column=14, value=val).font = _helper_font
@@ -638,7 +638,7 @@ def _refresh_summary_formulas(wb, year: int):
             value='=IF(B2="","",IFERROR(QUERY(Transactions!A2:F10000,'
                   '"select * where Col1 is not null and lower(Col2) like \'%"'
                   '&LOWER(B2)&"%\'"'
-                  '&IF(AND(F2<>"",F2<>"All Months")," and Col1 starts with \'"&MID(F2,2,7)&"\'",IF(AND(D2<>"",D2<>"All Years")," and Col1 starts with \'"&D2&"\'","")),'
+                  '&IF(AND(F2<>"",F2<>"All Months")," and Col1 starts with \'"&MID(F2,2,7)&"\'",IF(AND(D2<>"",D2<>"All Years")," and Col1 starts with \'"&MID(D2,2,4)&"\'","")),'
                   '0),"No matching transactions"))')
 
     # ── Section 2: Month + Category Lookup ──────────────────────────────

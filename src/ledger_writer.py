@@ -182,10 +182,25 @@ def _refresh_summary_formulas(wb, year: int):
     # Skip categories where IncludeInNet (col G) is False — those rows are
     # visible in Transactions but intentionally excluded from all summary totals.
     income_cats, rental_exp_cats, personal_exp_cats = [], [], []
+    income_totals: dict = {}
+    rental_exp_totals: dict = {}
+    personal_exp_totals: dict = {}
     seen: set = set()
     for row in tx_ws.iter_rows(min_row=2, values_only=True):
         cat, tx_type, include_in_net = row[3], row[4], row[6]
-        if not cat or cat in seen:
+        if not cat:
+            continue
+        # Accumulate totals for every row before dedup gate so all occurrences count.
+        # Mirrors the IncludeInNet filter already applied by _sp() SUMPRODUCT formulas.
+        if include_in_net is not False and tx_type in ("Income", "Expense") and row[5] is not None:
+            amt = float(row[5])
+            if tx_type == "Income":
+                income_totals[cat] = income_totals.get(cat, 0.0) + amt
+            elif cat.startswith("Rental - "):
+                rental_exp_totals[cat] = rental_exp_totals.get(cat, 0.0) + amt
+            else:
+                personal_exp_totals[cat] = personal_exp_totals.get(cat, 0.0) + amt
+        if cat in seen:
             continue
         if include_in_net is False:
             seen.add(cat)  # prevent re-processing but don't add to summary lists
@@ -198,6 +213,16 @@ def _refresh_summary_formulas(wb, year: int):
                 rental_exp_cats.append(cat)
             else:
                 personal_exp_cats.append(cat)
+
+    def _sort_cats(cats, totals):
+        OTHER = "Other - Uncategorized"
+        main = sorted((c for c in cats if c != OTHER), key=lambda c: totals.get(c, 0.0), reverse=True)
+        tail = [c for c in cats if c == OTHER]
+        return main + tail
+
+    income_cats       = _sort_cats(income_cats, income_totals)
+    rental_exp_cats   = _sort_cats(rental_exp_cats, rental_exp_totals)
+    personal_exp_cats = _sort_cats(personal_exp_cats, personal_exp_totals)
 
     # ── helper: SUMPRODUCT formula builder ──────────────────────────────────
     # Column G (IncludeInNet) is a boolean; multiplying by it excludes FALSE rows
@@ -296,18 +321,33 @@ def _refresh_summary_formulas(wb, year: int):
         cur += 1
         return r
 
+    def _ms_banner(label, fill_hex):
+        nonlocal cur
+        fill = PatternFill("solid", fgColor=fill_hex)
+        font = Font(name="Arial", bold=True, size=12, color="FFFFFF")
+        for col in range(1, avg_col + 1):
+            c = ms.cell(row=cur, column=col)
+            c.fill = fill
+            c.font = font
+            c.value = label if col == 1 else None
+        cur += 1   # all subsequent cur-based row assignments shift naturally
+
     # Income section
     ms_income_rows = []
     if income_cats:
+        _ms_banner("INCOME", "2E7D32")
         _ms_sec_header("── INCOME ──")
         for cat in income_cats:
             ms_income_rows.append(_ms_cat_row(cat, "Income"))
         ms_income_subtotal = _ms_subtotal("TOTAL INCOME", ms_income_rows)
         cur += 1
 
-    # Rental Expense section
+    # Rental/Personal Expense sections — EXPENSES banner written once before whichever comes first
+    expenses_banner_written = False
     ms_rental_rows = []
     if rental_exp_cats:
+        _ms_banner("EXPENSES", "8B1E1E")
+        expenses_banner_written = True
         _ms_sec_header("── RENTAL EXPENSES ──")
         for cat in rental_exp_cats:
             ms_rental_rows.append(_ms_cat_row(cat, "Expense"))
@@ -317,6 +357,8 @@ def _refresh_summary_formulas(wb, year: int):
     # Personal Expense section
     ms_personal_rows = []
     if personal_exp_cats:
+        if not expenses_banner_written:
+            _ms_banner("EXPENSES", "8B1E1E")
         _ms_sec_header("── PERSONAL EXPENSES ──")
         for cat in personal_exp_cats:
             ms_personal_rows.append(_ms_cat_row(cat, "Expense"))

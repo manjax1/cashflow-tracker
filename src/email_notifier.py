@@ -15,9 +15,11 @@ def _build_html(summary: dict) -> str:
     run_date = summary.get("date", str(date.today()))
     total_spend = summary.get("total_spend", 0.0)
     tx_count = summary.get("tx_count", 0)
+    added = summary.get("added", 0)
     top_category = summary.get("top_category", "N/A")
     categories = summary.get("top_categories", [])
     all_transactions = summary.get("transactions", [])
+    new_txs = summary.get("new_transactions", [])
     excluded_rental = summary.get("excluded_rental_count", 0)
     ledger_path = summary.get("ledger_path", "")
     plaid_env = summary.get("plaid_env", "production")
@@ -36,6 +38,27 @@ def _build_html(summary: dict) -> str:
         f"<td style='padding:3px 6px;text-align:right'>${t.get('amount',0):,.2f}</td></tr>"
         for t in all_transactions
     )
+
+    new_tx_rows_html = "".join(
+        f"<tr><td style='padding:3px 6px'>{t.get('date','')}</td>"
+        f"<td style='padding:3px 6px'>{t.get('name','')}</td>"
+        f"<td style='padding:3px 6px'>{t.get('account_label','')}</td>"
+        f"<td style='padding:3px 6px'>{t.get('category','')}</td>"
+        f"<td style='padding:3px 6px;text-align:right'>${t.get('amount',0):,.2f}</td></tr>"
+        for t in new_txs
+    )
+
+    new_tx_section = (
+        f"<h3 style='color:#2E7D32;margin-top:24px'>New Transactions ({added})</h3>"
+        f"<table style='border-collapse:collapse;width:100%;font-size:12px'>"
+        f"<tr style='background:#2E7D32;color:white'>"
+        f"<th style='padding:4px 6px;text-align:left'>Date</th>"
+        f"<th style='padding:4px 6px;text-align:left'>Description</th>"
+        f"<th style='padding:4px 6px;text-align:left'>Account</th>"
+        f"<th style='padding:4px 6px;text-align:left'>Category</th>"
+        f"<th style='padding:4px 6px;text-align:right'>Amount</th>"
+        f"</tr>{new_tx_rows_html}</table>"
+    ) if added > 0 else ""
 
     excluded_note = (
         f"<p style='color:#cc0000;font-size:13px'>⚠️ {excluded_rental} rental-related "
@@ -73,9 +96,10 @@ def _build_html(summary: dict) -> str:
   </tr>
   {rows_html}
 </table>
+{new_tx_section}
 {excluded_note}
 <details style='margin-top:20px'>
-  <summary style='cursor:pointer;font-weight:bold;color:#1F3864'>All Transactions This Run ({tx_count})</summary>
+  <summary style='cursor:pointer;font-weight:bold;color:#1F3864'>All Transactions Fetched This Run ({len(all_transactions)})</summary>
   <table style='border-collapse:collapse;width:100%;font-size:12px;margin-top:8px'>
     <tr style='background:#1F3864;color:white'>
       <th style='padding:4px 6px'>Date</th><th style='padding:4px 6px'>Description</th>
@@ -143,9 +167,9 @@ def send_sync_summary(summary: dict, attachments: list[dict] | None = None):
     gmail_pass = clean_env(os.getenv("EMAIL_PASS"), "EMAIL_PASS")
 
     run_date = summary.get("date", str(date.today()))
-    total_spend = summary.get("total_spend", 0.0)
-    tx_count = summary.get("tx_count", 0)
-    subject = f"Spending Tracker — {run_date} | ${total_spend:,.0f} spent, {tx_count} transactions"
+    added = summary.get("added", 0)
+    tx_word = "transaction" if added == 1 else "transactions"
+    subject = f"Spending Tracker — {run_date} | {added} new {tx_word}"
     html_body = _build_html(summary)
 
     try:

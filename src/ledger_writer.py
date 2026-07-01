@@ -848,6 +848,7 @@ def write_spending_ledger(filepath: str, new_transactions: list) -> dict:
     existing_keys = _existing_keys(tx_ws)
 
     added = skipped = 0
+    written_transactions: list = []
     for tx in sorted(new_transactions, key=lambda t: t.get("date", ""), reverse=True):
         key = _tx_dedup_key(tx)
         if key in existing_keys:
@@ -871,12 +872,20 @@ def write_spending_ledger(filepath: str, new_transactions: list) -> dict:
 
         existing_keys.add(key)
         added += 1
+        written_transactions.append({
+            "date":          tx.get("date"),
+            "name":          tx.get("name", ""),
+            "account_label": tx.get("account_label", ""),
+            "category":      cat,
+            "type":          tx.get("type", "Expense"),
+            "amount":        tx.get("amount", 0.0),
+        })
 
     _refresh_summary_formulas(wb, year)
     _sort_transactions(tx_ws)
 
     wb.save(filepath)
-    return {"added": added, "skipped": skipped}
+    return {"added": added, "skipped": skipped, "new_transactions": written_transactions}
 
 
 def get_last_snapshot_month(wb) -> str | None:

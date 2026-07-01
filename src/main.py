@@ -118,6 +118,7 @@ def run_sync(from_date: date = None, to_date: date = None) -> dict:
 
     result = write_spending_ledger(ledger_path, included)
     added, skipped = result["added"], result["skipped"]
+    new_transactions = result.get("new_transactions", [])
 
     # Build summary
     category_totals: dict[str, float] = defaultdict(float)
@@ -134,6 +135,7 @@ def run_sync(from_date: date = None, to_date: date = None) -> dict:
         "added": added,
         "skipped": skipped,
         "tx_count": added,
+        "new_transactions": new_transactions,
         "total_spend": total_spend,
         "top_category": top_category,
         "top_categories": [{"category": c, "amount": a} for c, a in sorted_cats[:5]],

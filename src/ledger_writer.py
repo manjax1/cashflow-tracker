@@ -2,7 +2,7 @@ import os
 from calendar import monthrange as _cal_mrange
 from datetime import date
 from openpyxl import Workbook, load_workbook
-from openpyxl.styles import Font, PatternFill, Alignment
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.chart import BarChart, Reference
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
@@ -65,6 +65,25 @@ def _existing_keys(ws) -> set:
             amt_val  = f"{abs(float(row[5])):.2f}" if row[5] is not None else "0.00"
             keys.add(f"{date_val}|{desc_val}|{amt_val}")
     return keys
+
+
+def _sort_transactions(ws):
+    max_r = ws.max_row
+    if max_r < 3:
+        return
+    rows = [
+        tuple(ws.cell(row=r, column=c).value for c in range(1, 9))
+        for r in range(2, max_r + 1)
+    ]
+    rows.sort(key=lambda r: r[0] or "", reverse=True)
+    for row_idx, row_data in enumerate(rows, start=2):
+        fill = _category_fill(row_data[3]) if row_data[3] else NO_FILL
+        for col_idx, val in enumerate(row_data, start=1):
+            c = ws.cell(row=row_idx, column=col_idx, value=val)
+            c.font = BODY_FONT
+            c.fill = fill
+            if col_idx == 6:
+                c.number_format = CURRENCY_FMT
 
 
 def _clear_ws(ws, from_row: int = 2):
@@ -624,10 +643,22 @@ def _refresh_summary_formulas(wb, year: int):
     _clear_ws(dd, from_row=1)
     dd.data_validations.dataValidation = []   # drop stale dropdowns before re-adding
 
-    _helper_font = Font(name="Arial", size=9, italic=True, color="AAAAAA")
-    _label_fill  = PatternFill("solid", fgColor="D6DCE4")
-    _label_font  = Font(name="Arial", bold=True, size=10)
-    _body_bold   = Font(name="Arial", bold=True, size=10)
+    _helper_font    = Font(name="Arial", size=9, italic=True, color="AAAAAA")
+    _label_fill     = PatternFill("solid", fgColor="D6DCE4")
+    _label_font     = Font(name="Arial", bold=True, size=10)
+    _body_bold      = Font(name="Arial", bold=True, size=10)
+    _banner_font    = Font(name="Arial", bold=True, size=12, color="FFFFFF")
+    _s1_banner_fill = PatternFill("solid", fgColor="2E7D32")
+    _s1_input_fill  = PatternFill("solid", fgColor="E8F5E9")
+    _s2_input_fill  = PatternFill("solid", fgColor="E3F2FD")
+    _s1_border = Border(
+        left=Side(style="medium", color="2E7D32"), right=Side(style="medium", color="2E7D32"),
+        top=Side(style="medium", color="2E7D32"),  bottom=Side(style="medium", color="2E7D32"),
+    )
+    _s2_border = Border(
+        left=Side(style="medium", color="1F3864"), right=Side(style="medium", color="1F3864"),
+        top=Side(style="medium", color="1F3864"),  bottom=Side(style="medium", color="1F3864"),
+    )
 
     # ── Helper columns N (months), O (categories), P (years) ─────────────
     # Written in gray italic so they recede visually.  DataValidation dropdowns
@@ -651,11 +682,11 @@ def _refresh_summary_formulas(wb, year: int):
     year_dv_range  = f"$P$1:$P${len(year_vals)}"
 
     # ── Section 1: Quick Search ──────────────────────────────────────────
-    # Row 1: section header band
+    # Row 1: section header band — green banner
     for col in range(1, 7):
         c = dd.cell(row=1, column=col)
-        c.fill  = SEC_FILL
-        c.font  = SEC_FONT if col == 1 else Font(name="Arial", size=10)
+        c.fill  = _s1_banner_fill
+        c.font  = _banner_font
         c.value = "Quick Search" if col == 1 else None
 
     # Row 2: search term (B2), optional Year filter (D2), optional Month filter (F2).
@@ -665,18 +696,23 @@ def _refresh_summary_formulas(wb, year: int):
     dd.cell(row=2, column=3, value="Year:").font         = _body_bold
     dd.cell(row=2, column=5, value="Month:").font        = _body_bold
 
-    # Row 3: column headers above QUERY output
+    # Row 3: reset reference row — static gray italic values showing what to clear to
+    dd.cell(row=3, column=1, value="↺ Reset:").font = _body_bold
+    dd.cell(row=3, column=4, value="All Years").font  = _helper_font
+    dd.cell(row=3, column=6, value="All Months").font = _helper_font
+
+    # Row 4: column headers above QUERY output
     for col_idx, label in enumerate(
         ["Date", "Description", "Account", "Category", "Type", "Amount"], start=1
     ):
-        c = dd.cell(row=3, column=col_idx, value=label)
+        c = dd.cell(row=4, column=col_idx, value=label)
         c.fill = _label_fill
         c.font = _label_font
 
-    # Row 4: QUERY formula — spills results when B2 has content, "" when empty.
-    # D2 = optional year ("2026" or "All Years"); F2 = optional month ("M2026-05" or "All Months").
+    # Row 5: QUERY formula — spills results when B2 has content, "" when empty.
+    # D2 = optional year ("Y2026" or "All Years"); F2 = optional month ("M2026-05" or "All Months").
     # Month takes precedence over Year. "All X" sentinels and blank both mean no filter.
-    dd.cell(row=4, column=1,
+    dd.cell(row=5, column=1,
             value='=IF(B2="","",IFERROR(QUERY(Transactions!A2:F10000,'
                   '"select * where Col1 is not null and lower(Col2) like \'%"'
                   '&LOWER(B2)&"%\'"'
@@ -684,11 +720,11 @@ def _refresh_summary_formulas(wb, year: int):
                   '0),"No matching transactions"))')
 
     # ── Section 2: Month + Category Lookup ──────────────────────────────
-    # Row 1: section header band — H:M (aligns with Section 1, both start at row 1)
+    # Row 1: section header band — H:M, navy banner (reuses HEADER_FILL / 1F3864)
     for col in range(8, 14):
         c = dd.cell(row=1, column=col)
-        c.fill  = SEC_FILL
-        c.font  = SEC_FONT if col == 8 else Font(name="Arial", size=10)
+        c.fill  = HEADER_FILL
+        c.font  = _banner_font
         c.value = "Month & Category Lookup" if col == 8 else None
 
     # Row 2: dropdown input labels + cells (H2="Month:", I2=dropdown; K2="Category:", L2=dropdown)
@@ -696,20 +732,25 @@ def _refresh_summary_formulas(wb, year: int):
     dd.cell(row=2, column=11, value="Category:").font = _body_bold   # K2
     # I2 and L2 left blank — populated at runtime via DataValidation dropdowns
 
-    # Row 3: column headers above QUERY output
+    # Row 3: reset reference row — static gray italic values showing what to clear to
+    dd.cell(row=3, column=8,  value="↺ Reset:").font      = _body_bold
+    dd.cell(row=3, column=9,  value="All Months").font     = _helper_font
+    dd.cell(row=3, column=12, value="All Categories").font = _helper_font
+
+    # Row 4: column headers above QUERY output
     for col_idx, label in enumerate(
         ["Date", "Description", "Account", "Category", "Type", "Amount"], start=1
     ):
-        c = dd.cell(row=3, column=col_idx + 7, value=label)
+        c = dd.cell(row=4, column=col_idx + 7, value=label)
         c.fill = _label_fill
         c.font = _label_font
 
-    # Row 4: QUERY formula — WHERE clause built dynamically from I2/L2.
+    # Row 5: QUERY formula — WHERE clause built dynamically from I2/L2.
     # Month format "M{year}-{month:02d}" (e.g. "M2026-06"); MID(I2,2,7) strips
     # the "M" prefix to get "2026-06" for GQL "starts with" text matching.
     # Dates in Transactions are stored as text strings ("2026-06-22"), so
     # year()/month() GQL functions cannot be used — they require a true Date column.
-    dd.cell(row=4, column=8,
+    dd.cell(row=5, column=8,
             value='=IFERROR(QUERY(Transactions!A2:F10000,'
                   '"select * where Col1 is not null"'
                   '&IF(I2="All Months",""," and Col1 starts with \'"&MID(I2,2,7)&"\'")'
@@ -741,6 +782,19 @@ def _refresh_summary_formulas(wb, year: int):
     dv_month.add("I2")   # Section 2 month dropdown
     dv_cat.add("L2")
     dv_year.add("D2")
+
+    # ── Input cell highlighting ───────────────────────────────────────────
+    # Applied here (refresh path) so highlighting rebuilds on every sync.
+    for addr, border, fill in [
+        ("B2", _s1_border, _s1_input_fill),
+        ("D2", _s1_border, _s1_input_fill),
+        ("F2", _s1_border, _s1_input_fill),
+        ("I2", _s2_border, _s2_input_fill),
+        ("L2", _s2_border, _s2_input_fill),
+    ]:
+        c = dd[addr]
+        c.border = border
+        c.fill   = fill
 
 
 def write_spending_ledger(filepath: str, new_transactions: list) -> dict:
@@ -819,6 +873,7 @@ def write_spending_ledger(filepath: str, new_transactions: list) -> dict:
         added += 1
 
     _refresh_summary_formulas(wb, year)
+    _sort_transactions(tx_ws)
 
     wb.save(filepath)
     return {"added": added, "skipped": skipped}

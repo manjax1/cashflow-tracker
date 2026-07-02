@@ -128,6 +128,8 @@
   {"keyword": "FOOTHILL PRODUCE",           "category": "Groceries",                            "note": "Recurring produce purchase"},
   {"keyword": "GROCERY CHAIN ABBREV",       "category": "Groceries",                            "note": "Abbreviated merchant name for a grocery chain - add as it appears in statements"},
   {"keyword": "ETHNIC GROCERY NAME",        "category": "Groceries",                            "note": "Ethnic/specialty grocery store"},
+  {"keyword": "ETHNIC GROCERY NAME 2",      "category": "Groceries",                            "note": "Ethnic/specialty grocery store - overrides broad Dining rules; place after those rules so longer keyword wins"},
+  {"keyword": "ETHNIC GROCERY NAME 3",      "category": "Groceries",                            "note": "Ethnic/specialty grocery store - overrides broad Dining rules; place after those rules so longer keyword wins"},
 
   {"keyword": "BKG*BOOKING.COM",            "category": "Travel",                               "note": ""},
   {"keyword": "HOTEL CHAIN #",              "category": "Travel",                               "note": "Extended-stay or hotel chain - add brand prefix as it appears in statements"},

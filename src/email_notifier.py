@@ -71,7 +71,7 @@ def _build_html(summary: dict) -> str:
 
     return f"""
 <html><body style='font-family:Arial,sans-serif;max-width:700px;margin:auto'>
-<h2 style='color:#1F3864'>Spending Tracker — {run_date}</h2>
+<h2 style='color:#1F3864'>Cashflow Tracker — {run_date}</h2>
 <table style='border-collapse:collapse;margin-bottom:16px'>
   <tr>
     <td style='padding:10px 20px;background:#f0f4fa;border-radius:6px;text-align:center'>
@@ -169,13 +169,13 @@ def send_sync_summary(summary: dict, attachments: list[dict] | None = None):
     run_date = summary.get("date", str(date.today()))
     added = summary.get("added", 0)
     tx_word = "transaction" if added == 1 else "transactions"
-    subject = f"Spending Tracker — {run_date} | {added} new {tx_word}"
+    subject = f"Cashflow Tracker — {run_date} | {added} new {tx_word}"
     html_body = _build_html(summary)
 
     try:
         if resend_key:
             send_via_resend(recipient, subject, html_body, resend_key,
-                            "Spending Tracker <onboarding@resend.dev>", attachments)
+                            "Cashflow Tracker <onboarding@resend.dev>", attachments)
             print("✅ Email sent via Resend")
             return
     except Exception as e:

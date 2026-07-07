@@ -130,6 +130,8 @@
   {"keyword": "ETHNIC GROCERY NAME",        "category": "Groceries",                            "note": "Ethnic/specialty grocery store"},
   {"keyword": "ETHNIC GROCERY NAME 2",      "category": "Groceries",                            "note": "Ethnic/specialty grocery store - overrides broad Dining rules; place after those rules so longer keyword wins"},
   {"keyword": "ETHNIC GROCERY NAME 3",      "category": "Groceries",                            "note": "Ethnic/specialty grocery store - overrides broad Dining rules; place after those rules so longer keyword wins"},
+  {"keyword": "LUCKY #",                      "category": "Groceries",                            "note": "Lucky supermarket chain - appears as 'LUCKY #NNN LOCATION' in statements; 5 chars beats SQ* (4 chars) on longest-match-wins"},
+  {"keyword": "SAFEWAY",                    "category": "Groceries",                            "note": "Safeway grocery chain"},
 
   {"keyword": "BKG*BOOKING.COM",            "category": "Travel",                               "note": ""},
   {"keyword": "HOTEL CHAIN #",              "category": "Travel",                               "note": "Extended-stay or hotel chain - add brand prefix as it appears in statements"},

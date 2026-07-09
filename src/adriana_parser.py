@@ -43,8 +43,8 @@ def _meta_flag_is_set(wb, key: str) -> bool:
     if "_Meta" not in wb.sheetnames:
         return False
     ws = wb["_Meta"]
-    for row in ws.iter_rows(min_row=1, max_row=200, values_only=True):
-        if row and str(row[0]) == key:
+    for row in ws.iter_rows(min_row=1, values_only=True):
+        if row[0] is not None and str(row[0]) == key:
             return bool(row[1])
     return False
 

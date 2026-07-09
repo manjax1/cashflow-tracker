@@ -923,14 +923,16 @@ def set_meta_flag(ledger_path: str, key: str) -> None:
         ws.sheet_state = "hidden"
     else:
         ws = wb["_Meta"]
-    for row in ws.iter_rows(min_row=1, max_row=200):
-        if row[0].value == key:
-            row[1].value = True
-            wb.save(ledger_path)
-            wb.close()
-            return
-    next_row = ws.max_row + 1
-    ws.cell(row=next_row, column=1, value=key)
-    ws.cell(row=next_row, column=2, value=True)
+    # Skip phantom rows (openpyxl max_row inflation): only collect rows where A is non-None.
+    real_rows: dict[str, int] = {}
+    for row in ws.iter_rows(min_row=1):
+        if row[0].value is not None:
+            real_rows[str(row[0].value)] = row[0].row
+    if key in real_rows:
+        ws.cell(row=real_rows[key], column=2, value=True)
+    else:
+        next_row = max(real_rows.values(), default=0) + 1
+        ws.cell(row=next_row, column=1, value=key)
+        ws.cell(row=next_row, column=2, value=True)
     wb.save(ledger_path)
     wb.close()

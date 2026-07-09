@@ -159,7 +159,7 @@ def run_sync(from_date: date = None, to_date: date = None) -> dict:
         try:
             from adriana_parser import list_unprocessed_adriana_files, parse_adriana_file
             drive_svc = get_drive_service()
-            wb_check = load_workbook(ledger_path, read_only=True)
+            wb_check = load_workbook(ledger_path)
             unprocessed = list_unprocessed_adriana_files(drive_svc, wb_check)
             wb_check.close()
             for fm in unprocessed:

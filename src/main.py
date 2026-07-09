@@ -15,9 +15,9 @@ from utils import clean_env, resolve_ledger_path
 from plaid_client import PlaidClient
 from filters import load_rules, categorize_batch
 from openpyxl import load_workbook
-from ledger_writer import write_spending_ledger, get_last_snapshot_month, set_last_snapshot_month
+from ledger_writer import write_spending_ledger, get_last_snapshot_month, set_last_snapshot_month, set_meta_flag
 from email_notifier import send_sync_summary
-from drive_sync import download_ledger, upload_ledger
+from drive_sync import download_ledger, upload_ledger, get_drive_service
 
 RULES_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "spending_rules.json")
 
@@ -153,6 +153,27 @@ def run_sync(from_date: date = None, to_date: date = None) -> dict:
         "ledger_path": ledger_path,
         "plaid_env": plaid_env,
     }
+
+    # ── Adriana rental file processing ───────────────────────────────────
+    if drive_set:
+        try:
+            from adriana_parser import list_unprocessed_adriana_files, parse_adriana_file
+            drive_svc = get_drive_service()
+            wb_check = load_workbook(ledger_path, read_only=True)
+            unprocessed = list_unprocessed_adriana_files(drive_svc, wb_check)
+            wb_check.close()
+            for fm in unprocessed:
+                try:
+                    a_txns = parse_adriana_file(drive_svc, fm)
+                    a_result = write_spending_ledger(ledger_path, a_txns)
+                    ym_key = f"{fm['year']}-{fm['month']:02d}"
+                    set_meta_flag(ledger_path, f"adriana_processed:{ym_key}")
+                    month_label = datetime(fm["year"], fm["month"], 1).strftime("%B %Y")
+                    print(f"📋 Adriana {month_label}: {a_result['added']} added, {a_result['skipped']} skipped")
+                except Exception as e_fm:
+                    print(f"⚠️  Adriana '{fm['name']}': {e_fm} — skipping")
+        except Exception as e_adriana:
+            print(f"⚠️  Adriana sync failed (non-fatal): {e_adriana}")
 
     need_snapshot    = False
     snapshot_attachment: list[dict] | None = None

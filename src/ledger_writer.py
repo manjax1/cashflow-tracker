@@ -913,3 +913,24 @@ def set_last_snapshot_month(wb, year_month: str) -> None:
         ws = wb["_Meta"]
     ws["A1"] = "last_snapshot_month"
     ws["B1"] = year_month
+
+
+def set_meta_flag(ledger_path: str, key: str) -> None:
+    """Set a boolean flag in the hidden _Meta sheet, updating in-place or appending."""
+    wb = load_workbook(ledger_path)
+    if "_Meta" not in wb.sheetnames:
+        ws = wb.create_sheet("_Meta")
+        ws.sheet_state = "hidden"
+    else:
+        ws = wb["_Meta"]
+    for row in ws.iter_rows(min_row=1, max_row=200):
+        if row[0].value == key:
+            row[1].value = True
+            wb.save(ledger_path)
+            wb.close()
+            return
+    next_row = ws.max_row + 1
+    ws.cell(row=next_row, column=1, value=key)
+    ws.cell(row=next_row, column=2, value=True)
+    wb.save(ledger_path)
+    wb.close()

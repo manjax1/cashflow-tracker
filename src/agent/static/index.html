@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cashflow Agent</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #f5f4ef; --panel: #ffffff; --ink: #1a1a17; --muted: #6b6a63;
+    --accent: #c96442; --accent-soft: #f0e7e1; --border: #e3e1d9;
+    --user-bubble: #eae9e2; --radius: 14px;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { font: 15px/1.55 -apple-system, "Segoe UI", Roboto, sans-serif;
+         background: var(--bg); color: var(--ink); }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 16px; }
+  header { display: flex; align-items: baseline; gap: 10px; padding: 6px 2px 14px; }
+  header h1 { font-size: 19px; font-weight: 650; }
+  header .sub { color: var(--muted); font-size: 12.5px; }
+
+  /* dashboard */
+  .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .card { background: var(--panel); border: 1px solid var(--border);
+          border-radius: var(--radius); padding: 12px 14px; }
+  .card .label { font-size: 11.5px; color: var(--muted); text-transform: uppercase;
+                 letter-spacing: .04em; }
+  .card .value { font-size: 20px; font-weight: 650; margin-top: 2px; }
+  .card .value.pos { color: #2c7a4b; } .card .value.neg { color: #b3402a; }
+  .charts { display: grid; grid-template-columns: 3fr 2fr; gap: 10px; margin-top: 10px; }
+  .chartbox { background: var(--panel); border: 1px solid var(--border);
+              border-radius: var(--radius); padding: 12px; }
+  .chartbox h3 { font-size: 12.5px; color: var(--muted); font-weight: 600; margin-bottom: 6px; }
+  #dash { margin-bottom: 16px; }
+  #dash.collapsed .cards, #dash.collapsed .charts { display: none; }
+  .dash-toggle { background: none; border: none; color: var(--accent);
+                 cursor: pointer; font-size: 12.5px; padding: 0; }
+
+  /* chat */
+  #chat { display: flex; flex-direction: column; gap: 14px; padding-bottom: 130px; }
+  .msg { max-width: 92%; white-space: pre-wrap; word-wrap: break-word; }
+  .msg.user { align-self: flex-end; background: var(--user-bubble);
+              padding: 10px 14px; border-radius: var(--radius); }
+  .msg.agent { align-self: flex-start; }
+  .msg.agent .content { background: var(--panel); border: 1px solid var(--border);
+                        padding: 12px 16px; border-radius: var(--radius); }
+  .tools { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+  .tool-chip { font-size: 11.5px; color: var(--muted); background: var(--accent-soft);
+               border-radius: 20px; padding: 2px 10px; }
+  .thinking { color: var(--muted); font-style: italic; }
+  .thinking::after { content: ''; animation: dots 1.2s steps(4, end) infinite; }
+  @keyframes dots { 0% {content:''} 25% {content:'.'} 50% {content:'..'} 75% {content:'...'} }
+  .msg.agent .content strong { font-weight: 650; }
+  .msg.agent .content table { border-collapse: collapse; margin: 6px 0; font-size: 13.5px; }
+  .msg.agent .content td, .msg.agent .content th { border: 1px solid var(--border); padding: 4px 8px; }
+
+  /* suggestions + input */
+  /* search */
+  #search { background: var(--panel); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 12px 14px; margin-bottom: 16px; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 10px; }
+  .tabs button { border: 1px solid var(--border); background: var(--bg);
+                 border-radius: 20px; padding: 5px 14px; font-size: 12.5px; cursor: pointer; }
+  .tabs button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .search-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .search-row input, .search-row select {
+      border: 1px solid var(--border); border-radius: 10px; padding: 9px 12px;
+      font: inherit; font-size: 13.5px; background: var(--bg); outline: none; }
+  .search-row input:focus, .search-row select:focus { border-color: var(--accent); }
+  .search-row input[type=text] { flex: 1; min-width: 160px; }
+  .search-row .go { background: var(--accent); color: #fff; border: none;
+                    border-radius: 10px; padding: 9px 16px; cursor: pointer; }
+  #results { margin-top: 10px; overflow-x: auto; }
+  #results .totals { font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+  #results .totals b { color: var(--ink); }
+  #results table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  #results th { text-align: left; color: var(--muted); font-weight: 600;
+                border-bottom: 1px solid var(--border); padding: 5px 8px; }
+  #results td { border-bottom: 1px solid var(--border); padding: 5px 8px; }
+  #results td.amt { text-align: right; white-space: nowrap; }
+  #results td.amt.income { color: #2c7a4b; }
+  #results tr:hover { background: var(--bg); }
+
+  .suggest { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 10px; }
+  .suggest button { background: var(--panel); border: 1px solid var(--border);
+                    border-radius: 20px; padding: 6px 12px; font-size: 12.5px;
+                    color: var(--ink); cursor: pointer; }
+  .suggest button:hover { border-color: var(--accent); color: var(--accent); }
+  #inputbar { position: fixed; bottom: 0; left: 0; right: 0;
+              background: linear-gradient(transparent, var(--bg) 30%); padding: 18px 0 20px; }
+  .inputbox { max-width: 880px; margin: 0 auto; padding: 0 16px; display: flex; gap: 8px; }
+  #q { flex: 1; border: 1px solid var(--border); border-radius: var(--radius);
+       padding: 13px 16px; font: inherit; background: var(--panel); resize: none;
+       max-height: 140px; outline: none; }
+  #q:focus { border-color: var(--accent); }
+  #send { background: var(--accent); color: #fff; border: none; border-radius: var(--radius);
+          padding: 0 18px; font-size: 17px; cursor: pointer; }
+  #send:disabled { opacity: .5; cursor: default; }
+  @media (max-width: 640px) { .cards { grid-template-columns: repeat(2, 1fr); }
+                              .charts { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>💰 Cashflow Agent</h1>
+    <span class="sub">family financial analyst · read-only</span>
+  </header>
+
+  <div id="dash">
+    <button class="dash-toggle" onclick="toggleDash()">▾ dashboard</button>
+    <div class="cards" id="cards"></div>
+    <div class="charts">
+      <div class="chartbox"><h3>12-month trend</h3><canvas id="trendChart" height="170"></canvas></div>
+      <div class="chartbox"><h3 id="monthTitle">This month — top expenses</h3><canvas id="catChart" height="170"></canvas></div>
+    </div>
+  </div>
+
+  <div id="search">
+    <div class="tabs">
+      <button id="tab-text" class="active" onclick="setTab('text')">🔎 Text search</button>
+      <button id="tab-cat" onclick="setTab('cat')">📁 Category search</button>
+    </div>
+    <div class="search-row" id="row-text">
+      <input type="text" id="s-q" placeholder="Search descriptions… e.g. Costco, Zelle, mortgage"
+             onkeydown="if(event.key==='Enter')doSearch()">
+      <select id="s-month-text"></select>
+      <button class="go" onclick="doSearch()">Search</button>
+    </div>
+    <div class="search-row" id="row-cat" style="display:none">
+      <select id="s-type" onchange="fillCategories()">
+        <option value="Expense">Expense</option>
+        <option value="Income">Income</option>
+      </select>
+      <select id="s-category" style="flex:1;min-width:180px"></select>
+      <select id="s-month-cat"></select>
+      <button class="go" onclick="doSearch()">Search</button>
+    </div>
+    <div id="results"></div>
+  </div>
+
+  <div class="suggest" id="suggest"></div>
+  <div id="chat"></div>
+</div>
+
+<div id="inputbar"><div class="inputbox">
+  <textarea id="q" rows="1" placeholder="Ask about income, expenses, trends, anomalies…"></textarea>
+  <button id="send" onclick="send()">↑</button>
+</div></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const fmt = n => (n < 0 ? '-' : '') + '$' + Math.abs(n).toLocaleString(undefined, {maximumFractionDigits: 0});
+
+const SUGGESTIONS = [
+  "What was net cash flow last month, by category?",
+  "What are the expense trends over the last six months?",
+  "How are the rental properties performing this year?",
+  "Anything unusual in the last 30 days?",
+  "What did we spend on dining vs groceries this quarter?",
+];
+
+function toggleDash() {
+  $('dash').classList.toggle('collapsed');
+  document.querySelector('.dash-toggle').textContent =
+    $('dash').classList.contains('collapsed') ? '▸ dashboard' : '▾ dashboard';
+}
+
+async function loadDashboard() {
+  const r = await fetch('/api/dashboard'); if (!r.ok) return;
+  const d = await r.json();
+  const net = d.ytd.net;
+  $('cards').innerHTML = `
+    <div class="card"><div class="label">YTD income</div><div class="value">${fmt(d.ytd.income)}</div></div>
+    <div class="card"><div class="label">YTD expenses</div><div class="value">${fmt(d.ytd.expense)}</div></div>
+    <div class="card"><div class="label">YTD net</div><div class="value ${net>=0?'pos':'neg'}">${fmt(net)}</div></div>
+    <div class="card"><div class="label">Rental net YTD · anomalies</div>
+      <div class="value ${d.ytd.rental.net>=0?'pos':'neg'}">${fmt(d.ytd.rental.net)} <span style="font-size:12px;color:var(--muted)">· ${d.anomaly_count} ⚠</span></div></div>`;
+
+  const labels = d.trends.net.map(p => p.period);
+  new Chart($('trendChart'), { type: 'line', data: { labels,
+    datasets: [
+      { label: 'Income',  data: d.trends.income.map(p=>p.value),  borderColor: '#2c7a4b', tension: .3, pointRadius: 2 },
+      { label: 'Expenses',data: d.trends.expenses.map(p=>p.value),borderColor: '#b3402a', tension: .3, pointRadius: 2 },
+      { label: 'Net',     data: d.trends.net.map(p=>p.value),     borderColor: '#c96442', tension: .3, pointRadius: 2 },
+    ]}, options: { plugins: { legend: { labels: { boxWidth: 10, font: { size: 11 } } } },
+                   scales: { y: { ticks: { callback: v => fmt(v), font: { size: 10 } } },
+                             x: { ticks: { font: { size: 10 } } } } } });
+
+  $('monthTitle').textContent = d.month.label + ' — top expenses';
+  new Chart($('catChart'), { type: 'bar', data: {
+    labels: d.month.top_expenses.map(g => g.group.replace('Rental - ', 'R·')),
+    datasets: [{ data: d.month.top_expenses.map(g => g.expense), backgroundColor: '#c9644288', borderRadius: 4 }] },
+    options: { indexAxis: 'y', plugins: { legend: { display: false } },
+               scales: { x: { ticks: { callback: v => fmt(v), font: { size: 10 } } },
+                         y: { ticks: { font: { size: 10 } } } } } });
+}
+
+function addMsg(cls, html) {
+  const div = document.createElement('div');
+  div.className = 'msg ' + cls; div.innerHTML = html;
+  $('chat').appendChild(div);
+  window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+  return div;
+}
+
+// minimal safe markdown: escape HTML, then handle **bold**, headings, tables lite
+function render(text) {
+  let s = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  s = s.replace(/^#{1,3} (.+)$/gm, '<strong>$1</strong>');
+  return s;
+}
+
+async function send(preset) {
+  const q = preset || $('q').value.trim();
+  if (!q) return;
+  $('q').value = ''; autosize();
+  $('send').disabled = true;
+  $('suggest').innerHTML = '';
+  addMsg('user', render(q));
+  const thinking = addMsg('agent', '<div class="thinking">analyzing</div>');
+  try {
+    const r = await fetch('/api/chat', { method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: q }) });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    const chips = (d.tool_calls || []).map(t =>
+      `<span class="tool-chip">⚙ ${t.name}</span>`).join('');
+    thinking.innerHTML = (chips ? `<div class="tools">${chips}</div>` : '') +
+      `<div class="content">${render(d.answer)}</div>`;
+  } catch (e) {
+    thinking.innerHTML = `<div class="content">⚠ ${e.message}</div>`;
+  }
+  $('send').disabled = false;
+  $('q').focus();
+  window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+}
+
+function autosize() {
+  const q = $('q'); q.style.height = 'auto';
+  q.style.height = Math.min(q.scrollHeight, 140) + 'px';
+}
+$('q').addEventListener('input', autosize);
+$('q').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+});
+
+// ---------------- search ----------------
+let META = { months: [], income_categories: [], expense_categories: [] };
+let activeTab = 'text';
+const MONTH_FMT = m => {
+  const [y, mo] = m.split('-');
+  return new Date(y, mo - 1).toLocaleString('en', { month: 'short' }) + '-' + y;
+};
+
+function setTab(t) {
+  activeTab = t;
+  $('tab-text').classList.toggle('active', t === 'text');
+  $('tab-cat').classList.toggle('active', t === 'cat');
+  $('row-text').style.display = t === 'text' ? 'flex' : 'none';
+  $('row-cat').style.display = t === 'cat' ? 'flex' : 'none';
+  $('results').innerHTML = '';
+}
+
+function fillCategories() {
+  const type = $('s-type').value;
+  const cats = type === 'Income' ? META.income_categories : META.expense_categories;
+  $('s-category').innerHTML = cats.map(c => `<option>${c}</option>`).join('');
+}
+
+async function loadMeta() {
+  const r = await fetch('/api/meta'); if (!r.ok) return;
+  META = await r.json();
+  const monthOpts = '<option value="">All months</option>' +
+    META.months.map(m => `<option value="${m}">${MONTH_FMT(m)}</option>`).join('');
+  $('s-month-text').innerHTML = monthOpts;
+  $('s-month-cat').innerHTML = monthOpts;
+  fillCategories();
+}
+
+async function doSearch() {
+  const params = new URLSearchParams();
+  if (activeTab === 'text') {
+    const q = $('s-q').value.trim();
+    if (!q) return;
+    params.set('q', q);
+    if ($('s-month-text').value) params.set('month', $('s-month-text').value);
+  } else {
+    params.set('category', $('s-category').value);
+    params.set('tx_type', $('s-type').value);
+    if ($('s-month-cat').value) params.set('month', $('s-month-cat').value);
+  }
+  $('results').innerHTML = '<div class="totals">searching…</div>';
+  const r = await fetch('/api/search?' + params);
+  const d = await r.json();
+  if (d.error) { $('results').innerHTML = `<div class="totals">⚠ ${d.error}</div>`; return; }
+  if (!d.count) { $('results').innerHTML = '<div class="totals">No matching transactions.</div>'; return; }
+  const rows = d.transactions.map(t => `
+    <tr><td>${t.Date}</td><td>${t.Description.length > 58 ? t.Description.slice(0,58) + '…' : t.Description}</td>
+    <td>${t.Category}</td>
+    <td class="amt ${t.Type === 'Income' ? 'income' : ''}">${t.Type === 'Income' ? '+' : '−'}${fmt(t.Amount)}</td></tr>`).join('');
+  $('results').innerHTML = `
+    <div class="totals"><b>${d.count}</b> transactions${d.truncated ? ' (showing 200)' : ''}
+      · income <b>${fmt(d.totals.income)}</b> · expenses <b>${fmt(d.totals.expense)}</b>
+      · net <b>${fmt(d.totals.net)}</b></div>
+    <table><tr><th>Date</th><th>Description</th><th>Category</th><th style="text-align:right">Amount</th></tr>${rows}</table>`;
+}
+
+SUGGESTIONS.forEach(s => {
+  const b = document.createElement('button');
+  b.textContent = s; b.onclick = () => send(s);
+  $('suggest').appendChild(b);
+});
+loadDashboard();
+loadMeta();
+</script>
+</body>
+</html>

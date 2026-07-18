@@ -3,6 +3,7 @@
 spending_rules.json
 spending_rules.compact.json
 outbox/
+users.json
 logs/
 __pycache__/
 *.pyc

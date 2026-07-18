@@ -62,21 +62,28 @@ def _dynamic_context():
 
 
 class Agent:
-    def __init__(self, verbose=False):
+    def __init__(self, verbose=False, tools=None, read_only=False):
         self.client = anthropic.Anthropic()  # needs ANTHROPIC_API_KEY
         self.history = []
         self.verbose = verbose
+        self.tools = tools if tools is not None else TOOLS
         self.system = SYSTEM.format(context=_dynamic_context())
+        if read_only:
+            self.system += ("\nThis is a READ-ONLY interface: action tools are "
+                            "unavailable. For recategorizations or drafts, tell "
+                            "the user to use the CLI (python -m src.agent.cli).")
         self.stats = {"turns": 0, "tool_calls": 0,
                       "input_tokens": 0, "output_tokens": 0}
+        self.last_tool_calls = []  # (name, input) pairs from the latest ask()
 
     def ask(self, user_message):
         self.history.append({"role": "user", "content": user_message})
+        self.last_tool_calls = []
         for _ in range(MAX_TURNS):
             t0 = time.time()
             resp = self.client.messages.create(
                 model=MODEL, max_tokens=8000, system=self.system,
-                tools=TOOLS, messages=self.history)
+                tools=self.tools, messages=self.history)
             self.stats["turns"] += 1
             self.stats["input_tokens"] += resp.usage.input_tokens
             self.stats["output_tokens"] += resp.usage.output_tokens
@@ -90,6 +97,7 @@ class Agent:
                 if block.type != "tool_use":
                     continue
                 self.stats["tool_calls"] += 1
+                self.last_tool_calls.append({"name": block.name, "input": block.input})
                 if self.verbose:
                     print(f"  ⚙ {block.name}({json.dumps(block.input)[:120]})")
                 out = dispatch(block.name, block.input)

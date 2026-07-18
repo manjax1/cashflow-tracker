@@ -93,9 +93,13 @@ def query_transactions(start_date, end_date, category=None, account=None,
                    account, tx_type, min_amount, max_amount, search)
     rows = sorted(rows, key=lambda t: t["Date"], reverse=True)
     total = len(rows)
+    inc = sum(t["Amount"] for t in rows if t["Type"] == "Income" and t["IncludeInNet"])
+    exp = sum(t["Amount"] for t in rows if t["Type"] == "Expense" and t["IncludeInNet"])
     return {
         "count": total,
         "truncated": total > limit,
+        "totals": {"income": round(inc, 2), "expense": round(exp, 2),
+                   "net": round(inc - exp, 2)},
         "transactions": rows[:limit],
     }
 

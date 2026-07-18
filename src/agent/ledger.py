@@ -181,12 +181,32 @@ def get_trends(metric="net", granularity="month", lookback_periods=6, category=N
         pct = round(100 * delta / abs(prev_val), 1) if delta is not None and prev_val else None
         series.append({"period": p, "value": val, "delta": delta, "delta_pct": pct})
         prev_val = val
-    vals = [s["value"] for s in series]
+    # Mark the newest period as partial if ledger coverage ends mid-period,
+    # so charts can drop it and the model won't misread a mid-month dip.
+    if series:
+        import calendar
+        all_dates = sorted(t["Date"] for t in load_transactions())
+        cov_end = _parse_date(all_dates[-1])
+        if granularity == "quarter":
+            q_end_month = ((cov_end.month - 1) // 3 + 1) * 3
+            period_end = date(cov_end.year, q_end_month,
+                              calendar.monthrange(cov_end.year, q_end_month)[1])
+        else:
+            period_end = date(cov_end.year, cov_end.month,
+                              calendar.monthrange(cov_end.year, cov_end.month)[1])
+        last_period_of_cov = (f"{cov_end.year}-Q{(cov_end.month - 1) // 3 + 1}"
+                              if granularity == "quarter" else all_dates[-1][:7])
+        if series[-1]["period"] == last_period_of_cov and cov_end < period_end:
+            series[-1]["partial"] = True
+
+    complete = [s for s in series if not s.get("partial")]
+    vals = [s["value"] for s in complete]
     return {
         "metric": metric, "granularity": granularity, "category": category,
         "series": series,
         "trailing_average": round(sum(vals) / len(vals), 2) if vals else 0,
         "min": min(vals) if vals else 0, "max": max(vals) if vals else 0,
+        "note": "trailing_average/min/max exclude the partial current period",
     }
 
 

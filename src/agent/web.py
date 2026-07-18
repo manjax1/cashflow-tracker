@@ -280,7 +280,8 @@ def dashboard():
         "month": {"label": latest[:7], "income": month["total_income"],
                   "expense": month["total_expense"], "net": month["net"],
                   "top_expenses": top_expenses},
-        "trends": {m: trends[m]["series"] for m in trends},
+        "trends": {m: [p for p in trends[m]["series"] if not p.get("partial")]
+                   for m in trends},
         "anomaly_count": anomalies["finding_count"],
     })
 

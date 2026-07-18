@@ -256,6 +256,31 @@ def search():
     return jsonify(result)
 
 
+@app.get("/api/monthly")
+def monthly_summary():
+    """12-month rolling income/expense/net per month (Sheet-style summary)."""
+    if not _authed():
+        return jsonify({"error": "unauthorized"}), 401
+    series = {m: ledger.get_trends(metric=m, lookback_periods=13)["series"]
+              for m in ("income", "expenses", "net")}
+    by_period = {}
+    for m, pts in series.items():
+        for p in pts:
+            row = by_period.setdefault(p["period"], {"partial": False})
+            row[m] = p["value"]
+            row["partial"] = row["partial"] or p.get("partial", False)
+    months = sorted(by_period.keys(), reverse=True)[:13]
+    rows = [{"month": p, **by_period[p]} for p in months]
+    complete = [r for r in rows if not r["partial"]][:12]
+    totals = {
+        "income": round(sum(r["income"] for r in complete), 2),
+        "expenses": round(sum(r["expenses"] for r in complete), 2),
+        "net": round(sum(r["net"] for r in complete), 2),
+        "months": len(complete),
+    }
+    return jsonify({"rows": rows, "totals": totals})
+
+
 @app.get("/api/dashboard")
 def dashboard():
     if not _authed():

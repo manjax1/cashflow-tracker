@@ -120,6 +120,7 @@
     <div class="tabs">
       <button id="tab-text" class="active" onclick="setTab('text')">🔎 Text search</button>
       <button id="tab-cat" onclick="setTab('cat')">📁 Category search</button>
+      <button id="tab-monthly" onclick="setTab('monthly')">📅 Monthly summary</button>
     </div>
     <div class="search-row" id="row-text">
       <input type="text" id="s-q" placeholder="Search descriptions… e.g. Costco, Zelle, mortgage"
@@ -257,11 +258,41 @@ const MONTH_FMT = m => {
 
 function setTab(t) {
   activeTab = t;
-  $('tab-text').classList.toggle('active', t === 'text');
-  $('tab-cat').classList.toggle('active', t === 'cat');
+  ['text', 'cat', 'monthly'].forEach(x =>
+    $('tab-' + x).classList.toggle('active', x === t));
   $('row-text').style.display = t === 'text' ? 'flex' : 'none';
   $('row-cat').style.display = t === 'cat' ? 'flex' : 'none';
   $('results').innerHTML = '';
+  if (t === 'monthly') loadMonthly();
+}
+
+async function loadMonthly() {
+  $('results').innerHTML = '<div class="totals">loading…</div>';
+  const r = await fetch('/api/monthly');
+  const d = await r.json();
+  if (d.error) { $('results').innerHTML = `<div class="totals">⚠ ${d.error}</div>`; return; }
+  const rows = d.rows.map(x => `
+    <tr>
+      <td>${MONTH_FMT(x.month)}${x.partial ? ' <span style="color:var(--muted)">(partial)</span>' : ''}</td>
+      <td class="amt income">+${fmt(x.income)}</td>
+      <td class="amt">−${fmt(x.expenses)}</td>
+      <td class="amt" style="color:${x.net >= 0 ? '#2c7a4b' : '#b3402a'};font-weight:600">${fmt(x.net)}</td>
+    </tr>`).join('');
+  $('results').innerHTML = `
+    <div class="totals">Rolling <b>${d.totals.months}</b> complete months
+      · income <b>${fmt(d.totals.income)}</b> · expenses <b>${fmt(d.totals.expenses)}</b>
+      · net <b>${fmt(d.totals.net)}</b></div>
+    <table>
+      <tr><th>Month</th><th style="text-align:right">Income</th>
+          <th style="text-align:right">Expenses</th><th style="text-align:right">Net</th></tr>
+      ${rows}
+      <tr style="font-weight:650;border-top:2px solid var(--border)">
+        <td>Total (${d.totals.months} mo)</td>
+        <td class="amt income">+${fmt(d.totals.income)}</td>
+        <td class="amt">−${fmt(d.totals.expenses)}</td>
+        <td class="amt" style="color:${d.totals.net >= 0 ? '#2c7a4b' : '#b3402a'}">${fmt(d.totals.net)}</td>
+      </tr>
+    </table>`;
 }
 
 function fillCategories() {

@@ -1,6 +1,8 @@
 .env
 *.xlsx
 spending_rules.json
+spending_rules.compact.json
+outbox/
 logs/
 __pycache__/
 *.pyc

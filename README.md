@@ -115,6 +115,35 @@ The YTD Summary shows a **Total Rental Expense** subtotal separate from **Total 
 
 ---
 
+## Cashflow Agent (AI financial analyst)
+
+A conversational, tool-using agent over the ledger — a financial analyst for
+studying income, expenses, and trends on a continuous basis. Built with a
+hand-rolled agent loop (no framework) in `src/agent/`.
+
+```
+pip install -r requirements.txt        # adds `anthropic`
+# add ANTHROPIC_API_KEY to .env
+python -m src.agent.cli                # or --verbose to watch tool calls
+```
+
+Example questions:
+
+```
+you> What was my net cash flow last month, by category?
+you> What are my expense trends over the last six months — anything accelerating?
+you> Why was December down vs. November?
+you> Flag anything unusual in the last 30 days.
+you> Recategorize transaction csv-chk-... as Rental - Maintenance and make a rule for it.
+```
+
+Architecture: deterministic tools (`src/agent/ledger.py`) do all data access
+and arithmetic; the model plans and interprets (`src/agent/agent.py`, ~40-line
+loop); action tools (email drafts, recategorization) only create proposals that
+require CLI approval (`src/agent/cli.py`) — the gate is enforced in code, not
+the prompt. Every tool call and approved mutation is logged to
+`logs/agent_audit.jsonl`; recategorizations back up the ledger first.
+
 ## Railway deploy
 
 ```bash

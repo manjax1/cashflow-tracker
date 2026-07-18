@@ -80,6 +80,17 @@
   #results td.amt { text-align: right; white-space: nowrap; }
   #results td.amt.income { color: #2c7a4b; }
   #results tr:hover { background: var(--bg); }
+  /* pivot matrix */
+  .pivot-wrap { overflow-x: auto; }
+  .pivot { font-size: 12px !important; white-space: nowrap; }
+  .pivot th, .pivot td { padding: 4px 7px !important; }
+  .pivot th.cat, .pivot td.cat { position: sticky; left: 0; background: var(--panel);
+      max-width: 190px; overflow: hidden; text-overflow: ellipsis; z-index: 1; }
+  .pivot tr:hover td.cat { background: var(--bg); }
+  .pivot td.num { text-align: right; }
+  .pivot tr.section td { font-weight: 650; background: var(--accent-soft); }
+  .pivot tr.subtotal td { font-weight: 600; border-top: 2px solid var(--border); }
+  .mode-toggle { margin-left: auto; }
 
   .suggest { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 10px; }
   .suggest button { background: var(--panel); border: 1px solid var(--border);
@@ -121,6 +132,10 @@
       <button id="tab-text" class="active" onclick="setTab('text')">🔎 Text search</button>
       <button id="tab-cat" onclick="setTab('cat')">📁 Category search</button>
       <button id="tab-monthly" onclick="setTab('monthly')">📅 Monthly summary</button>
+      <span class="mode-toggle" id="monthly-mode" style="display:none">
+        <button id="mode-sum" class="active" onclick="setMonthlyMode('summary')">Summary</button>
+        <button id="mode-det" onclick="setMonthlyMode('detail')">Detailed</button>
+      </span>
     </div>
     <div class="search-row" id="row-text">
       <input type="text" id="s-q" placeholder="Search descriptions… e.g. Costco, Zelle, mortgage"
@@ -256,14 +271,57 @@ const MONTH_FMT = m => {
   return new Date(y, mo - 1).toLocaleString('en', { month: 'short' }) + '-' + y;
 };
 
+let monthlyMode = 'summary';
+
 function setTab(t) {
   activeTab = t;
   ['text', 'cat', 'monthly'].forEach(x =>
     $('tab-' + x).classList.toggle('active', x === t));
   $('row-text').style.display = t === 'text' ? 'flex' : 'none';
   $('row-cat').style.display = t === 'cat' ? 'flex' : 'none';
+  $('monthly-mode').style.display = t === 'monthly' ? 'inline-flex' : 'none';
   $('results').innerHTML = '';
-  if (t === 'monthly') loadMonthly();
+  if (t === 'monthly') (monthlyMode === 'detail' ? loadMonthlyDetail : loadMonthly)();
+}
+
+function setMonthlyMode(m) {
+  monthlyMode = m;
+  $('mode-sum').classList.toggle('active', m === 'summary');
+  $('mode-det').classList.toggle('active', m === 'detail');
+  (m === 'detail' ? loadMonthlyDetail : loadMonthly)();
+}
+
+const fmtC = n => n === 0 ? '' : (n < 0 ? '−' : '') + '$' + Math.abs(n).toLocaleString(undefined, {maximumFractionDigits: 0});
+
+async function loadMonthlyDetail() {
+  $('results').innerHTML = '<div class="totals">loading…</div>';
+  const r = await fetch('/api/monthly_detail');
+  const d = await r.json();
+  if (d.error) { $('results').innerHTML = `<div class="totals">⚠ ${d.error}</div>`; return; }
+  const M = d.months;
+  const head = '<tr><th class="cat">Category</th>' +
+    M.map(m => `<th class="num">${MONTH_FMT(m)}${m === d.partial_month ? '*' : ''}</th>`).join('') +
+    '<th class="num">Total</th></tr>';
+  const row = (r, cls = '') => `<tr class="${cls}"><td class="cat">${r.category}</td>` +
+    r.values.map(v => `<td class="num">${fmtC(v)}</td>`).join('') +
+    `<td class="num"><b>${fmtC(r.total ?? r.values.reduce((a, b) => a + b, 0))}</b></td></tr>`;
+  const totalRow = (label, vals, cls) =>
+    row({ category: label, values: vals }, cls);
+  const html = `
+    <div class="totals">Category × month — trailing ${M.length} months${d.partial_month ? ' · * partial month' : ''}</div>
+    <div class="pivot-wrap"><table class="pivot">
+      ${head}
+      ${row({category: 'INCOME', values: [], total: null}, 'section').replace(/<td[^>]*><\/td>/g, '') }
+      ${d.income_rows.map(x => row(x)).join('')}
+      ${totalRow('Total Income', d.subtotals.income, 'subtotal')}
+      ${row({category: 'EXPENSES', values: [], total: null}, 'section').replace(/<td[^>]*><\/td>/g, '')}
+      ${d.expense_rows.map(x => row(x)).join('')}
+      ${totalRow('Total Rental Expense', d.subtotals.rental_expense, 'subtotal')}
+      ${totalRow('Total Personal Expense', d.subtotals.personal_expense, 'subtotal')}
+      ${totalRow('Total Expense', d.subtotals.expense, 'subtotal')}
+      ${totalRow('NET (Income − Expense)', d.subtotals.net, 'section')}
+    </table></div>`;
+  $('results').innerHTML = html;
 }
 
 async function loadMonthly() {

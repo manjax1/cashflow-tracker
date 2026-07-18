@@ -281,6 +281,64 @@ def monthly_summary():
     return jsonify({"rows": rows, "totals": totals})
 
 
+@app.get("/api/monthly_detail")
+def monthly_detail():
+    """Category x month pivot for the trailing 12 months (+ partial current).
+    Mirrors the Sheet's summary: income lines, expense lines with rental vs
+    personal subtotals, and a net row."""
+    if not _authed():
+        return jsonify({"error": "unauthorized"}), 401
+    txns = [t for t in ledger.load_transactions() if t["IncludeInNet"]]
+    all_months = sorted({t["Date"][:7] for t in txns})
+    months = all_months[-13:]
+    m_idx = {m: i for i, m in enumerate(months)}
+
+    cells = {}  # (category, type) -> [12 values]
+    for t in txns:
+        i = m_idx.get(t["Date"][:7])
+        if i is None:
+            continue
+        key = (t["Category"], t["Type"])
+        cells.setdefault(key, [0.0] * len(months))[i] += t["Amount"]
+
+    def make_rows(tx_type):
+        rows = []
+        for (cat, typ), vals in cells.items():
+            if typ != tx_type:
+                continue
+            rows.append({"category": cat,
+                         "values": [round(v, 2) for v in vals],
+                         "total": round(sum(vals), 2)})
+        rows.sort(key=lambda r: r["total"], reverse=True)
+        return rows
+
+    def sum_rows(rows):
+        return [round(sum(r["values"][i] for r in rows), 2)
+                for i in range(len(months))]
+
+    income_rows = make_rows("Income")
+    expense_rows = make_rows("Expense")
+    rental_rows = [r for r in expense_rows if r["category"].startswith("Rental")]
+    personal_rows = [r for r in expense_rows if not r["category"].startswith("Rental")]
+
+    inc_tot = sum_rows(income_rows)
+    exp_tot = sum_rows(expense_rows)
+    ledger_end = max(t["Date"] for t in txns)
+    return jsonify({
+        "months": months,
+        "partial_month": ledger_end[:7] if ledger_end[8:10] < "28" else None,
+        "income_rows": income_rows,
+        "expense_rows": expense_rows,
+        "subtotals": {
+            "income": inc_tot,
+            "rental_expense": sum_rows(rental_rows),
+            "personal_expense": sum_rows(personal_rows),
+            "expense": exp_tot,
+            "net": [round(a - b, 2) for a, b in zip(inc_tot, exp_tot)],
+        },
+    })
+
+
 @app.get("/api/dashboard")
 def dashboard():
     if not _authed():

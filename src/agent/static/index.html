@@ -74,6 +74,10 @@
   #results .totals { font-size: 13px; color: var(--muted); margin-bottom: 6px; }
   #results .totals b { color: var(--ink); }
   #results table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  #results table.tbl-compact { width: auto; }
+  #results table.tbl-compact th, #results table.tbl-compact td { min-width: 110px; }
+  #results table.tbl-compact th:first-child,
+  #results table.tbl-compact td:first-child { min-width: 150px; padding-right: 24px; }
   #results th { text-align: left; color: var(--muted); font-weight: 600;
                 border-bottom: 1px solid var(--border); padding: 5px 8px; }
   #results td { border-bottom: 1px solid var(--border); padding: 5px 8px; }
@@ -82,6 +86,10 @@
   #results tr:hover { background: var(--bg); }
   /* pivot matrix */
   .pivot-wrap { overflow-x: auto; }
+  /* full-bleed: detailed view breaks out of the 880px column to use the
+     whole viewport width so all 13 months are visible without scrolling */
+  #search.wide { width: calc(100vw - 32px); margin-left: calc(50% - 50vw + 16px); }
+  #search.wide .pivot { width: 100%; }
   .pivot { font-size: 12px !important; white-space: nowrap; }
   .pivot th, .pivot td { padding: 4px 7px !important; }
   .pivot th.cat, .pivot td.cat { position: sticky; left: 0; background: var(--panel);
@@ -280,14 +288,21 @@ function setTab(t) {
   $('row-text').style.display = t === 'text' ? 'flex' : 'none';
   $('row-cat').style.display = t === 'cat' ? 'flex' : 'none';
   $('monthly-mode').style.display = t === 'monthly' ? 'inline-flex' : 'none';
+  updateWide();
   $('results').innerHTML = '';
   if (t === 'monthly') (monthlyMode === 'detail' ? loadMonthlyDetail : loadMonthly)();
+}
+
+function updateWide() {
+  $('search').classList.toggle('wide',
+    activeTab === 'monthly' && monthlyMode === 'detail');
 }
 
 function setMonthlyMode(m) {
   monthlyMode = m;
   $('mode-sum').classList.toggle('active', m === 'summary');
   $('mode-det').classList.toggle('active', m === 'detail');
+  updateWide();
   (m === 'detail' ? loadMonthlyDetail : loadMonthly)();
 }
 
@@ -340,7 +355,7 @@ async function loadMonthly() {
     <div class="totals">Rolling <b>${d.totals.months}</b> complete months
       · income <b>${fmt(d.totals.income)}</b> · expenses <b>${fmt(d.totals.expenses)}</b>
       · net <b>${fmt(d.totals.net)}</b></div>
-    <table>
+    <table class="tbl-compact">
       <tr><th>Month</th><th style="text-align:right">Income</th>
           <th style="text-align:right">Expenses</th><th style="text-align:right">Net</th></tr>
       ${rows}

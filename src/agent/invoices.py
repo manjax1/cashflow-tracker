@@ -73,9 +73,11 @@ EXTRACT_TOOL = {
 SYSTEM = """You extract structured data from retail invoices and classify items.
 Classification rules:
 - Use ONLY the category names provided in the taxonomy list. Never invent one.
-- Household consumables/food -> Groceries; plants/garden supplies -> Gardening;
-  apparel/shoes -> Clothing; devices/accessories/electronics -> the best-fitting
-  existing category; if truly unclear use 'Other - Uncategorized' with low confidence.
+- Food/household consumables -> Groceries; plants/garden supplies -> Gardening;
+  apparel/shoes -> Clothing; skincare, hygiene, grooming, cosmetics, vitamins &
+  supplements -> Personal Care; gym/sports/therapy equipment -> Health and
+  Fitness; devices/accessories/electronics -> the best-fitting existing
+  category; if truly unclear use 'Other - Uncategorized' with low confidence.
 - Mark confidence honestly: 'high' only when the item name is unambiguous.
 - Report money fields exactly as printed. Do not compute or adjust totals.
 - Watch for quantities: a lone number near an item line usually means quantity;
@@ -118,9 +120,15 @@ def read_invoice(path):
 
 # --------------------------- LLM extraction ---------------------------
 
+# Categories that should exist for item-level classification even before any
+# ledger transaction uses them (they self-register once splits land).
+EXTRA_CATEGORIES = ["Personal Care"]
+
+
 def taxonomy():
-    cats = ledger.list_categories()["categories"]
-    return sorted(c["category"] for c in cats)
+    cats = {c["category"] for c in ledger.list_categories()["categories"]}
+    cats.update(EXTRA_CATEGORIES)
+    return sorted(cats)
 
 
 def extract_order(text, client=None):
@@ -232,19 +240,223 @@ def print_order(o):
         print(f"      note: {o['notes']}")
 
 
+# ----------------------- Amazon data-export adapter -----------------------
+
+EXPORT_CSV = os.path.join(OUTDIR, "amazon_export", "Your Amazon Orders", "Order History.csv")
+CACHE_PATH = os.path.join(OUTDIR, "classification_cache.json")
+
+CLASSIFY_TOOL = {
+    "name": "classify_items",
+    "description": "Classify retail product names into the given taxonomy.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "classifications": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string", "description": "product name EXACTLY as given"},
+                        "category": {"type": "string"},
+                        "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
+                    },
+                    "required": ["name", "category", "confidence"],
+                },
+            }
+        },
+        "required": ["classifications"],
+    },
+}
+
+
+def money(v):
+    try:
+        return float(str(v).strip().strip("'\""))
+    except (ValueError, TypeError):
+        return 0.0
+
+
+def classify_names(names, client):
+    """Batch-classify unique product names with a persistent cache."""
+    cache = {}
+    if os.path.exists(CACHE_PATH):
+        with open(CACHE_PATH) as f:
+            cache = json.load(f)
+    todo = [n for n in names if n not in cache]
+    cats = taxonomy()
+    for i in range(0, len(todo), 40):
+        batch = todo[i:i + 40]
+        print(f"  ⚙ classifying {len(batch)} product names "
+              f"({i + len(batch)}/{len(todo)}) ...")
+        prompt = ("Taxonomy categories (use these EXACT names):\n"
+                  + "\n".join(f"- {c}" for c in cats)
+                  + "\n\nClassify each product:\n"
+                  + "\n".join(f"- {n}" for n in batch))
+        resp = client.messages.create(
+            model=MODEL, max_tokens=4000, system=SYSTEM,
+            tools=[CLASSIFY_TOOL],
+            tool_choice={"type": "tool", "name": "classify_items"},
+            messages=[{"role": "user", "content": prompt}])
+        out = next(b.input for b in resp.content if b.type == "tool_use")
+        for c in out["classifications"]:
+            cache[c["name"]] = {"category": c["category"], "confidence": c["confidence"]}
+    with open(CACHE_PATH, "w") as f:
+        json.dump(cache, f, indent=2)
+    return cache
+
+
+def import_export(dry_run=False):
+    """Convert Amazon's data-export Order History.csv into the same per-order
+    JSON the invoice extractor produces. CSV money is authoritative (discounts
+    and tax already baked into per-item Total Amount) — the LLM only
+    classifies product names."""
+    import csv as csvmod
+    from collections import defaultdict
+
+    if not os.path.exists(EXPORT_CSV):
+        sys.exit(f"Export CSV not found at {EXPORT_CSV}")
+    ledger_start = min(t["Date"] for t in ledger.load_transactions())
+    with open(EXPORT_CSV, newline="", encoding="utf-8-sig") as f:
+        rows = [r for r in csvmod.DictReader(f)
+                if r["Order Date"][:10] >= ledger_start
+                and "cancel" not in r["Order Status"].lower()]
+    orders = defaultdict(list)
+    for r in rows:
+        orders[r["Order ID"]].append(r)
+    print(f"{len(rows)} item rows in {len(orders)} orders since {ledger_start}")
+
+    names = sorted({r["Product Name"] for r in rows})
+    client = anthropic.Anthropic()
+    cache = classify_names(names, client)
+
+    os.makedirs(OUTDIR, exist_ok=True)
+    saved = skipped = no_charge = 0
+    for oid, lines in sorted(orders.items(), key=lambda kv: kv[1][0]["Order Date"]):
+        if os.path.exists(order_path(oid)):
+            skipped += 1
+            continue
+        items, shipments = [], {}
+        for r in lines:
+            cls = cache.get(r["Product Name"], {"category": "Other - Uncategorized",
+                                                "confidence": "low"})
+            items.append({
+                "name": r["Product Name"],
+                "price": money(r["Unit Price"]),
+                "quantity": int(r["Original Quantity"] or 1),
+                "category": cls["category"],
+                "confidence": cls["confidence"],
+                "gross": money(r["Unit Price"]) * int(r["Original Quantity"] or 1),
+                "allocated_amount": money(r["Total Amount"]),  # authoritative
+            })
+            track = r.get("Carrier Name & Tracking Number", "") or f"ship-{len(shipments)}"
+            shipments[track] = round(
+                money(r["Shipment Item Subtotal"]) + money(r["Shipment Item Subtotal Tax"]), 2)
+        total = round(sum(i["allocated_amount"] for i in items), 2)
+        order = {
+            "order_id": oid,
+            "order_date": lines[0]["Order Date"][:10],
+            "merchant": "Amazon",
+            "items": items,
+            "grand_total": total,
+            "payment_hint": lines[0]["Payment Method Type"],
+            "shipments": [{"amount": a} for a in shipments.values()],
+            "_source_file": "amazon-data-export",
+            "_extracted_at": datetime.now().isoformat(timespec="seconds"),
+        }
+        if total == 0:
+            order["no_card_charge"] = True
+            order["notes"] = "Paid with rewards/gift balance — no ledger charge to match."
+            no_charge += 1
+        if "gift" in order["payment_hint"].lower() and total > 0:
+            order["notes"] = ("Partially paid with gift balance — card charge may be "
+                              "less than order total; matcher should treat amount as approximate.")
+        if dry_run and saved < 5:
+            print_order(order)
+        if not dry_run:
+            with open(order_path(oid), "w") as f:
+                json.dump(order, f, indent=2)
+        saved += 1
+    audit("export_imported", {"orders": saved, "skipped": skipped})
+    print(f"\n{saved} orders {'previewed' if dry_run else 'saved'}, "
+          f"{skipped} already present, {no_charge} rewards-paid (no charge)"
+          + (" — dry run, nothing written" if dry_run else f" → {OUTDIR}"))
+
+
+PERSONAL_CARE_HINTS = [
+    "razor", "shav", "moistur", "lotion", "cream", "serum", "soap", "shampoo",
+    "conditioner", "toothpaste", "toothbrush", "floss", "deodorant", "sunscreen",
+    "cosmetic", "makeup", "nail", "eyebrow", "scissors", "trimmer", "hygiene",
+    "vitamin", "supplement", "glucosamine", "wipes", "facial", "skin", "hair",
+]
+
+
+def reclassify(clear_hints=None):
+    """Clear cached classifications matching hint keywords, reclassify those
+    names with the (updated) taxonomy, and rewrite saved order JSONs."""
+    hints = clear_hints or PERSONAL_CARE_HINTS
+    cache = {}
+    if os.path.exists(CACHE_PATH):
+        with open(CACHE_PATH) as f:
+            cache = json.load(f)
+    cleared = [n for n in cache if any(h in n.lower() for h in hints)]
+    for n in cleared:
+        del cache[n]
+    with open(CACHE_PATH, "w") as f:
+        json.dump(cache, f, indent=2)
+    print(f"cleared {len(cleared)} cached classifications for reclassification")
+
+    # collect all item names across saved orders; classify anything uncached
+    orders = {}
+    for fn in os.listdir(OUTDIR):
+        if fn.endswith(".json") and fn != os.path.basename(CACHE_PATH):
+            with open(os.path.join(OUTDIR, fn)) as fh:
+                data = json.load(fh)
+            if isinstance(data, dict) and "order_id" in data:
+                orders[fn] = data
+    names = sorted({i["name"] for o in orders.values() for i in o["items"]})
+    cache = classify_names(names, anthropic.Anthropic())
+
+    changed = 0
+    for fn, o in orders.items():
+        dirty = False
+        for i in o["items"]:
+            c = cache.get(i["name"])
+            if c and (i["category"] != c["category"] or i["confidence"] != c["confidence"]):
+                print(f"  {i['category']:<24} -> {c['category']:<18} {i['name'][:48]}")
+                i["category"], i["confidence"] = c["category"], c["confidence"]
+                dirty = True
+                changed += 1
+        if dirty:
+            with open(os.path.join(OUTDIR, fn), "w") as f:
+                json.dump(o, f, indent=2)
+    audit("reclassified", {"cleared": len(cleared), "changed": changed})
+    print(f"\n{changed} item classifications updated across saved orders")
+
+
 def list_orders():
     if not os.path.isdir(OUTDIR):
         sys.exit("Nothing extracted yet.")
+    orders = []
     for f in sorted(os.listdir(OUTDIR)):
-        if f.endswith(".json"):
-            with open(os.path.join(OUTDIR, f)) as fh:
-                print_order(json.load(fh))
+        if not f.endswith(".json"):
+            continue
+        with open(os.path.join(OUTDIR, f)) as fh:
+            data = json.load(fh)
+        if isinstance(data, dict) and "order_id" in data:  # skip cache/other json
+            orders.append(data)
+    for o in sorted(orders, key=lambda x: x["order_date"]):
+        print_order(o)
+    print(f"\n{len(orders)} orders")
 
 
 if __name__ == "__main__":
     args = sys.argv[1:]
     if args and args[0] == "ingest":
         ingest(dry_run="--dry-run" in args)
+    elif args and args[0] == "import-export":
+        import_export(dry_run="--dry-run" in args)
+    elif args and args[0] == "reclassify":
+        reclassify()
     elif args and args[0] == "list":
         list_orders()
     else:

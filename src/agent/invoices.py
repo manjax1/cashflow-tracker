@@ -382,6 +382,123 @@ def import_export(dry_run=False):
           + (" — dry run, nothing written" if dry_run else f" → {OUTDIR}"))
 
 
+# ------------------- apply: import orders as ledger rows -------------------
+
+REFUNDS_CSV = os.path.join(OUTDIR, "amazon_export", "Your Returns & Refunds",
+                           "Refund Details.csv")
+AMAZON_ACCOUNT = "Amazon Visa"
+
+
+def load_card_orders():
+    orders = []
+    for fn in os.listdir(OUTDIR):
+        if fn.endswith(".json") and fn != os.path.basename(CACHE_PATH):
+            with open(os.path.join(OUTDIR, fn)) as f:
+                o = json.load(f)
+            if isinstance(o, dict) and "order_id" in o and not o.get("no_card_charge"):
+                orders.append(o)
+    return sorted(orders, key=lambda o: o["order_date"])
+
+
+def build_rows(orders, existing_refs, ledger_start):
+    """Item rows + refund rows for the virtual Amazon Visa account."""
+    rows = []
+    for o in orders:
+        for i, item in enumerate(o["items"], 1):
+            ref = f"amazon-{o['order_id']}-{i}"
+            amt = round(item.get("allocated_amount", 0), 2)
+            if ref in existing_refs or amt == 0:
+                continue
+            rows.append([o["order_date"], f"Amazon: {item['name'][:80]}",
+                         AMAZON_ACCOUNT, item["category"], "Expense", amt,
+                         True, ref])
+    if os.path.exists(REFUNDS_CSV):
+        import csv as csvmod
+        oids = {o["order_id"] for o in orders}
+        with open(REFUNDS_CSV, newline="", encoding="utf-8-sig") as f:
+            for n, r in enumerate(csvmod.DictReader(f), 1):
+                date = (r.get("Refund Date") or r.get("Creation Date") or "")[:10]
+                amt = money(r.get("Refund Amount"))
+                ref = f"amazon-refund-{r['Order ID']}-{n}"
+                if (r["Order ID"] in oids and date >= ledger_start and amt > 0
+                        and ref not in existing_refs
+                        and "reversed" not in (r.get("Reversal Status") or "").lower()):
+                    rows.append([date, f"Amazon refund: order {r['Order ID']}",
+                                 AMAZON_ACCOUNT, "Income - Retail Refunds",
+                                 "Income", amt, True, ref])
+    return rows
+
+
+def apply_orders(dry_run=False):
+    """Import Amazon order items as spend rows in the 'Amazon Visa' account,
+    and reclassify Chase autopay lumps to the excluded 'Credit Card Payment'
+    category (same dedup convention as the BofA card) to avoid double-counting."""
+    import shutil
+    import openpyxl
+    from collections import defaultdict
+
+    txns = ledger.load_transactions()
+    ledger_start = min(t["Date"] for t in txns)
+    existing_refs = {str(t["SourceRef"]) for t in txns}
+    orders = load_card_orders()
+    rows = build_rows(orders, existing_refs, ledger_start)
+    autopay = [t for t in txns if "CHASE CREDIT CRD DES:AUTOPAY" in t["Description"]
+               and t["Category"] != "Credit Card Payment"]
+
+    by_cat = defaultdict(float)
+    for r in rows:
+        if r[4] == "Expense":
+            by_cat[r[3]] += r[5]
+    exp_total = sum(v for v in by_cat.values())
+    ref_total = sum(r[5] for r in rows if r[4] == "Income")
+    print(f"{len(orders)} orders -> {len(rows)} new ledger rows "
+          f"(spend ${exp_total:.2f}, refunds ${ref_total:.2f})")
+    print(f"{len(autopay)} Chase autopay rows to flip to 'Credit Card Payment' "
+          f"(${sum(t['Amount'] for t in autopay):.2f} removed from spend)")
+    print("\nNew spend by category:")
+    for c, v in sorted(by_cat.items(), key=lambda kv: -kv[1]):
+        print(f"  {c:<28} ${v:>9.2f}")
+    if dry_run:
+        print("\nSample rows:")
+        for r in rows[:6]:
+            print("  ", r[:6])
+        print("\n(dry run — nothing written)")
+        return
+
+    confirm = input(f"\nAppend {len(rows)} rows and flip {len(autopay)} autopay rows? [y/N] ")
+    if confirm.strip().lower() != "y":
+        print("Cancelled.")
+        return
+    backup = ledger.LEDGER_PATH.replace(
+        ".xlsx", f"_BACKUP_{datetime.now():%Y-%m-%d_%H%M%S}.xlsx")
+    shutil.copy2(ledger.LEDGER_PATH, backup)
+    wb = openpyxl.load_workbook(ledger.LEDGER_PATH)
+    ws = wb["Transactions"]
+    header = [c.value for c in ws[1]]
+    ref_col = header.index("SourceRef")
+    cat_col = header.index("Category")
+    net_col = header.index("IncludeInNet")
+    flip_refs = {str(t["SourceRef"]) for t in autopay}
+    flipped = 0
+    for row in ws.iter_rows(min_row=2):
+        if str(row[ref_col].value) in flip_refs:
+            row[cat_col].value = "Credit Card Payment"
+            row[net_col].value = False
+            flipped += 1
+    for r in rows:
+        ws.append(r)
+    wb.save(ledger.LEDGER_PATH)
+    ledger._cache["mtime"] = None
+    audit("amazon_orders_applied",
+          {"rows_added": len(rows), "autopay_flipped": flipped,
+           "spend": round(exp_total, 2), "refunds": round(ref_total, 2),
+           "backup": os.path.basename(backup)})
+    print(f"✅ {len(rows)} rows appended, {flipped} autopay rows flipped. "
+          f"Backup: {os.path.basename(backup)}")
+    print("Remember: 'push' from the agent CLI to sync Drive, and re-run "
+          "scripts/compact_rules.py for Railway (rules changed).")
+
+
 PERSONAL_CARE_HINTS = [
     "razor", "shav", "moistur", "lotion", "cream", "serum", "soap", "shampoo",
     "conditioner", "toothpaste", "toothbrush", "floss", "deodorant", "sunscreen",
@@ -457,6 +574,8 @@ if __name__ == "__main__":
         import_export(dry_run="--dry-run" in args)
     elif args and args[0] == "reclassify":
         reclassify()
+    elif args and args[0] == "apply":
+        apply_orders(dry_run="--dry-run" in args)
     elif args and args[0] == "list":
         list_orders()
     else:

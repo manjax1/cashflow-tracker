@@ -328,6 +328,8 @@ def monthly_detail():
         "months": months,
         "partial_month": ledger_end[:7] if ledger_end[8:10] < "28" else None,
         "income_rows": income_rows,
+        "rental_expense_rows": rental_rows,      # grouped: rental together,
+        "personal_expense_rows": personal_rows,  # then personal, each by size
         "expense_rows": expense_rows,
         "subtotals": {
             "income": inc_tot,

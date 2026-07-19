@@ -384,9 +384,11 @@ async function loadMonthlyDetail() {
       ${row({category: 'INCOME', values: [], total: null}, 'section').replace(/<td[^>]*><\/td>/g, '') }
       ${d.income_rows.map(x => row(x)).join('')}
       ${totalRow('Total Income', d.subtotals.income, 'subtotal')}
-      ${row({category: 'EXPENSES', values: [], total: null}, 'section').replace(/<td[^>]*><\/td>/g, '')}
-      ${d.expense_rows.map(x => row(x)).join('')}
+      ${row({category: 'EXPENSES — RENTAL', values: [], total: null}, 'section').replace(/<td[^>]*><\/td>/g, '')}
+      ${d.rental_expense_rows.map(x => row(x)).join('')}
       ${totalRow('Total Rental Expense', d.subtotals.rental_expense, 'subtotal')}
+      ${row({category: 'EXPENSES — PERSONAL', values: [], total: null}, 'section').replace(/<td[^>]*><\/td>/g, '')}
+      ${d.personal_expense_rows.map(x => row(x)).join('')}
       ${totalRow('Total Personal Expense', d.subtotals.personal_expense, 'subtotal')}
       ${totalRow('Total Expense', d.subtotals.expense, 'subtotal')}
       ${totalRow('NET (Income − Expense)', d.subtotals.net, 'section')}

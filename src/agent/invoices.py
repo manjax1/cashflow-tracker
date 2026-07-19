@@ -77,7 +77,13 @@ Classification rules:
   apparel/shoes -> Clothing; devices/accessories/electronics -> the best-fitting
   existing category; if truly unclear use 'Other - Uncategorized' with low confidence.
 - Mark confidence honestly: 'high' only when the item name is unambiguous.
-- Report money fields exactly as printed. Do not compute or adjust totals."""
+- Report money fields exactly as printed. Do not compute or adjust totals.
+- Watch for quantities: a lone number near an item line usually means quantity;
+  verify item prices x quantities roughly reconcile with the printed subtotal.
+- If an item shows a return/refund in progress, keep it in the items list (it
+  was part of the charge) and mention the pending refund in notes.
+- If the order was paid with rewards points or gift balance (Grand Total $0 or
+  a large points deduction), say so in notes."""
 
 
 # ----------------------------- file parsing -----------------------------
@@ -147,6 +153,16 @@ def allocate(order):
     if not items or base <= 0:
         order["allocation_warning"] = "no items or zero subtotal"
         return order
+    if total == 0:
+        # Paid entirely with rewards points / gift card: no card charge exists,
+        # so there is nothing to match against the ledger.
+        for item, g in zip(items, gross):
+            item["gross"] = g
+            item["allocated_amount"] = 0.0
+        order["no_card_charge"] = True
+        order["notes"] = ((order.get("notes") or "") +
+                          " Paid with rewards/gift balance — no ledger charge to match.").strip()
+        return order
     printed = order.get("subtotal")
     if printed is not None and abs(printed - base) > 0.02:
         warnings.append(f"item sum {base:.2f} != printed subtotal {printed:.2f}")
@@ -203,8 +219,9 @@ def ingest(dry_run=False):
 
 
 def print_order(o):
+    tag = "  ★ NO CARD CHARGE (rewards-paid)" if o.get("no_card_charge") else ""
     print(f"    {o['merchant']} order {o['order_id']}  ({o['order_date']})  "
-          f"total ${o['grand_total']:.2f}  [{o.get('payment_hint', '?')}]")
+          f"total ${o['grand_total']:.2f}  [{o.get('payment_hint', '?')}]{tag}")
     for i in o["items"]:
         conf = {"high": "", "medium": " (?)", "low": " (??)"}[i["confidence"]]
         print(f"      ${i.get('allocated_amount', i['price']):>8.2f}  "

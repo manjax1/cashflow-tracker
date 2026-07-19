@@ -100,6 +100,13 @@
   .pivot tr.subtotal td { font-weight: 600; border-top: 2px solid var(--border); }
   .mode-toggle { margin-left: auto; }
 
+  /* chat history list */
+  .hist-list { display: flex; flex-direction: column; gap: 5px; margin-top: 8px; }
+  .hist-item { text-align: left; background: var(--bg); border: 1px solid var(--border);
+               border-radius: 10px; padding: 7px 12px; font: inherit; font-size: 13px;
+               cursor: pointer; color: var(--ink); }
+  .hist-item:hover { border-color: var(--accent); color: var(--accent); }
+
   .suggest { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 10px; }
   .suggest button { background: var(--panel); border: 1px solid var(--border);
                     border-radius: 20px; padding: 6px 12px; font-size: 12.5px;
@@ -170,7 +177,7 @@
 </div>
 
 <div id="inputbar"><div class="inputbox">
-  <textarea id="q" rows="1" placeholder="Ask about income, expenses, trends, anomalies…"></textarea>
+  <textarea id="q" rows="1" placeholder="Ask about income, expenses, trends, anomalies…  (↑ recalls previous · type 'history')"></textarea>
   <button id="send" onclick="send()">↑</button>
 </div></div>
 
@@ -238,9 +245,41 @@ function render(text) {
   return s;
 }
 
+// ---------- input history (per-browser, like readline for the web) ----------
+const HKEY = 'cf_chat_history';
+let HIST = [];
+try { HIST = JSON.parse(localStorage.getItem(HKEY) || '[]'); } catch (e) {}
+let hIdx = HIST.length;   // points one past the newest entry
+let draft = '';
+
+function remember(q) {
+  if (q && HIST[HIST.length - 1] !== q) {
+    HIST.push(q);
+    if (HIST.length > 100) HIST = HIST.slice(-100);
+    try { localStorage.setItem(HKEY, JSON.stringify(HIST)); } catch (e) {}
+  }
+  hIdx = HIST.length; draft = '';
+}
+
+function showHistory() {
+  if (!HIST.length) {
+    addMsg('agent', '<div class="content">No questions asked from this browser yet.</div>');
+    return;
+  }
+  const items = HIST.slice(-20).map((h, i) =>
+    `<button class="hist-item" data-h="${encodeURIComponent(h)}">${render(h)}</button>`).join('');
+  const div = addMsg('agent',
+    `<div class="content"><strong>Recent questions</strong> — click to reuse, or press ↑ in the input box:<div class="hist-list">${items}</div></div>`);
+  div.querySelectorAll('.hist-item').forEach(b => b.onclick = () => {
+    $('q').value = decodeURIComponent(b.dataset.h); autosize(); $('q').focus();
+  });
+}
+
 async function send(preset) {
   const q = preset || $('q').value.trim();
   if (!q) return;
+  if (q.toLowerCase() === 'history') { $('q').value = ''; autosize(); showHistory(); return; }
+  remember(q);
   $('q').value = ''; autosize();
   $('send').disabled = true;
   $('suggest').innerHTML = '';
@@ -270,7 +309,21 @@ function autosize() {
 }
 $('q').addEventListener('input', autosize);
 $('q').addEventListener('keydown', e => {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); return; }
+  const q = $('q');
+  const atStart = q.selectionStart === 0 && q.selectionEnd === 0;
+  const atEnd = q.selectionStart === q.value.length;
+  if (e.key === 'ArrowUp' && (q.value === '' || atStart) && hIdx > 0) {
+    if (hIdx === HIST.length) draft = q.value;   // stash unfinished draft
+    hIdx--;
+    q.value = HIST[hIdx]; autosize();
+    e.preventDefault();
+  } else if (e.key === 'ArrowDown' && atEnd && hIdx < HIST.length) {
+    hIdx++;
+    q.value = hIdx === HIST.length ? draft : HIST[hIdx];
+    autosize();
+    e.preventDefault();
+  }
 });
 
 // ---------------- search ----------------

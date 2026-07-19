@@ -4,6 +4,8 @@ spending_rules.json
 spending_rules.compact.json
 outbox/
 users.json
+invoices_inbox/
+invoices_data/
 logs/
 __pycache__/
 *.pyc

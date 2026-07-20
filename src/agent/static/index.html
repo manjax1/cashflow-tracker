@@ -100,6 +100,21 @@
   .pivot tr.subtotal td { font-weight: 600; border-top: 2px solid var(--border); }
   .mode-toggle { margin-left: auto; }
 
+  /* upload card */
+  #upload { margin-bottom: 16px; }
+  .upload-card { background: var(--panel); border: 1px solid var(--border);
+                 border-radius: var(--radius); padding: 12px 14px; }
+  .upload-hint { color: var(--muted); font-size: 12px; margin-left: 8px; }
+  .upload-row { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+  .upload-row input[type=file] { font-size: 13px; flex: 1; }
+  .upload-row button { background: var(--accent); color: #fff; border: none;
+                       border-radius: 10px; padding: 8px 14px; cursor: pointer; font-size: 13px; }
+  .upload-row button:disabled { opacity: .5; cursor: default; }
+  #uresult { font-size: 13px; margin-top: 8px; }
+  #uresult .ok { color: #2c7a4b; } #uresult .warn { color: var(--muted); }
+  #uresult .brk { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 5px; }
+  #uresult .chip { background: var(--accent-soft); border-radius: 16px; padding: 2px 9px; font-size: 12px; }
+
   /* chat history list */
   .hist-list { display: flex; flex-direction: column; gap: 5px; margin-top: 8px; }
   .hist-item { text-align: left; background: var(--bg); border: 1px solid var(--border);
@@ -170,6 +185,18 @@
       <button class="go" onclick="doSearch()">Search</button>
     </div>
     <div id="results"></div>
+  </div>
+
+  <div id="upload" style="display:none">
+    <div class="upload-card">
+      <strong>🧾 Upload Costco receipt</strong>
+      <span class="upload-hint">Admin · splits a warehouse basket into item categories on the ledger</span>
+      <div class="upload-row">
+        <input type="file" id="rfile" accept="application/pdf">
+        <button id="ubtn" onclick="uploadReceipt()">Upload &amp; split</button>
+      </div>
+      <div id="uresult"></div>
+    </div>
   </div>
 
   <div class="suggest" id="suggest"></div>
@@ -474,8 +501,46 @@ SUGGESTIONS.forEach(s => {
   b.textContent = s; b.onclick = () => send(s);
   $('suggest').appendChild(b);
 });
+async function uploadReceipt() {
+  const inp = $('rfile');
+  if (!inp.files.length) return;
+  $('ubtn').disabled = true;
+  $('uresult').innerHTML = '<span class="warn">reading receipt…</span>';
+  const fd = new FormData();
+  fd.append('file', inp.files[0]);
+  try {
+    const r = await fetch('/api/upload_receipt', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    const res = d.result;
+    if (res.status === 'split') {
+      const chips = Object.entries(res.breakdown)
+        .map(([c, v]) => `<span class="chip">${c} ${fmt(v)}</span>`).join('');
+      $('uresult').innerHTML = `<span class="ok">✔ Split ${fmt(res.charge)} charge on ${res.date} into ${res.items} items:</span><div class="brk">${chips}</div>`;
+    } else if (res.status === 'no_match') {
+      $('uresult').innerHTML = `<span class="warn">Receipt read (${d.receipt.date}, ${fmt(Math.abs(d.receipt.total))}). ${res.reason}.</span>`;
+    } else if (res.status === 'already_split') {
+      $('uresult').innerHTML = `<span class="warn">This charge is already split — nothing to do.</span>`;
+    } else {
+      $('uresult').innerHTML = `<span class="warn">${res.note || res.status}</span>`;
+    }
+    inp.value = '';
+  } catch (e) {
+    $('uresult').innerHTML = `<span class="warn">⚠ ${e.message}</span>`;
+  }
+  $('ubtn').disabled = false;
+}
+
+async function initAdmin() {
+  try {
+    const r = await fetch('/api/whoami'); const d = await r.json();
+    if (d.admin) $('upload').style.display = 'block';
+  } catch (e) {}
+}
+
 loadDashboard();
 loadMeta();
+initAdmin();
 </script>
 </body>
 </html>

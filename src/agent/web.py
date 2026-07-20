@@ -31,6 +31,8 @@ from .tools import ACTION_TOOLS, TOOLS, audit                   # noqa: E402
 
 READ_TOOLS = [t for t in TOOLS if t["name"] not in ACTION_TOOLS]
 PASSWORD = os.environ.get("AGENT_WEB_PASSWORD", "")  # legacy LAN-only fallback
+ADMIN_USERS = {u.strip() for u in os.environ.get("AGENT_ADMIN_USERS", "").split(",") if u.strip()}
+_upload_lock = threading.Lock()
 CHAT_LOG = os.path.join(ledger.REPO_ROOT, "logs", "web_chat.jsonl")
 IS_CLOUD = bool(os.environ.get("RAILWAY_ENVIRONMENT"))
 
@@ -339,6 +341,53 @@ def monthly_detail():
             "net": [round(a - b, 2) for a, b in zip(inc_tot, exp_tot)],
         },
     })
+
+
+def _is_admin():
+    return _authed() and (not ADMIN_USERS or session.get("user") in ADMIN_USERS)
+
+
+@app.get("/api/whoami")
+def whoami():
+    return jsonify({"user": session.get("user"), "admin": _is_admin()})
+
+
+@app.post("/api/upload_receipt")
+def upload_receipt():
+    """Admin-only: upload a Costco receipt PDF, extract + classify it, and
+    write its item splits to the Drive ledger. Serializes writes with a lock
+    and re-downloads the ledger immediately before writing to reduce the
+    chance of clobbering the daily sync job."""
+    if not _is_admin():
+        return jsonify({"error": "admin only"}), 403
+    f = request.files.get("file")
+    if not f or not f.filename.lower().endswith(".pdf"):
+        return jsonify({"error": "please upload a Costco receipt PDF"}), 400
+    import anthropic
+    from . import costco
+    tmp = os.path.join("/tmp", f"upload_{secrets.token_hex(6)}.pdf")
+    f.save(tmp)
+    try:
+        receipt = costco.extract_receipt(tmp, anthropic.Anthropic())
+        receipt["receipt_id"] = costco.receipt_id(receipt)
+    except Exception as e:
+        return jsonify({"error": f"could not read receipt: {e}"}), 400
+    finally:
+        os.remove(tmp)
+
+    with _upload_lock:
+        try:
+            ensure_ledger()                       # fresh copy from Drive
+            result = costco.split_one(receipt, ledger.LEDGER_PATH)
+            if result["status"] == "split" and os.environ.get("GOOGLE_DRIVE_FILE_ID"):
+                from src.drive_sync import upload_ledger
+                upload_ledger(os.environ["GOOGLE_DRIVE_FILE_ID"], ledger.LEDGER_PATH)
+        except Exception as e:
+            audit("upload_split_error", {"error": str(e)})
+            return jsonify({"error": f"{type(e).__name__}: {e}"}), 500
+    return jsonify({"receipt": {"date": receipt["date"], "total": receipt["total"],
+                               "type": receipt["type"], "items": len(receipt.get("items", []))},
+                    "result": result})
 
 
 @app.get("/api/dashboard")

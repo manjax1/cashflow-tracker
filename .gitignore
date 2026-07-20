@@ -6,6 +6,9 @@ outbox/
 users.json
 invoices_inbox/
 invoices_data/
+Costco-Purchases/
+gmail_credentials.json
+gmail_token.json
 logs/
 __pycache__/
 *.pyc

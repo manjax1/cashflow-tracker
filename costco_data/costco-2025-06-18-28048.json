@@ -1,0 +1,156 @@
+{
+  "source_file": "Costco Purchase - 6-18-2025 .pdf",
+  "date": "2025-06-18",
+  "total": 280.48,
+  "card_last4": "1329",
+  "type": "warehouse",
+  "instant_savings": 40.0,
+  "_extracted_at": "2026-07-19T23:57:42",
+  "items": [
+    {
+      "raw": "4032 WATERMELON",
+      "name": "Watermelon",
+      "net_price": 7.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 8.44
+    },
+    {
+      "raw": "1932072 LIVSFVARIETY",
+      "name": "Livestrong Variety Pack",
+      "net_price": 20.99,
+      "category": "Groceries",
+      "confidence": "medium",
+      "allocated_amount": 22.17
+    },
+    {
+      "raw": "6978082 WATERPIK",
+      "name": "Waterpik",
+      "net_price": 59.99,
+      "category": "Personal Care",
+      "confidence": "high",
+      "allocated_amount": 63.38
+    },
+    {
+      "raw": "6995 GOLD KIWI",
+      "name": "Gold Kiwi",
+      "net_price": 12.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 13.72
+    },
+    {
+      "raw": "96716 ORG SPINACH",
+      "name": "Organic Spinach",
+      "net_price": 4.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 5.27
+    },
+    {
+      "raw": "238120 KS SUPER B",
+      "name": "Kirkland Signature Super B Complex",
+      "net_price": 13.99,
+      "category": "Personal Care",
+      "confidence": "high",
+      "allocated_amount": 14.78
+    },
+    {
+      "raw": "7267 ORG BROC 2LB",
+      "name": "Organic Broccoli 2lb",
+      "net_price": 6.49,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 6.86
+    },
+    {
+      "raw": "1076302 FLAMINHOT",
+      "name": "Flamin' Hot (snacks)",
+      "net_price": 7.39,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 7.81
+    },
+    {
+      "raw": "2619 ORG BANANAS",
+      "name": "Organic Bananas",
+      "net_price": 2.49,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 2.63
+    },
+    {
+      "raw": "1819416 TITAN LUNCH",
+      "name": "Titan Lunch Box/Bag",
+      "net_price": 14.99,
+      "category": "Shopping",
+      "confidence": "high",
+      "allocated_amount": 15.83
+    },
+    {
+      "raw": "1851163 BATH TOWEL",
+      "name": "Bath Towel",
+      "net_price": 4.99,
+      "category": "Shopping",
+      "confidence": "high",
+      "allocated_amount": 5.27
+    },
+    {
+      "raw": "1063232 KS EGG WHITE",
+      "name": "Kirkland Signature Egg Whites",
+      "net_price": 11.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 12.67
+    },
+    {
+      "raw": "1504495 CREST CMPLTE",
+      "name": "Crest Complete Toothpaste",
+      "net_price": 14.99,
+      "category": "Personal Care",
+      "confidence": "high",
+      "allocated_amount": 15.83
+    },
+    {
+      "raw": "56366 RASPBERRIES",
+      "name": "Raspberries",
+      "net_price": 4.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 5.27
+    },
+    {
+      "raw": "1793248 CHOC HNYCOMB",
+      "name": "Chocolate Honeycomb",
+      "net_price": 14.79,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 15.62
+    },
+    {
+      "raw": "1695130 CETAPHIL LTN",
+      "name": "Cetaphil Lotion",
+      "net_price": 14.99,
+      "category": "Personal Care",
+      "confidence": "high",
+      "allocated_amount": 15.83
+    },
+    {
+      "raw": "637598 KS CAGE FREE",
+      "name": "Kirkland Signature Cage Free Eggs",
+      "net_price": 6.49,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 6.86
+    },
+    {
+      "raw": "1089847 META SF SMTX",
+      "name": "Metamucil Sugar Free Smooth Texture",
+      "net_price": 39.99,
+      "category": "Personal Care",
+      "confidence": "high",
+      "allocated_amount": 42.24
+    }
+  ],
+  "receipt_id": "costco-2025-06-18-28048"
+}

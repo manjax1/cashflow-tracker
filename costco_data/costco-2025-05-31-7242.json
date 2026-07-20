@@ -1,0 +1,84 @@
+{
+  "source_file": "Costco Purchase - 5-31-2025.pdf",
+  "date": "2025-05-31",
+  "total": 72.42,
+  "card_last4": "0396",
+  "type": "warehouse",
+  "instant_savings": 4.5,
+  "_extracted_at": "2026-07-19T23:57:00",
+  "items": [
+    {
+      "raw": "ORG BANANAS",
+      "name": "Organic Bananas",
+      "net_price": 2.49,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 2.51
+    },
+    {
+      "raw": "WATERMELON",
+      "name": "Watermelon",
+      "net_price": 7.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 8.06
+    },
+    {
+      "raw": "NKD SMOOTHIE",
+      "name": "Naked Smoothie Juice",
+      "net_price": 10.39,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 10.48
+    },
+    {
+      "raw": "KS QUINOA",
+      "name": "Kirkland Signature Quinoa",
+      "net_price": 9.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 10.07
+    },
+    {
+      "raw": "CMN-DONATION",
+      "name": "Children's Miracle Network Donation",
+      "net_price": 1.0,
+      "category": "Charitable - Donations",
+      "confidence": "high",
+      "allocated_amount": 1.01
+    },
+    {
+      "raw": "PINEAPPLE",
+      "name": "Pineapple",
+      "net_price": 2.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 3.01
+    },
+    {
+      "raw": "2%ORG YOGURT",
+      "name": "2% Organic Yogurt",
+      "net_price": 5.49,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 5.54
+    },
+    {
+      "raw": "MEGA OMEGA",
+      "name": "Mega Omega Supplement",
+      "net_price": 9.99,
+      "category": "Personal Care",
+      "confidence": "high",
+      "allocated_amount": 10.07
+    },
+    {
+      "raw": "KSCOCOWTR 1L",
+      "name": "Kirkland Signature Coconut Water 1L",
+      "net_price": 21.49,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 21.67
+    }
+  ],
+  "receipt_id": "costco-2025-05-31-7242"
+}

@@ -1,0 +1,124 @@
+{
+  "source_file": "Costco Purchase - 2-11-2026 .pdf",
+  "date": "2026-02-11",
+  "total": 168.4,
+  "card_last4": "0396",
+  "type": "warehouse",
+  "instant_savings": 3.5,
+  "_extracted_at": "2026-07-19T23:56:15",
+  "items": [
+    {
+      "raw": "KS 5 DZ EGGS",
+      "name": "Kirkland Signature 5 dozen eggs",
+      "net_price": 19.79,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 20.18
+    },
+    {
+      "raw": "ORG SPINACH",
+      "name": "Organic spinach",
+      "net_price": 4.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 5.09
+    },
+    {
+      "raw": "DOSA BATTER",
+      "name": "Dosa batter",
+      "net_price": 9.79,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 9.98
+    },
+    {
+      "raw": "CHBNI20G16CT GREEK",
+      "name": "Chobani Greek yogurt 16-count",
+      "net_price": 17.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 18.34
+    },
+    {
+      "raw": "YOGURT",
+      "name": "Yogurt",
+      "net_price": 7.49,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 7.64
+    },
+    {
+      "raw": "PANI PURI",
+      "name": "Pani puri",
+      "net_price": 6.89,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 7.03
+    },
+    {
+      "raw": "KS DISH PACS",
+      "name": "Kirkland Signature dishwasher pacs",
+      "net_price": 11.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 12.23
+    },
+    {
+      "raw": "KS WALNUTS",
+      "name": "Kirkland Signature walnuts",
+      "net_price": 13.69,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 13.96
+    },
+    {
+      "raw": "CA3 PASTRIES",
+      "name": "Pastries (3-pack)",
+      "net_price": 17.59,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 17.94
+    },
+    {
+      "raw": "BANANAS",
+      "name": "Bananas",
+      "net_price": 1.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 2.03
+    },
+    {
+      "raw": "MANGO RASMAL",
+      "name": "Mango rasmalai",
+      "net_price": 7.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 8.15
+    },
+    {
+      "raw": "NB H/S/N",
+      "name": "Nature's Bounty hair/skin/nails vitamins",
+      "net_price": 15.49,
+      "category": "Personal Care",
+      "confidence": "medium",
+      "allocated_amount": 15.79
+    },
+    {
+      "raw": "LYSOL TBC",
+      "name": "Lysol toilet bowl cleaner",
+      "net_price": 7.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 8.15
+    },
+    {
+      "raw": "KSCOCOWTR 1L",
+      "name": "Kirkland Signature coconut water 1L",
+      "net_price": 21.49,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 21.89
+    }
+  ],
+  "receipt_id": "costco-2026-02-11-16840"
+}

@@ -1,0 +1,236 @@
+{
+  "source_file": "Costco Purchase 2 - 12-24-2025.pdf",
+  "date": "2025-12-24",
+  "total": 293.28,
+  "card_last4": "0396",
+  "type": "warehouse",
+  "instant_savings": 15.3,
+  "_extracted_at": "2026-07-19T23:58:59",
+  "items": [
+    {
+      "raw": "DOVE BW",
+      "name": "Dove Body Wash",
+      "net_price": 17.99,
+      "category": "Personal Care",
+      "confidence": "high",
+      "allocated_amount": 18.54
+    },
+    {
+      "raw": "POWER GREENS",
+      "name": "Power Greens",
+      "net_price": 5.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 6.17
+    },
+    {
+      "raw": "CETAPHIL CRM",
+      "name": "Cetaphil Cream",
+      "net_price": 14.99,
+      "category": "Personal Care",
+      "confidence": "high",
+      "allocated_amount": 15.45
+    },
+    {
+      "raw": "KSCOCOWTR 1L",
+      "name": "Kirkland Signature Coconut Water 1L",
+      "net_price": 23.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 24.71
+    },
+    {
+      "raw": "LESSER EVIL",
+      "name": "Lesser Evil (Popcorn)",
+      "net_price": 4.49,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 4.63
+    },
+    {
+      "raw": "CHOC STRBRY",
+      "name": "Chocolate Strawberry",
+      "net_price": 11.99,
+      "category": "Groceries",
+      "confidence": "medium",
+      "allocated_amount": 12.35
+    },
+    {
+      "raw": "NB H/S/N ADV",
+      "name": "Nature's Bounty Hair/Skin/Nails Advanced",
+      "net_price": 16.99,
+      "category": "Personal Care",
+      "confidence": "high",
+      "allocated_amount": 17.51
+    },
+    {
+      "raw": "POTATOCHIPS",
+      "name": "Potato Chips",
+      "net_price": 3.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 4.11
+    },
+    {
+      "raw": "KS FINE PEPR",
+      "name": "Kirkland Signature Fine Black Pepper",
+      "net_price": 6.59,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 6.79
+    },
+    {
+      "raw": "DAVE'S 21 WG",
+      "name": "Dave's 21 Whole Grains Bread",
+      "net_price": 8.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 9.26
+    },
+    {
+      "raw": "PUMPKIN FLAX",
+      "name": "Pumpkin Flax (Seeds/Granola)",
+      "net_price": 5.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 6.17
+    },
+    {
+      "raw": "32D TECH JGR",
+      "name": "32 Degrees Tech Joggers",
+      "net_price": 13.99,
+      "category": "Clothing",
+      "confidence": "high",
+      "allocated_amount": 14.42
+    },
+    {
+      "raw": "ORG BLACKBRY",
+      "name": "Organic Blackberries",
+      "net_price": 3.79,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 3.91
+    },
+    {
+      "raw": "MNDTA PANT",
+      "name": "Mondetta Pants",
+      "net_price": 13.99,
+      "category": "Clothing",
+      "confidence": "high",
+      "allocated_amount": 14.42
+    },
+    {
+      "raw": "ORG BANANAS",
+      "name": "Organic Bananas",
+      "net_price": 2.49,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 2.57
+    },
+    {
+      "raw": "KS ORG EVOO",
+      "name": "Kirkland Signature Organic Extra Virgin Olive Oil",
+      "net_price": 18.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 19.57
+    },
+    {
+      "raw": "SESAME OIL1L",
+      "name": "Sesame Oil 1L",
+      "net_price": 11.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 12.35
+    },
+    {
+      "raw": "MANDARINS",
+      "name": "Mandarins",
+      "net_price": 2.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 3.08
+    },
+    {
+      "raw": "COOKIE BAR",
+      "name": "Cookie Bar",
+      "net_price": 8.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 9.26
+    },
+    {
+      "raw": "PANI PURI",
+      "name": "Pani Puri",
+      "net_price": 6.89,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 7.1
+    },
+    {
+      "raw": "ORG BLUES",
+      "name": "Organic Blueberries",
+      "net_price": 7.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 8.23
+    },
+    {
+      "raw": "DOVE ADV",
+      "name": "Dove Advanced (Hair Care)",
+      "net_price": 16.99,
+      "category": "Personal Care",
+      "confidence": "high",
+      "allocated_amount": 17.51
+    },
+    {
+      "raw": "KETO CINN",
+      "name": "Keto Cinnamon (Cereal/Snack)",
+      "net_price": 12.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 13.39
+    },
+    {
+      "raw": "18 ORG EGGS",
+      "name": "18 Organic Eggs",
+      "net_price": 5.69,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 5.86
+    },
+    {
+      "raw": "ORG BROC 2LB",
+      "name": "Organic Broccoli 2lb",
+      "net_price": 6.49,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 6.69
+    },
+    {
+      "raw": "FAGE GRK 48Z",
+      "name": "Fage Greek Yogurt 48oz",
+      "net_price": 7.69,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 7.92
+    },
+    {
+      "raw": "ORG SPINACH",
+      "name": "Organic Spinach",
+      "net_price": 4.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 5.14
+    },
+    {
+      "raw": "CRUNCHY BUTR",
+      "name": "Crunchy Butter (Peanut/Almond Butter)",
+      "net_price": 15.69,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 16.17
+    }
+  ],
+  "receipt_id": "costco-2025-12-24-29328"
+}

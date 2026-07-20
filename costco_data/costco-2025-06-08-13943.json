@@ -1,0 +1,116 @@
+{
+  "source_file": "Costco Purchase - 6-8-2025 .pdf",
+  "date": "2025-06-08",
+  "total": 139.43,
+  "card_last4": "3070",
+  "type": "warehouse",
+  "instant_savings": 2.5,
+  "_extracted_at": "2026-07-19T23:58:04",
+  "items": [
+    {
+      "raw": "PUMPKIN SEED",
+      "name": "Pumpkin Seeds",
+      "net_price": 9.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 10.4
+    },
+    {
+      "raw": "WATERMELON",
+      "name": "Watermelon",
+      "net_price": 5.89,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 6.13
+    },
+    {
+      "raw": "WILDROOTS PASTURE",
+      "name": "Wildroots Pasture (Food Product)",
+      "net_price": 7.49,
+      "category": "Groceries",
+      "confidence": "medium",
+      "allocated_amount": 7.8
+    },
+    {
+      "raw": "EGGS",
+      "name": "Eggs",
+      "net_price": 7.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 8.32
+    },
+    {
+      "raw": "BROCC SALAD",
+      "name": "Broccoli Salad",
+      "net_price": 10.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 11.45
+    },
+    {
+      "raw": "BANANAS",
+      "name": "Bananas",
+      "net_price": 1.49,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 1.55
+    },
+    {
+      "raw": "MEGA OMEGA",
+      "name": "Mega Omega (Supplement)",
+      "net_price": 9.99,
+      "category": "Personal Care",
+      "confidence": "high",
+      "allocated_amount": 10.4
+    },
+    {
+      "raw": "ORG SPINACH",
+      "name": "Organic Spinach",
+      "net_price": 3.89,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 4.05
+    },
+    {
+      "raw": "MANDARINS",
+      "name": "Mandarins",
+      "net_price": 6.39,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 6.66
+    },
+    {
+      "raw": "3LB ORG GALA",
+      "name": "3lb Organic Gala Apples",
+      "net_price": 4.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 5.2
+    },
+    {
+      "raw": "FLONASE 3PK",
+      "name": "Flonase 3-Pack",
+      "net_price": 52.99,
+      "category": "Personal Care",
+      "confidence": "high",
+      "allocated_amount": 55.2
+    },
+    {
+      "raw": "BLUEBERRIES",
+      "name": "Blueberries",
+      "net_price": 4.79,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 4.99
+    },
+    {
+      "raw": "CRMYDILLPCKL",
+      "name": "Creamy Dill Pickles",
+      "net_price": 6.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 7.28
+    }
+  ],
+  "receipt_id": "costco-2025-06-08-13943"
+}

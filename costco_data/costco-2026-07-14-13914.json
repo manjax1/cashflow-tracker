@@ -1,0 +1,116 @@
+{
+  "source_file": "Costco Purchase - 7-14-2026 .pdf",
+  "date": "2026-07-14",
+  "total": 139.14,
+  "card_last4": "8602",
+  "type": "warehouse",
+  "instant_savings": 8.5,
+  "_extracted_at": "2026-07-19T23:58:21",
+  "items": [
+    {
+      "raw": "PUMPKIN FLAX",
+      "name": "Pumpkin Flax Seed Bread",
+      "net_price": 12.78,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 13.06
+    },
+    {
+      "raw": "AVOCADOS",
+      "name": "Avocados",
+      "net_price": 7.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 8.16
+    },
+    {
+      "raw": "GARLIC NAAN",
+      "name": "Garlic Naan",
+      "net_price": 4.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 5.1
+    },
+    {
+      "raw": "KS ADLT MULT",
+      "name": "Kirkland Signature Adult Multivitamin",
+      "net_price": 8.99,
+      "category": "Personal Care",
+      "confidence": "high",
+      "allocated_amount": 9.18
+    },
+    {
+      "raw": "KS CAGE FREE",
+      "name": "Kirkland Signature Cage Free Eggs",
+      "net_price": 8.67,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 8.86
+    },
+    {
+      "raw": "CANTALOUPE",
+      "name": "Cantaloupe",
+      "net_price": 5.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 6.12
+    },
+    {
+      "raw": "PISTACH TBC",
+      "name": "Pistachios",
+      "net_price": 9.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 10.21
+    },
+    {
+      "raw": "SPARROWCAB",
+      "name": "Sparrow Cabernet Wine",
+      "net_price": 19.99,
+      "category": "Entertainment",
+      "confidence": "high",
+      "allocated_amount": 20.42
+    },
+    {
+      "raw": "FAGE GRK 48Z",
+      "name": "Fage Greek Yogurt 48oz",
+      "net_price": 23.37,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 23.87
+    },
+    {
+      "raw": "ORG SPINACH",
+      "name": "Organic Spinach",
+      "net_price": 3.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 4.08
+    },
+    {
+      "raw": "BANANAS",
+      "name": "Bananas",
+      "net_price": 1.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 2.03
+    },
+    {
+      "raw": "ORG BLUES",
+      "name": "Organic Blueberries",
+      "net_price": 20.97,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 21.42
+    },
+    {
+      "raw": "CHERRY TOV",
+      "name": "Cherry Tomatoes",
+      "net_price": 6.49,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 6.63
+    }
+  ],
+  "receipt_id": "costco-2026-07-14-13914"
+}

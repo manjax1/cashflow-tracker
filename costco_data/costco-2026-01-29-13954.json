@@ -1,0 +1,108 @@
+{
+  "source_file": "Costco Purchase - 1-29-2026 .pdf",
+  "date": "2026-01-29",
+  "total": 139.54,
+  "card_last4": "0396",
+  "type": "warehouse",
+  "instant_savings": 12.0,
+  "_extracted_at": "2026-07-19T23:55:43",
+  "items": [
+    {
+      "raw": "CRUNCHY BUTR",
+      "name": "Crunchy Peanut Butter",
+      "net_price": 15.69,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 15.84
+    },
+    {
+      "raw": "KS COCNT WTR",
+      "name": "Kirkland Signature Coconut Water",
+      "net_price": 12.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 13.11
+    },
+    {
+      "raw": "CA REDEMP VAL",
+      "name": "California Redemption Value (CRV)",
+      "net_price": 0.3,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 0.3
+    },
+    {
+      "raw": "FAGE GRK 48Z",
+      "name": "Fage Greek Yogurt 48oz",
+      "net_price": 7.69,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 7.76
+    },
+    {
+      "raw": "REACH FLOSS",
+      "name": "Reach Dental Floss",
+      "net_price": 13.99,
+      "category": "Personal Care",
+      "confidence": "high",
+      "allocated_amount": 14.12
+    },
+    {
+      "raw": "AVOCADOS",
+      "name": "Avocados",
+      "net_price": 5.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 6.05
+    },
+    {
+      "raw": "KS EGG WHITE",
+      "name": "Kirkland Signature Egg Whites",
+      "net_price": 11.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 12.1
+    },
+    {
+      "raw": "ORG BLUES",
+      "name": "Organic Blueberries",
+      "net_price": 17.98,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 18.15
+    },
+    {
+      "raw": "BANANAS",
+      "name": "Bananas",
+      "net_price": 3.98,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 4.02
+    },
+    {
+      "raw": "4LB OG HONEY",
+      "name": "4lb Organic Honey",
+      "net_price": 9.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 10.08
+    },
+    {
+      "raw": "CHBNI20G16CT",
+      "name": "Chobani Greek Yogurt 20oz 16-count",
+      "net_price": 23.98,
+      "category": "Groceries",
+      "confidence": "medium",
+      "allocated_amount": 24.19
+    },
+    {
+      "raw": "TS CANDY",
+      "name": "Candy (Trader/Treats Selection)",
+      "net_price": 13.69,
+      "category": "Groceries",
+      "confidence": "medium",
+      "allocated_amount": 13.82
+    }
+  ],
+  "receipt_id": "costco-2026-01-29-13954"
+}

@@ -1,0 +1,52 @@
+{
+  "source_file": "Costco Purchase - 7-31-2025.pdf",
+  "date": "2025-07-31",
+  "total": 151.71,
+  "card_last4": "0605",
+  "type": "warehouse",
+  "instant_savings": 0,
+  "_extracted_at": "2026-07-19T23:58:30",
+  "items": [
+    {
+      "raw": "FERRERO 48CT NUGGETS",
+      "name": "Ferrero Rocher 48 count nuggets",
+      "net_price": 35.98,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 35.98
+    },
+    {
+      "raw": "KS 52OZ",
+      "name": "Kirkland Signature 52oz (item unclear)",
+      "net_price": 17.99,
+      "category": "Groceries",
+      "confidence": "low",
+      "allocated_amount": 17.99
+    },
+    {
+      "raw": "CHOCALMND",
+      "name": "Chocolate Almonds",
+      "net_price": 19.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 19.99
+    },
+    {
+      "raw": "PKTS PK3",
+      "name": "Packets 3-pack",
+      "net_price": 9.79,
+      "category": "Groceries",
+      "confidence": "medium",
+      "allocated_amount": 9.79
+    },
+    {
+      "raw": "LINDT GOLD",
+      "name": "Lindt Gold chocolate",
+      "net_price": 67.96,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 67.96
+    }
+  ],
+  "receipt_id": "costco-2025-07-31-15171"
+}

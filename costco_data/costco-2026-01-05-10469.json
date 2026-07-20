@@ -1,0 +1,108 @@
+{
+  "source_file": "Costco Purchase - 1-5-2026 .pdf",
+  "date": "2026-01-05",
+  "total": 104.69,
+  "card_last4": "1052",
+  "type": "warehouse",
+  "instant_savings": 3.7,
+  "_extracted_at": "2026-07-19T23:55:52",
+  "items": [
+    {
+      "raw": "PINEAPPLE",
+      "name": "Pineapple (organic)",
+      "net_price": 2.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 3.05
+    },
+    {
+      "raw": "ORG GARBANZO",
+      "name": "Organic Garbanzo Beans",
+      "net_price": 8.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 9.17
+    },
+    {
+      "raw": "OG CARROT6LB",
+      "name": "Organic Carrots 6 lb",
+      "net_price": 5.49,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 5.6
+    },
+    {
+      "raw": "**KS ULTRA**",
+      "name": "Kirkland Signature Ultra (paper towels/toilet paper)",
+      "net_price": 21.99,
+      "category": "Groceries",
+      "confidence": "medium",
+      "allocated_amount": 22.4
+    },
+    {
+      "raw": "POTATOCHIPS",
+      "name": "Potato Chips",
+      "net_price": 3.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 4.07
+    },
+    {
+      "raw": "LOLLIPEPPERS",
+      "name": "Lollipop Peppers",
+      "net_price": 6.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 7.13
+    },
+    {
+      "raw": "BARLEY SOUP",
+      "name": "Barley Soup",
+      "net_price": 6.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 7.13
+    },
+    {
+      "raw": "ORG AVOCADOS",
+      "name": "Organic Avocados",
+      "net_price": 7.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 8.15
+    },
+    {
+      "raw": "FAGE GRK 48Z",
+      "name": "Fage Greek Yogurt 48 oz",
+      "net_price": 7.69,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 7.84
+    },
+    {
+      "raw": "4LB OG HONEY",
+      "name": "Organic Honey 4 lb",
+      "net_price": 9.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 10.19
+    },
+    {
+      "raw": "KS 5DZ EGGS",
+      "name": "Kirkland Signature Eggs 5 dozen",
+      "net_price": 10.79,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 11.0
+    },
+    {
+      "raw": "ORG BLUES",
+      "name": "Organic Blueberries",
+      "net_price": 8.79,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 8.96
+    }
+  ],
+  "receipt_id": "costco-2026-01-05-10469"
+}

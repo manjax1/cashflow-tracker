@@ -1,0 +1,68 @@
+{
+  "source_file": "Costco Purchase 2 - 10-24-2025.pdf",
+  "date": "2025-10-24",
+  "total": 60.63,
+  "card_last4": "0396",
+  "type": "warehouse",
+  "instant_savings": 0,
+  "_extracted_at": "2026-07-19T23:58:53",
+  "items": [
+    {
+      "raw": "MANDARINS",
+      "name": "Mandarins",
+      "net_price": 6.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 6.99
+    },
+    {
+      "raw": "PASTURE EGGS",
+      "name": "Pasture Eggs",
+      "net_price": 7.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 7.99
+    },
+    {
+      "raw": "ORG BLUES",
+      "name": "Organic Blueberries",
+      "net_price": 9.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 9.99
+    },
+    {
+      "raw": "FAGE GRK 48Z",
+      "name": "Fage Greek Yogurt 48oz",
+      "net_price": 7.69,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 7.69
+    },
+    {
+      "raw": "LINDT GOLD",
+      "name": "Lindt Gold Chocolate",
+      "net_price": 16.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 16.99
+    },
+    {
+      "raw": "3LB ORG GALA",
+      "name": "3lb Organic Gala Apples",
+      "net_price": 4.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 4.99
+    },
+    {
+      "raw": "CANTALOUPE",
+      "name": "Cantaloupe",
+      "net_price": 5.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 5.99
+    }
+  ],
+  "receipt_id": "costco-2025-10-24-6063"
+}

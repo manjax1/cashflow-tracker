@@ -1,0 +1,132 @@
+{
+  "source_file": "Costco Purchase - 6-14-2025 .pdf",
+  "date": "2025-06-14",
+  "total": 178.63,
+  "card_last4": "0396",
+  "type": "warehouse",
+  "instant_savings": 3.0,
+  "_extracted_at": "2026-07-19T23:57:18",
+  "items": [
+    {
+      "raw": "EB TECHSHORT",
+      "name": "Eddie Bauer Tech Shorts",
+      "net_price": 29.98,
+      "category": "Clothing",
+      "confidence": "high",
+      "allocated_amount": 31.65
+    },
+    {
+      "raw": "GREEK YOGURT",
+      "name": "Greek Yogurt",
+      "net_price": 13.78,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 14.55
+    },
+    {
+      "raw": "LOUNGE PANT",
+      "name": "Lounge Pants",
+      "net_price": 11.99,
+      "category": "Clothing",
+      "confidence": "high",
+      "allocated_amount": 12.66
+    },
+    {
+      "raw": "BELL PEPPER",
+      "name": "Bell Peppers",
+      "net_price": 5.97,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 6.3
+    },
+    {
+      "raw": "BASIL PESTO",
+      "name": "Basil Pesto",
+      "net_price": 9.49,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 10.02
+    },
+    {
+      "raw": "ORG SPINACH",
+      "name": "Organic Spinach",
+      "net_price": 3.89,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 4.11
+    },
+    {
+      "raw": "**CHARMIN**",
+      "name": "Charmin Toilet Paper",
+      "net_price": 30.89,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 32.6
+    },
+    {
+      "raw": "MANDARINS",
+      "name": "Mandarins",
+      "net_price": 6.39,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 6.75
+    },
+    {
+      "raw": "BANANAS",
+      "name": "Bananas",
+      "net_price": 1.49,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 1.57
+    },
+    {
+      "raw": "NB H/S/N ADV",
+      "name": "New Balance Hoodie/Sweatshirt/Neck Advanced",
+      "net_price": 16.99,
+      "category": "Clothing",
+      "confidence": "medium",
+      "allocated_amount": 17.94
+    },
+    {
+      "raw": "PUMPKIN FLAX",
+      "name": "Pumpkin Flax Seeds",
+      "net_price": 8.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 9.49
+    },
+    {
+      "raw": "BLUEBERRIES",
+      "name": "Blueberries",
+      "net_price": 9.58,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 10.11
+    },
+    {
+      "raw": "ORGFRNCHBEAN",
+      "name": "Organic French Green Beans",
+      "net_price": 7.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 8.44
+    },
+    {
+      "raw": "WATERMELON",
+      "name": "Watermelon",
+      "net_price": 5.89,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 6.22
+    },
+    {
+      "raw": "KS CAGE FREE",
+      "name": "Kirkland Signature Cage Free Eggs",
+      "net_price": 5.89,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 6.22
+    }
+  ],
+  "receipt_id": "costco-2025-06-14-17863"
+}

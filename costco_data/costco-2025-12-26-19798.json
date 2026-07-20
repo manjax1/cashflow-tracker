@@ -1,0 +1,28 @@
+{
+  "source_file": "Costco Purchase 2 - 12-26-2025.pdf",
+  "date": "2025-12-26",
+  "total": 197.98,
+  "card_last4": "8659",
+  "type": "warehouse",
+  "instant_savings": 0,
+  "_extracted_at": "2026-07-19T23:59:17",
+  "items": [
+    {
+      "raw": "PRG1.60CLEAR",
+      "name": "Progressive 1.60 Clear Lenses",
+      "net_price": 132.99,
+      "category": "Health and Fitness",
+      "confidence": "high",
+      "allocated_amount": 132.99
+    },
+    {
+      "raw": "BOURCE",
+      "name": "Bounce (likely eyeglass frames)",
+      "net_price": 64.99,
+      "category": "Health and Fitness",
+      "confidence": "medium",
+      "allocated_amount": 64.99
+    }
+  ],
+  "receipt_id": "costco-2025-12-26-19798"
+}

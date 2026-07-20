@@ -225,7 +225,7 @@ def meta():
     """Categories and available months, for the search dropdowns."""
     if not _authed():
         return jsonify({"error": "unauthorized"}), 401
-    txns = ledger.load_transactions()
+    txns = ledger.effective_rows()
     months = sorted({t["Date"][:7] for t in txns}, reverse=True)
     cats = ledger.list_categories()["categories"]
     income_cats = sorted(c["category"] for c in cats if c["income"] > c["expense"])
@@ -288,7 +288,7 @@ def monthly_detail():
     personal subtotals, and a net row."""
     if not _authed():
         return jsonify({"error": "unauthorized"}), 401
-    txns = [t for t in ledger.load_transactions() if t["IncludeInNet"]]
+    txns = [t for t in ledger.effective_rows() if t["IncludeInNet"]]
     all_months = sorted({t["Date"][:7] for t in txns})
     months = all_months[-13:]
     m_idx = {m: i for i, m in enumerate(months)}

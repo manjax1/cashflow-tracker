@@ -1,0 +1,28 @@
+{
+  "source_file": "Costco Purchase - 12-26-2025.pdf",
+  "date": "2025-12-26",
+  "total": 259.98,
+  "card_last4": "3281",
+  "type": "warehouse",
+  "instant_savings": 0,
+  "_extracted_at": "2026-07-19T23:56:12",
+  "items": [
+    {
+      "raw": "1879880 189.99",
+      "name": "Prescription Eyewear/Frames",
+      "net_price": 189.99,
+      "category": "Health and Fitness",
+      "confidence": "high",
+      "allocated_amount": 189.99
+    },
+    {
+      "raw": "1941114 CEYLON 69.99",
+      "name": "Ceylon (Prescription Lenses)",
+      "net_price": 69.99,
+      "category": "Health and Fitness",
+      "confidence": "high",
+      "allocated_amount": 69.99
+    }
+  ],
+  "receipt_id": "costco-2025-12-26-25998"
+}

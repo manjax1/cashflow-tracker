@@ -1,0 +1,28 @@
+{
+  "source_file": "Costco Item Return - 1-29-2026.pdf",
+  "date": "2026-01-29",
+  "total": -28.71,
+  "card_last4": "0396",
+  "type": "return",
+  "instant_savings": 0,
+  "_extracted_at": "2026-07-19T23:55:12",
+  "items": [
+    {
+      "raw": "AVEENO DAILY",
+      "name": "Aveeno Daily (skincare)",
+      "net_price": -13.49,
+      "category": "Personal Care",
+      "confidence": "high",
+      "allocated_amount": 14.09
+    },
+    {
+      "raw": "URAD GOTA",
+      "name": "Urad Gota (lentils)",
+      "net_price": -13.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 14.62
+    }
+  ],
+  "receipt_id": "costco-2026-01-29-2871"
+}

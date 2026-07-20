@@ -1,0 +1,84 @@
+{
+  "source_file": "Costco Purchase - 9-22-2025.pdf",
+  "date": "2025-09-22",
+  "total": 72.65,
+  "card_last4": "0396",
+  "type": "warehouse",
+  "instant_savings": 7.0,
+  "_extracted_at": "2026-07-19T23:58:46",
+  "items": [
+    {
+      "raw": "HAMI MELON",
+      "name": "Hami Melon",
+      "net_price": 3.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 4.06
+    },
+    {
+      "raw": "ORG SPINACH",
+      "name": "Organic Spinach",
+      "net_price": 4.59,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 4.67
+    },
+    {
+      "raw": "ALM TORTILLA",
+      "name": "Almond Flour Tortillas",
+      "net_price": 8.89,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 9.04
+    },
+    {
+      "raw": "WATERMELON",
+      "name": "Watermelon",
+      "net_price": 6.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 7.11
+    },
+    {
+      "raw": "ORG BROC 2LB",
+      "name": "Organic Broccoli 2lb",
+      "net_price": 6.49,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 6.6
+    },
+    {
+      "raw": "ORG BLUES",
+      "name": "Organic Blueberries",
+      "net_price": 9.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 10.16
+    },
+    {
+      "raw": "ARTISAN ROLL",
+      "name": "Artisan Rolls",
+      "net_price": 6.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 7.11
+    },
+    {
+      "raw": "FGDO24668 GLASSES 3PK",
+      "name": "Glasses 3-Pack",
+      "net_price": 15.99,
+      "category": "Shopping",
+      "confidence": "medium",
+      "allocated_amount": 16.28
+    },
+    {
+      "raw": "KS ORG EGGS",
+      "name": "Kirkland Signature Organic Eggs",
+      "net_price": 7.49,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 7.62
+    }
+  ],
+  "receipt_id": "costco-2025-09-22-7265"
+}

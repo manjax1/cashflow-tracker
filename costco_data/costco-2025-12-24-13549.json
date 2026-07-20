@@ -1,0 +1,20 @@
+{
+  "source_file": "Costco Purchase - 12-24-2025.pdf",
+  "date": "2025-12-24",
+  "total": 135.49,
+  "card_last4": "3549",
+  "type": "warehouse",
+  "instant_savings": 0,
+  "_extracted_at": "2026-07-19T23:56:10",
+  "items": [
+    {
+      "raw": "SHOP CARD",
+      "name": "Costco Shop Card",
+      "net_price": 135.49,
+      "category": "Credit Card Payment",
+      "confidence": "high",
+      "allocated_amount": 135.49
+    }
+  ],
+  "receipt_id": "costco-2025-12-24-13549"
+}

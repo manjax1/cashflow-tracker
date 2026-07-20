@@ -1,0 +1,140 @@
+{
+  "source_file": "Costco Purchase 2 - 7-31-2025.pdf",
+  "date": "2025-07-31",
+  "total": 322.76,
+  "card_last4": "0605",
+  "type": "warehouse",
+  "instant_savings": 17.5,
+  "_extracted_at": "2026-07-19T23:59:29",
+  "items": [
+    {
+      "raw": "PUMPKIN FLAX",
+      "name": "Pumpkin Flax Seeds",
+      "net_price": 8.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 9.56
+    },
+    {
+      "raw": "BOBS OATMEAL",
+      "name": "Bob's Red Mill Oatmeal",
+      "net_price": 11.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 12.75
+    },
+    {
+      "raw": "GN GOLFSHORT",
+      "name": "Green Golf Shorts",
+      "net_price": 14.99,
+      "category": "Clothing",
+      "confidence": "medium",
+      "allocated_amount": 15.94
+    },
+    {
+      "raw": "JOJO'S CHOC",
+      "name": "Jojo's Chocolate",
+      "net_price": 11.49,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 12.22
+    },
+    {
+      "raw": "EMERGENC 120",
+      "name": "Emergen-C 120 Count",
+      "net_price": 28.99,
+      "category": "Personal Care",
+      "confidence": "high",
+      "allocated_amount": 30.82
+    },
+    {
+      "raw": "URAD GOTA",
+      "name": "Urad Dal (Whole)",
+      "net_price": 13.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 14.87
+    },
+    {
+      "raw": "LACREM PINOT",
+      "name": "La Crema Pinot Noir",
+      "net_price": 29.78,
+      "category": "Entertainment",
+      "confidence": "high",
+      "allocated_amount": 31.66
+    },
+    {
+      "raw": "EDAMAME",
+      "name": "Edamame",
+      "net_price": 6.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 7.43
+    },
+    {
+      "raw": "JW DBL BLACK",
+      "name": "Johnnie Walker Double Black Whisky",
+      "net_price": 53.98,
+      "category": "Entertainment",
+      "confidence": "high",
+      "allocated_amount": 57.37
+    },
+    {
+      "raw": "ORG TOOR DAL",
+      "name": "Organic Toor Dal",
+      "net_price": 16.49,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 17.53
+    },
+    {
+      "raw": "PUMA PANT",
+      "name": "Puma Pants",
+      "net_price": 50.97,
+      "category": "Clothing",
+      "confidence": "high",
+      "allocated_amount": 54.19
+    },
+    {
+      "raw": "MEGA OMEGA",
+      "name": "Mega Omega-3 Supplement",
+      "net_price": 9.99,
+      "category": "Personal Care",
+      "confidence": "high",
+      "allocated_amount": 10.62
+    },
+    {
+      "raw": "ORG BLUES",
+      "name": "Organic Blueberries",
+      "net_price": 5.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 6.37
+    },
+    {
+      "raw": "KS ALMONDS",
+      "name": "Kirkland Signature Almonds",
+      "net_price": 12.49,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 13.28
+    },
+    {
+      "raw": "AVEENO DAILY",
+      "name": "Aveeno Daily Moisturizer",
+      "net_price": 13.49,
+      "category": "Personal Care",
+      "confidence": "high",
+      "allocated_amount": 14.34
+    },
+    {
+      "raw": "DANSKIN TGHT",
+      "name": "Danskin Tights",
+      "net_price": 12.99,
+      "category": "Clothing",
+      "confidence": "high",
+      "allocated_amount": 13.81
+    }
+  ],
+  "receipt_id": "costco-2025-07-31-32276"
+}

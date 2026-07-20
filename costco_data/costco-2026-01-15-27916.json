@@ -1,0 +1,196 @@
+{
+  "source_file": "Costco Purchase - 1-15-2026 .pdf",
+  "date": "2026-01-15",
+  "total": 279.16,
+  "card_last4": "0396",
+  "type": "warehouse",
+  "instant_savings": 19.6,
+  "_extracted_at": "2026-07-19T23:55:30",
+  "items": [
+    {
+      "raw": "ORG EDAMAME",
+      "name": "Organic Edamame",
+      "net_price": 13.18,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 13.4
+    },
+    {
+      "raw": "GOJI BERRIES",
+      "name": "Goji Berries",
+      "net_price": 13.59,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 13.82
+    },
+    {
+      "raw": "CRUNCHY BUTR",
+      "name": "Crunchy Butter",
+      "net_price": 15.69,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 15.95
+    },
+    {
+      "raw": "POTATOCHIPS",
+      "name": "Potato Chips",
+      "net_price": 3.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 4.06
+    },
+    {
+      "raw": "SMOOTHIES",
+      "name": "Smoothies",
+      "net_price": 16.89,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 17.17
+    },
+    {
+      "raw": "KS 5DZ EGGS",
+      "name": "Kirkland Signature 5 Dozen Eggs",
+      "net_price": 10.79,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 10.97
+    },
+    {
+      "raw": "4LB OG HONEY",
+      "name": "4lb Organic Honey",
+      "net_price": 9.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 10.16
+    },
+    {
+      "raw": "MIRALX 68 DS",
+      "name": "Miralax 68 Dose",
+      "net_price": 27.49,
+      "category": "Personal Care",
+      "confidence": "high",
+      "allocated_amount": 27.97
+    },
+    {
+      "raw": "ORG BLUES",
+      "name": "Organic Blueberries",
+      "net_price": 8.79,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 8.94
+    },
+    {
+      "raw": "FAGE GRK 48Z",
+      "name": "Fage Greek Yogurt 48oz",
+      "net_price": 15.38,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 15.64
+    },
+    {
+      "raw": "ORG SPINACH",
+      "name": "Organic Spinach",
+      "net_price": 4.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 5.07
+    },
+    {
+      "raw": "BARLEY SOUP",
+      "name": "Barley Soup",
+      "net_price": 13.98,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 14.22
+    },
+    {
+      "raw": "ORG BIN BIN",
+      "name": "Organic Bin Bin (Rice Crackers)",
+      "net_price": 8.99,
+      "category": "Groceries",
+      "confidence": "medium",
+      "allocated_amount": 9.14
+    },
+    {
+      "raw": "ADVIL 360CT",
+      "name": "Advil 360 Count",
+      "net_price": 15.49,
+      "category": "Personal Care",
+      "confidence": "high",
+      "allocated_amount": 15.75
+    },
+    {
+      "raw": "DAVE'S 21 WG",
+      "name": "Dave's 21 Whole Grain Bread",
+      "net_price": 6.59,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 6.7
+    },
+    {
+      "raw": "PKTS PK3",
+      "name": "Packets Pack of 3",
+      "net_price": 9.79,
+      "category": "Groceries",
+      "confidence": "medium",
+      "allocated_amount": 9.95
+    },
+    {
+      "raw": "COCONUT WATR",
+      "name": "Coconut Water",
+      "net_price": 15.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 16.26
+    },
+    {
+      "raw": "ORG BROC 2LB",
+      "name": "Organic Broccoli 2lb",
+      "net_price": 6.49,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 6.6
+    },
+    {
+      "raw": "KS ALMONDS",
+      "name": "Kirkland Signature Almonds",
+      "net_price": 12.49,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 12.7
+    },
+    {
+      "raw": "BOBS OATMEAL",
+      "name": "Bob's Red Mill Oatmeal",
+      "net_price": 11.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 12.19
+    },
+    {
+      "raw": "KS CLUSTERS",
+      "name": "Kirkland Signature Clusters",
+      "net_price": 11.49,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 11.68
+    },
+    {
+      "raw": "SLICE ALMOND",
+      "name": "Sliced Almonds",
+      "net_price": 8.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 9.14
+    },
+    {
+      "raw": "KS QUINOA",
+      "name": "Kirkland Signature Quinoa",
+      "net_price": 11.49,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 11.68
+    }
+  ],
+  "receipt_id": "costco-2026-01-15-27916"
+}

@@ -1,0 +1,92 @@
+{
+  "source_file": "Costco Purchase - 2-25-2026 .pdf",
+  "date": "2026-02-25",
+  "total": 148.41,
+  "card_last4": "0396",
+  "type": "warehouse",
+  "instant_savings": 14.5,
+  "_extracted_at": "2026-07-19T23:56:25",
+  "items": [
+    {
+      "raw": "BANANAS",
+      "name": "Bananas",
+      "net_price": 1.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 2.08
+    },
+    {
+      "raw": "COCONUT WATR",
+      "name": "Coconut Water",
+      "net_price": 20.98,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 21.95
+    },
+    {
+      "raw": "CA REDEMP VAL",
+      "name": "California Redemption Value",
+      "net_price": 0.6,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 0.63
+    },
+    {
+      "raw": "ORG BLUES",
+      "name": "Organic Blueberries",
+      "net_price": 9.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 10.45
+    },
+    {
+      "raw": "AVOCADOS",
+      "name": "Avocados",
+      "net_price": 5.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 6.27
+    },
+    {
+      "raw": "ORG TOOR DAL",
+      "name": "Organic Toor Dal",
+      "net_price": 13.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 14.64
+    },
+    {
+      "raw": "ORG MUNGBEAN",
+      "name": "Organic Mung Beans",
+      "net_price": 12.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 13.59
+    },
+    {
+      "raw": "PLANTINGSOIL",
+      "name": "Planting Soil",
+      "net_price": 59.94,
+      "category": "Gardening",
+      "confidence": "high",
+      "allocated_amount": 62.71
+    },
+    {
+      "raw": "POTTINGSOIL",
+      "name": "Potting Soil",
+      "net_price": 11.99,
+      "category": "Gardening",
+      "confidence": "high",
+      "allocated_amount": 12.54
+    },
+    {
+      "raw": "PINEAPPLE",
+      "name": "Pineapple",
+      "net_price": 3.39,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 3.55
+    }
+  ],
+  "receipt_id": "costco-2026-02-25-14841"
+}

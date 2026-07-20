@@ -1,0 +1,148 @@
+{
+  "source_file": "Costco Purchase - 6-10-2026 .pdf",
+  "date": "2026-06-10",
+  "total": 245.99,
+  "card_last4": "0396",
+  "type": "warehouse",
+  "instant_savings": 8.0,
+  "_extracted_at": "2026-07-19T23:57:06",
+  "items": [
+    {
+      "raw": "ORG BROC 2LB",
+      "name": "Organic Broccoli 2lb",
+      "net_price": 6.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 7.21
+    },
+    {
+      "raw": "GOLD KIWI",
+      "name": "Gold Kiwi",
+      "net_price": 11.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 12.37
+    },
+    {
+      "raw": "ORG BANANAS",
+      "name": "Organic Bananas",
+      "net_price": 2.49,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 2.57
+    },
+    {
+      "raw": "AUSSIE BITES",
+      "name": "Aussie Bites",
+      "net_price": 23.18,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 23.92
+    },
+    {
+      "raw": "HOODYS HRN",
+      "name": "Hoody's Horns (snack)",
+      "net_price": 12.29,
+      "category": "Groceries",
+      "confidence": "medium",
+      "allocated_amount": 12.68
+    },
+    {
+      "raw": "KSCOCOWTR 1L",
+      "name": "Kirkland Signature Coconut Water 1L",
+      "net_price": 39.98,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 41.26
+    },
+    {
+      "raw": "AVOCADOS",
+      "name": "Avocados",
+      "net_price": 8.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 9.28
+    },
+    {
+      "raw": "MERRELL TEE",
+      "name": "Merrell T-Shirt",
+      "net_price": 9.99,
+      "category": "Clothing",
+      "confidence": "high",
+      "allocated_amount": 10.31
+    },
+    {
+      "raw": "ORG SPINACH",
+      "name": "Organic Spinach",
+      "net_price": 4.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 5.15
+    },
+    {
+      "raw": "BED PILLOW",
+      "name": "Bed Pillow",
+      "net_price": 16.99,
+      "category": "Shopping",
+      "confidence": "high",
+      "allocated_amount": 17.53
+    },
+    {
+      "raw": "32D LEGGING",
+      "name": "32 Degrees Leggings",
+      "net_price": 7.99,
+      "category": "Clothing",
+      "confidence": "high",
+      "allocated_amount": 8.24
+    },
+    {
+      "raw": "CNBY WLNT BD",
+      "name": "Cranberry Walnut Bread",
+      "net_price": 7.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 8.24
+    },
+    {
+      "raw": "MEGA OMEGA",
+      "name": "Mega Omega (supplement)",
+      "net_price": 9.99,
+      "category": "Personal Care",
+      "confidence": "high",
+      "allocated_amount": 10.31
+    },
+    {
+      "raw": "KS ULTRA",
+      "name": "Kirkland Signature Ultra (dish soap or detergent)",
+      "net_price": 21.99,
+      "category": "Groceries",
+      "confidence": "medium",
+      "allocated_amount": 22.69
+    },
+    {
+      "raw": "KS TOWEL",
+      "name": "Kirkland Signature Paper Towels",
+      "net_price": 20.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 21.66
+    },
+    {
+      "raw": "PASTURE EGGS",
+      "name": "Pasture Eggs",
+      "net_price": 15.98,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 16.49
+    },
+    {
+      "raw": "FAGE GRK 48Z",
+      "name": "Fage Greek Yogurt 48oz",
+      "net_price": 15.58,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 16.08
+    }
+  ],
+  "receipt_id": "costco-2026-06-10-24599"
+}

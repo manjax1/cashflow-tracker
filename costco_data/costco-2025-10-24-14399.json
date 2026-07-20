@@ -1,0 +1,52 @@
+{
+  "source_file": "Costco Purchase - 10-24-2025.pdf",
+  "date": "2025-10-24",
+  "total": 143.99,
+  "card_last4": "0396",
+  "type": "warehouse",
+  "instant_savings": 26.6,
+  "_extracted_at": "2026-07-19T23:56:01",
+  "items": [
+    {
+      "raw": "TURKISH DLT",
+      "name": "Turkish Delight",
+      "net_price": 17.98,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 17.98
+    },
+    {
+      "raw": "NUGGETS 52OZ",
+      "name": "Nuggets 52oz",
+      "net_price": 35.98,
+      "category": "Groceries",
+      "confidence": "medium",
+      "allocated_amount": 35.98
+    },
+    {
+      "raw": "FERRERO 48CT",
+      "name": "Ferrero Rocher 48 Count",
+      "net_price": 53.96,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 53.96
+    },
+    {
+      "raw": "LINDOR DARK",
+      "name": "Lindor Dark Chocolate",
+      "net_price": 25.38,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 25.38
+    },
+    {
+      "raw": "KS CLUSTERS",
+      "name": "Kirkland Signature Clusters",
+      "net_price": 10.69,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 10.69
+    }
+  ],
+  "receipt_id": "costco-2025-10-24-14399"
+}

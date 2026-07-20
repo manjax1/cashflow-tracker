@@ -1,0 +1,18 @@
+{
+  "source_file": "Costco Gas Station purchase - 2-16-2026.pdf",
+  "date": "2026-02-16",
+  "total": 77.0,
+  "card_last4": "0396",
+  "type": "gas",
+  "instant_savings": 0,
+  "_extracted_at": "2026-07-19T23:55:11",
+  "items": [
+    {
+      "name": "Costco gas",
+      "net_price": 77.0,
+      "category": "Transportation",
+      "confidence": "high"
+    }
+  ],
+  "receipt_id": "costco-2026-02-16-7700"
+}

@@ -1,0 +1,116 @@
+{
+  "source_file": "Costco Purchase - 3-15-2026 .pdf",
+  "date": "2026-03-15",
+  "total": 201.09,
+  "card_last4": "0396",
+  "type": "warehouse",
+  "instant_savings": 8.0,
+  "_extracted_at": "2026-07-19T23:56:32",
+  "items": [
+    {
+      "raw": "BLUEBERRIES",
+      "name": "Blueberries",
+      "net_price": 9.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 10.51
+    },
+    {
+      "raw": "JCKYYOGAPANT",
+      "name": "Jockey Yoga Pants",
+      "net_price": 10.99,
+      "category": "Clothing",
+      "confidence": "high",
+      "allocated_amount": 11.57
+    },
+    {
+      "raw": "OLAYREGEN10",
+      "name": "Olay Regenerist",
+      "net_price": 44.99,
+      "category": "Personal Care",
+      "confidence": "high",
+      "allocated_amount": 47.37
+    },
+    {
+      "raw": "ORG SPINACH",
+      "name": "Organic Spinach",
+      "net_price": 4.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 5.25
+    },
+    {
+      "raw": "PASTURE EGGS",
+      "name": "Pasture Eggs",
+      "net_price": 7.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 8.41
+    },
+    {
+      "raw": "CITRUS TREE",
+      "name": "Citrus Tree",
+      "net_price": 35.99,
+      "category": "Gardening",
+      "confidence": "high",
+      "allocated_amount": 37.88
+    },
+    {
+      "raw": "POWER GREENS",
+      "name": "Power Greens",
+      "net_price": 5.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 6.3
+    },
+    {
+      "raw": "ORG BROC 2LB",
+      "name": "Organic Broccoli 2 lb",
+      "net_price": 6.49,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 6.83
+    },
+    {
+      "raw": "OADWMN50+300",
+      "name": "One A Day Women 50+ Multivitamin",
+      "net_price": 16.99,
+      "category": "Personal Care",
+      "confidence": "high",
+      "allocated_amount": 17.88
+    },
+    {
+      "raw": "FAGE GRK 48Z",
+      "name": "Fage Greek Yogurt 48 oz",
+      "net_price": 7.69,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 8.09
+    },
+    {
+      "raw": "HYDRANGEA",
+      "name": "Hydrangea",
+      "net_price": 16.99,
+      "category": "Gardening",
+      "confidence": "high",
+      "allocated_amount": 17.88
+    },
+    {
+      "raw": "MONDETTA TEE",
+      "name": "Mondetta T-Shirt (2-pack)",
+      "net_price": 19.98,
+      "category": "Clothing",
+      "confidence": "high",
+      "allocated_amount": 21.03
+    },
+    {
+      "raw": "BANANAS",
+      "name": "Bananas",
+      "net_price": 1.99,
+      "category": "Groceries",
+      "confidence": "high",
+      "allocated_amount": 2.09
+    }
+  ],
+  "receipt_id": "costco-2026-03-15-20109"
+}

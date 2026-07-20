@@ -31,6 +31,8 @@ from .tools import ACTION_TOOLS, TOOLS, audit                   # noqa: E402
 
 READ_TOOLS = [t for t in TOOLS if t["name"] not in ACTION_TOOLS]
 PASSWORD = os.environ.get("AGENT_WEB_PASSWORD", "")  # legacy LAN-only fallback
+CHATLOG_DRIVE_ID = os.environ.get("CHATLOG_DRIVE_FILE_ID", "")
+_chatlog = {"loaded": False, "dirty": False, "last_flush": 0}
 ADMIN_USERS = {u.strip() for u in os.environ.get("AGENT_ADMIN_USERS", "").split(",") if u.strip()}
 _upload_lock = threading.Lock()
 CHAT_LOG = os.path.join(ledger.REPO_ROOT, "logs", "web_chat.jsonl")
@@ -134,6 +136,39 @@ def _authed():
     return not IS_CLOUD            # open mode: never allowed in the cloud
 
 
+CHATLOG_FLUSH_SECS = 60
+
+
+def _chatlog_load_from_drive():
+    """On boot, pull the durable chat log from Drive so history survives
+    Railway redeploys. No-op if not configured or already loaded."""
+    if _chatlog["loaded"] or not CHATLOG_DRIVE_ID:
+        _chatlog["loaded"] = True
+        return
+    try:
+        from src.drive_sync import download_ledger  # generic file download
+        os.makedirs(os.path.dirname(CHAT_LOG), exist_ok=True)
+        download_ledger(CHATLOG_DRIVE_ID, CHAT_LOG)
+    except Exception as e:
+        audit("chatlog_download_failed", {"error": str(e)})
+    _chatlog["loaded"] = True
+
+
+def _chatlog_flush_to_drive():
+    if not (CHATLOG_DRIVE_ID and _chatlog["dirty"]):
+        return
+    try:
+        from src.drive_sync import get_drive_service
+        from googleapiclient.http import MediaFileUpload
+        svc = get_drive_service()
+        svc.files().update(fileId=CHATLOG_DRIVE_ID,
+                           media_body=MediaFileUpload(CHAT_LOG, mimetype="text/plain")).execute()
+        _chatlog["dirty"] = False
+        _chatlog["last_flush"] = time.time()
+    except Exception as e:
+        audit("chatlog_flush_failed", {"error": str(e)})
+
+
 def _log_chat(sid, question, answer, tool_calls, stats):
     os.makedirs(os.path.dirname(CHAT_LOG), exist_ok=True)
     with open(CHAT_LOG, "a") as f:
@@ -142,6 +177,11 @@ def _log_chat(sid, question, answer, tool_calls, stats):
             "q": question, "a": answer,
             "tools": [t["name"] for t in tool_calls], "stats": stats,
         }) + "\n")
+    _chatlog["dirty"] = True
+    # debounced background flush to Drive — no per-question latency
+    if CHATLOG_DRIVE_ID and time.time() - _chatlog["last_flush"] > CHATLOG_FLUSH_SECS:
+        _chatlog["last_flush"] = time.time()
+        threading.Thread(target=_chatlog_flush_to_drive, daemon=True).start()
 
 
 # ------------------------------ routes ------------------------------
@@ -153,6 +193,8 @@ def _bootstrap_ledger():
             ensure_ledger()
         except Exception as e:
             audit("ledger_bootstrap_failed", {"error": str(e)})
+        if not _chatlog["loaded"]:
+            _chatlog_load_from_drive()
 
 
 @app.get("/")

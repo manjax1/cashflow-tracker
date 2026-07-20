@@ -17,6 +17,7 @@ import json
 import os
 import re
 import sys
+from collections import defaultdict
 from datetime import datetime
 
 from dotenv import load_dotenv
@@ -177,6 +178,58 @@ def _match_charge(cc, date, amount, ttype):
     return [t for t in cc if abs(t["Amount"] - abs(amount)) < 0.01
             and t["Type"] == ttype and t["Date"][:7] == date[:7]
             and abs(int(t["Date"][8:10]) - int(date[8:10])) <= 4]
+
+
+def split_one(receipt, ledger_path):
+    """Match one extracted receipt to a discrete ledger charge and write its
+    splits. Returns a status dict. Used by the web upload endpoint.
+    Idempotent: re-splitting an already-split charge is refused."""
+    import openpyxl
+    ledger.LEDGER_PATH = ledger_path
+    ledger._cache["mtime"] = None
+    ledger._splits_cache["mtime"] = None
+    txns = ledger.load_transactions()
+    ledger_start = min(t["Date"] for t in txns)
+    cc = [t for t in txns if "costco" in t["Description"].lower()
+          and t["Account"] == "Credit Card"]
+    d, tot, typ = receipt["date"], receipt["total"], receipt["type"]
+    ttype = "Income" if (tot or 0) < 0 else "Expense"
+    hits = _match_charge(cc, d, tot, ttype)
+    if not hits:
+        return {"status": "no_match",
+                "reason": ("charge not yet synced from the bank — try again after the "
+                           "next sync" if d >= ledger_start else "purchase predates the ledger")}
+    ref = str(hits[0]["SourceRef"])
+    if ref in ledger.load_splits():
+        return {"status": "already_split", "parent_ref": ref}
+    if typ == "gas" and hits[0]["Category"] == "Transportation":
+        return {"status": "gas_no_split", "note": "gas already categorized as Transportation"}
+    items = receipt["items"]
+    base = sum(i.get("allocated_amount", 0) for i in items)
+    drift = round(abs(tot) - base, 2)
+    if abs(drift) > 0.02 and items:
+        big = max(items, key=lambda x: x.get("allocated_amount", 0))
+        big["allocated_amount"] = round(big.get("allocated_amount", 0) + drift, 2)
+    wb = openpyxl.load_workbook(ledger_path)
+    if "Splits" in wb.sheetnames:
+        ws = wb["Splits"]
+    else:
+        ws = wb.create_sheet("Splits")
+        ws.append(["ParentRef", "Item", "Category", "Amount", "ReceiptID", "CreatedAt"])
+    now = datetime.now().isoformat(timespec="seconds")
+    breakdown = defaultdict(float)
+    for i in items:
+        amt = round(i.get("allocated_amount", 0), 2)
+        ws.append([ref, i["name"][:60], i["category"], amt, receipt["receipt_id"], now])
+        breakdown[i["category"]] += amt
+    wb.save(ledger_path)
+    ledger._cache["mtime"] = None
+    ledger._splits_cache["mtime"] = None
+    audit("costco_receipt_split", {"receipt": receipt["receipt_id"], "parent_ref": ref,
+                                   "items": len(items)})
+    return {"status": "split", "parent_ref": ref, "date": hits[0]["Date"],
+            "charge": hits[0]["Amount"], "items": len(items),
+            "breakdown": {k: round(v, 2) for k, v in breakdown.items()}}
 
 
 def reconcile(apply=False):

@@ -114,6 +114,11 @@
   #uresult .ok { color: #2c7a4b; } #uresult .warn { color: var(--muted); }
   #uresult .brk { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 5px; }
   #uresult .chip { background: var(--accent-soft); border-radius: 16px; padding: 2px 9px; font-size: 12px; }
+  #qlog { margin-top: 8px; max-height: 320px; overflow-y: auto; }
+  #qlog table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  #qlog td { border-bottom: 1px solid var(--border); padding: 4px 8px; vertical-align: top; }
+  #qlog .t { color: var(--muted); white-space: nowrap; }
+  #qlog .u { font-weight: 600; white-space: nowrap; }
 
   /* chat history list */
   .hist-list { display: flex; flex-direction: column; gap: 5px; margin-top: 8px; }
@@ -180,7 +185,8 @@
         <option value="Expense">Expense</option>
         <option value="Income">Income</option>
       </select>
-      <select id="s-category" style="flex:1;min-width:180px"></select>
+      <select id="s-category" style="flex:1;min-width:170px"></select>
+      <select id="s-year-cat" onchange="syncMonthYear()"></select>
       <select id="s-month-cat"></select>
       <button class="go" onclick="doSearch()">Search</button>
     </div>
@@ -196,6 +202,15 @@
         <button id="ubtn" onclick="uploadReceipt()">Upload &amp; split</button>
       </div>
       <div id="uresult"></div>
+    </div>
+    <div class="upload-card" style="margin-top:10px">
+      <strong>📜 Question log</strong>
+      <span class="upload-hint">Admin · every question asked of the agent, all users</span>
+      <div class="upload-row">
+        <select id="qlog-user"><option value="">All users</option></select>
+        <button onclick="loadChatLog()">Refresh</button>
+      </div>
+      <div id="qlog"></div>
     </div>
   </div>
 
@@ -465,7 +480,17 @@ async function loadMeta() {
     META.months.map(m => `<option value="${m}">${MONTH_FMT(m)}</option>`).join('');
   $('s-month-text').innerHTML = monthOpts;
   $('s-month-cat').innerHTML = monthOpts;
+  $('s-year-cat').innerHTML = '<option value="">All years</option>' +
+    (META.years || []).map(y => `<option value="${y}">${y}</option>`).join('');
   fillCategories();
+}
+
+// keep month options consistent with the chosen year (or all months)
+function syncMonthYear() {
+  const y = $('s-year-cat').value;
+  const opts = ['<option value="">All months</option>'].concat(
+    META.months.filter(m => !y || m.startsWith(y)).map(m => `<option value="${m}">${MONTH_FMT(m)}</option>`));
+  $('s-month-cat').innerHTML = opts.join('');
 }
 
 async function doSearch() {
@@ -479,6 +504,7 @@ async function doSearch() {
     params.set('category', $('s-category').value);
     params.set('tx_type', $('s-type').value);
     if ($('s-month-cat').value) params.set('month', $('s-month-cat').value);
+    else if ($('s-year-cat').value) params.set('year', $('s-year-cat').value);
   }
   $('results').innerHTML = '<div class="totals">searching…</div>';
   const r = await fetch('/api/search?' + params);
@@ -531,10 +557,30 @@ async function uploadReceipt() {
   $('ubtn').disabled = false;
 }
 
+async function loadChatLog() {
+  const u = $('qlog-user').value;
+  const r = await fetch('/api/chat_log' + (u ? '?user=' + encodeURIComponent(u) : ''));
+  if (!r.ok) { $('qlog').innerHTML = '<span class="upload-hint">unavailable</span>'; return; }
+  const d = await r.json();
+  // populate user filter once
+  if ($('qlog-user').options.length <= 1 && d.users) {
+    d.users.forEach(u => {
+      const o = document.createElement('option'); o.value = o.textContent = u;
+      $('qlog-user').appendChild(o);
+    });
+  }
+  if (!d.entries.length) { $('qlog').innerHTML = '<span class="upload-hint">No questions logged yet.</span>'; return; }
+  $('qlog').innerHTML = `<div class="upload-hint">${d.total} question(s)</div><table>` +
+    d.entries.map(e => `<tr>
+      <td class="t">${(e.ts || '').replace('T', ' ').slice(0, 16)}</td>
+      <td class="u">${e.user || '?'}</td>
+      <td>${render(e.q || '')}</td></tr>`).join('') + '</table>';
+}
+
 async function initAdmin() {
   try {
     const r = await fetch('/api/whoami'); const d = await r.json();
-    if (d.admin) $('upload').style.display = 'block';
+    if (d.admin) { $('upload').style.display = 'block'; loadChatLog(); }
   } catch (e) {}
 }
 

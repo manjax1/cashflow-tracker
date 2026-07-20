@@ -229,10 +229,11 @@ def meta():
         return jsonify({"error": "unauthorized"}), 401
     txns = ledger.effective_rows()
     months = sorted({t["Date"][:7] for t in txns}, reverse=True)
+    years = sorted({t["Date"][:4] for t in txns}, reverse=True)
     cats = ledger.list_categories()["categories"]
     income_cats = sorted(c["category"] for c in cats if c["income"] > c["expense"])
     expense_cats = sorted(c["category"] for c in cats if c["expense"] >= c["income"])
-    return jsonify({"months": months, "income_categories": income_cats,
+    return jsonify({"months": months, "years": years, "income_categories": income_cats,
                     "expense_categories": expense_cats})
 
 
@@ -246,11 +247,14 @@ def search():
     category = request.args.get("category", "").strip() or None
     tx_type = request.args.get("tx_type", "").strip() or None
     month = request.args.get("month", "").strip() or None
+    year = request.args.get("year", "").strip() or None
 
     txns = ledger.load_transactions()
     dates = sorted(t["Date"] for t in txns)
-    if month:  # YYYY-MM -> full month window
+    if month:                      # YYYY-MM -> that month
         start, end = month + "-01", month + "-31"
+    elif year:                     # YYYY -> whole calendar year
+        start, end = year + "-01-01", year + "-12-31"
     else:
         start, end = dates[0], dates[-1]
     result = ledger.query_transactions(
@@ -350,6 +354,32 @@ def _is_admin():
 @app.get("/api/whoami")
 def whoami():
     return jsonify({"user": session.get("user"), "admin": _is_admin()})
+
+
+@app.get("/api/chat_log")
+def chat_log():
+    """Admin-only: recent questions asked of the agent across all sessions,
+    optionally filtered by user. Reads logs/web_chat.jsonl."""
+    if not _is_admin():
+        return jsonify({"error": "admin only"}), 403
+    who = request.args.get("user", "").strip() or None
+    limit = int(request.args.get("limit", "200"))
+    entries, users = [], set()
+    if os.path.exists(CHAT_LOG):
+        with open(CHAT_LOG) as f:
+            for line in f:
+                try:
+                    r = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                users.add(r.get("sid", "?"))
+                if who and r.get("sid") != who:
+                    continue
+                entries.append({"ts": r.get("ts"), "user": r.get("sid"),
+                                "q": r.get("q"), "tools": r.get("tools", [])})
+    entries.reverse()
+    return jsonify({"entries": entries[:limit], "total": len(entries),
+                    "users": sorted(users)})
 
 
 @app.post("/api/upload_receipt")

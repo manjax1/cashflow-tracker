@@ -23,6 +23,7 @@ LEDGER_PATH = os.environ.get(
 RULES_PATH = os.path.join(REPO_ROOT, "spending_rules.json")
 
 _cache = {"mtime": None, "rows": None}
+_splits_cache = {"mtime": None, "splits": None}
 
 
 def _parse_date(v):
@@ -54,6 +55,53 @@ def load_transactions():
     wb.close()
     _cache.update(mtime=mtime, rows=rows)
     return rows
+
+
+def load_splits():
+    """Read the optional 'Splits' sheet: parent SourceRef -> [item rows].
+    Non-destructive overlay; absent sheet just means no splits."""
+    mtime = os.path.getmtime(LEDGER_PATH)
+    if _splits_cache["mtime"] == mtime and _splits_cache["splits"] is not None:
+        return _splits_cache["splits"]
+    splits = defaultdict(list)
+    wb = openpyxl.load_workbook(LEDGER_PATH, read_only=True, data_only=True)
+    if "Splits" in wb.sheetnames:
+        rows = wb["Splits"].iter_rows(values_only=True)
+        header = [str(h) for h in next(rows)]
+        for r in rows:
+            if r[0] is None:
+                continue
+            d = dict(zip(header, r))
+            splits[str(d["ParentRef"])].append({
+                "item": d.get("Item", ""), "category": d["Category"],
+                "amount": float(d["Amount"] or 0)})
+    wb.close()
+    _splits_cache.update(mtime=mtime, splits=splits)
+    return splits
+
+
+def effective_rows():
+    """Transactions with split-parents expanded into their item rows.
+    A charge that has splits contributes its per-category item amounts instead
+    of its single original category. Everything downstream aggregates on this."""
+    rows = load_transactions()
+    splits = load_splits()
+    if not splits:
+        return rows
+    out = []
+    for t in rows:
+        sp = splits.get(str(t["SourceRef"]))
+        if not sp:
+            out.append(t)
+            continue
+        for s in sp:
+            child = dict(t)
+            child["Category"] = s["category"]
+            child["Amount"] = s["amount"]
+            child["Description"] = f"{t['Description'][:40]} :: {s['item']}"
+            child["_split_of"] = t["SourceRef"]
+            out.append(child)
+    return out
 
 
 def _in_net(t):
@@ -89,7 +137,7 @@ def _filter(rows, start_date=None, end_date=None, category=None, account=None,
 def query_transactions(start_date, end_date, category=None, account=None,
                        tx_type=None, min_amount=None, max_amount=None,
                        search=None, limit=100):
-    rows = _filter(load_transactions(), start_date, end_date, category,
+    rows = _filter(effective_rows(), start_date, end_date, category,
                    account, tx_type, min_amount, max_amount, search)
     rows = sorted(rows, key=lambda t: t["Date"], reverse=True)
     total = len(rows)
@@ -106,7 +154,7 @@ def query_transactions(start_date, end_date, category=None, account=None,
 
 def get_cashflow_summary(start_date, end_date, group_by="category", category=None):
     """Aggregates income/expense/net. group_by: category|month|account|type."""
-    rows = _filter(load_transactions(), start_date, end_date, category=category)
+    rows = _filter(effective_rows(), start_date, end_date, category=category)
     rows = [t for t in rows if _in_net(t)]
 
     def key(t):
@@ -155,7 +203,7 @@ def get_cashflow_summary(start_date, end_date, group_by="category", category=Non
 
 def get_trends(metric="net", granularity="month", lookback_periods=6, category=None):
     """Deterministic time series with period-over-period deltas + trailing avg."""
-    rows = [t for t in load_transactions() if _in_net(t)]
+    rows = [t for t in effective_rows() if _in_net(t)]
     if category:
         rows = [t for t in rows if category.lower() in t["Category"].lower()]
 
@@ -211,7 +259,7 @@ def get_trends(metric="net", granularity="month", lookback_periods=6, category=N
 
 
 def list_categories():
-    rows = load_transactions()
+    rows = effective_rows()
     cats = defaultdict(lambda: {"count": 0, "income": 0.0, "expense": 0.0,
                                 "first_seen": "9999", "last_seen": "0000"})
     for t in rows:

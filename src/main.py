@@ -27,8 +27,25 @@ def _resolve_ledger_path() -> tuple[str, bool]:
 
 
 def _load_rules_with_fallback() -> list:
-    """Load categorization rules from RULES_JSON env var (Railway) or local file."""
+    """Load categorization rules. Priority:
+    1. Google Drive (RULES_DRIVE_FILE_ID) — updated via scripts/push_rules_to_drive.py,
+       no redeploy, single source of truth alongside the ledger.
+    2. RULES_JSON env var (legacy Railway).
+    3. Local spending_rules.json file.
+    """
     import json
+    from filters import load_rules
+
+    rules_drive_id = clean_env(os.getenv("RULES_DRIVE_FILE_ID"), "RULES_DRIVE_FILE_ID")
+    if rules_drive_id:
+        try:
+            download_ledger(rules_drive_id, RULES_PATH)   # generic Drive file download
+            rules = load_rules(RULES_PATH)
+            print(f"✅ Loaded {len(rules)} rules from Drive")
+            return rules
+        except Exception as e:
+            print(f"⚠️  Drive rules load failed: {e} — falling back")
+
     rules_json_env = clean_env(os.getenv("RULES_JSON"), "RULES_JSON")
     if rules_json_env:
         try:

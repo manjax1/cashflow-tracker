@@ -47,6 +47,20 @@
   .tools { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
   .tool-chip { font-size: 11.5px; color: var(--muted); background: var(--accent-soft);
                border-radius: 20px; padding: 2px 10px; }
+  /* admin recategorization proposals */
+  .proposals { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+  .prop-hd { font-size: 12.5px; font-weight: 650; color: var(--accent); }
+  .prop { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; }
+  .prop-tx { font-size: 12.5px; color: var(--muted); }
+  .prop-move { font-size: 14px; margin: 4px 0 8px; }
+  .prop-move .old { color: #b3402a; } .prop-move .new { color: #2c7a4b; font-weight: 650; }
+  .prop-act { display: flex; gap: 8px; align-items: center; }
+  .prop-act button { border: none; border-radius: 8px; padding: 5px 14px; font-size: 12.5px; cursor: pointer; }
+  .prop-act .ok { background: var(--accent); color: #fff; }
+  .prop-act .no { background: var(--bg); border: 1px solid var(--border); color: var(--ink); }
+  .prop-act .applied { color: #2c7a4b; font-weight: 600; font-size: 13px; }
+  .prop-act .dismissed, .prop-act .failed { color: var(--muted); font-size: 13px; }
+
   .thinking { color: var(--muted); font-style: italic; }
   .thinking::after { content: ''; animation: dots 1.2s steps(4, end) infinite; }
   @keyframes dots { 0% {content:''} 25% {content:'.'} 50% {content:'..'} 75% {content:'...'} }
@@ -317,6 +331,37 @@ function showHistory() {
   });
 }
 
+function renderProposals(container, proposals) {
+  const box = document.createElement('div');
+  box.className = 'proposals';
+  box.innerHTML = '<div class="prop-hd">Proposed recategorizations — review &amp; apply:</div>';
+  proposals.forEach(pr => {
+    const card = document.createElement('div');
+    card.className = 'prop';
+    card.innerHTML = `
+      <div class="prop-tx">${pr.date} · ${fmt(pr.amount)} · ${pr.description}</div>
+      <div class="prop-move"><span class="old">${pr.old_category}</span> → <span class="new">${pr.new_category}</span></div>
+      <div class="prop-act"><button class="ok" >Apply</button><button class="no">Dismiss</button></div>`;
+    const [okB, noB] = card.querySelectorAll('button');
+    okB.onclick = async () => {
+      okB.disabled = noB.disabled = true; okB.textContent = 'applying…';
+      try {
+        const r = await fetch('/api/apply_recategorization', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ source_ref: pr.source_ref, new_category: pr.new_category, reason: pr.reason }) });
+        const d = await r.json();
+        if (d.error) throw new Error(d.error);
+        card.querySelector('.prop-act').innerHTML = '<span class="applied">✔ applied &amp; synced</span>';
+      } catch (e) {
+        card.querySelector('.prop-act').innerHTML = `<span class="failed">⚠ ${e.message}</span>`;
+      }
+    };
+    noB.onclick = () => { card.querySelector('.prop-act').innerHTML = '<span class="dismissed">dismissed</span>'; };
+    box.appendChild(card);
+  });
+  container.appendChild(box);
+}
+
 async function send(preset) {
   const q = preset || $('q').value.trim();
   if (!q) return;
@@ -337,6 +382,7 @@ async function send(preset) {
       `<span class="tool-chip">⚙ ${t.name}</span>`).join('');
     thinking.innerHTML = (chips ? `<div class="tools">${chips}</div>` : '') +
       `<div class="content">${render(d.answer)}</div>`;
+    if (d.proposals && d.proposals.length) renderProposals(thinking, d.proposals);
   } catch (e) {
     thinking.innerHTML = `<div class="content">⚠ ${e.message}</div>`;
   }

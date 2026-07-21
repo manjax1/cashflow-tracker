@@ -126,7 +126,7 @@ def load_cases():
     return out
 
 
-def run(tag=None, baseline=None):
+def run(tag=None, baseline=None, verbose=False):
     from .agent import Agent
     cases = [c for c in load_cases() if not tag or tag in c.get("tags", [])]
     print(f"Running {len(cases)} eval case(s)"+(f" [tag={tag}]" if tag else "")+"\n")
@@ -136,8 +136,8 @@ def run(tag=None, baseline=None):
         try:
             answer = agent.ask(c["question"])
         except Exception as e:
-            results.append({"id": c["id"], "passed": False,
-                            "fails": [f"agent error: {e}"]}); continue
+            results.append({"id": c["id"], "passed": False, "answer": "",
+                            "tools": [], "fails": [f"agent error: {e}"]}); continue
         atools = [tc["name"] for tc in agent.last_tool_calls]
         tot_in += agent.stats["input_tokens"]; tot_out += agent.stats["output_tokens"]
         fails = []
@@ -146,11 +146,15 @@ def run(tag=None, baseline=None):
             if not ok:
                 fails.append(f"[{spec['type']}] {why}")
         passed = not fails
-        results.append({"id": c["id"], "passed": passed, "fails": fails})
+        results.append({"id": c["id"], "passed": passed, "fails": fails,
+                        "answer": answer, "tools": atools})
         mark = "✓" if passed else "✗"
         print(f"  {mark}  {c['id']}")
         for fl in fails:
             print(f"        {fl}")
+        if verbose and not passed:
+            print(f"        tools: {atools}")
+            print(f"        answer: {answer[:400]}")
 
     n_pass = sum(r["passed"] for r in results)
     dt = time.time() - t0
@@ -190,7 +194,7 @@ if __name__ == "__main__":
     if args and args[0] == "run":
         tag = args[args.index("--tag") + 1] if "--tag" in args else None
         base = "last" if "--baseline" in args else None
-        run(tag=tag, baseline=base)
+        run(tag=tag, baseline=base, verbose="--verbose" in args or "-v" in args)
     elif args and args[0] == "list":
         list_cases()
     else:

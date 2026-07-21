@@ -12,9 +12,42 @@
     --user-bubble: #eae9e2; --radius: 14px;
   }
   * { box-sizing: border-box; margin: 0; }
+  html { scroll-padding-top: 56px; }
   body { font: 15px/1.55 -apple-system, "Segoe UI", Roboto, sans-serif;
          background: var(--bg); color: var(--ink); }
   .wrap { max-width: 880px; margin: 0 auto; padding: 16px; }
+
+  /* top nav */
+  #topnav { position: sticky; top: 0; z-index: 40; background: rgba(245,244,239,.92);
+            backdrop-filter: blur(6px); border-bottom: 1px solid var(--border); }
+  .nav-inner { max-width: 880px; margin: 0 auto; padding: 8px 16px; display: flex;
+               align-items: center; gap: 12px; }
+  .nav-brand { font-weight: 650; font-size: 15px; }
+  .nav-links { margin-left: auto; display: flex; gap: 4px; flex-wrap: wrap; }
+  .nav-links button { background: none; border: none; color: var(--ink); cursor: pointer;
+                      font: inherit; font-size: 13px; padding: 6px 10px; border-radius: 8px; }
+  .nav-links button:hover { background: var(--accent-soft); color: var(--accent); }
+
+  /* side drawers */
+  #backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.28); z-index: 50;
+              opacity: 0; pointer-events: none; transition: opacity .2s; }
+  #backdrop.show { opacity: 1; pointer-events: auto; }
+  .drawer { position: fixed; top: 0; right: 0; height: 100%; width: 380px; max-width: 88vw;
+            background: var(--panel); border-left: 1px solid var(--border); z-index: 51;
+            transform: translateX(100%); transition: transform .22s ease; display: flex;
+            flex-direction: column; box-shadow: -8px 0 24px rgba(0,0,0,.10); }
+  .drawer.open { transform: translateX(0); }
+  .drawer-hd { display: flex; align-items: center; justify-content: space-between;
+               padding: 14px 16px; border-bottom: 1px solid var(--border); font-size: 15px; }
+  .drawer-x { background: none; border: none; font-size: 16px; cursor: pointer; color: var(--muted); }
+  .drawer-body { padding: 14px 16px; overflow-y: auto; }
+
+  /* back to top */
+  #totop { position: fixed; right: 18px; bottom: 96px; z-index: 30; display: none;
+           background: var(--panel); border: 1px solid var(--border); border-radius: 20px;
+           padding: 8px 14px; font-size: 13px; cursor: pointer; color: var(--ink);
+           box-shadow: 0 3px 12px rgba(0,0,0,.12); }
+  #totop:hover { border-color: var(--accent); color: var(--accent); }
   header { display: flex; align-items: baseline; gap: 10px; padding: 6px 2px 14px; }
   header h1 { font-size: 19px; font-weight: 650; }
   header .sub { color: var(--muted); font-size: 12.5px; }
@@ -163,6 +196,19 @@
 </style>
 </head>
 <body>
+<nav id="topnav">
+  <div class="nav-inner">
+    <span class="nav-brand">💰 Cashflow Agent</span>
+    <div class="nav-links">
+      <button onclick="jumpTo('dash')">Dashboard</button>
+      <button onclick="jumpTo('search')">Search</button>
+      <button onclick="jumpTo('chat')">Ask</button>
+      <button class="admin-only" onclick="openDrawer('upload')" style="display:none">🧾 Upload</button>
+      <button class="admin-only" onclick="openDrawer('log')" style="display:none">📜 Log</button>
+    </div>
+  </div>
+</nav>
+
 <div class="wrap">
   <header>
     <h1>💰 Cashflow Agent</h1>
@@ -207,30 +253,40 @@
     <div id="results"></div>
   </div>
 
-  <div id="upload" style="display:none">
-    <div class="upload-card">
-      <strong>🧾 Upload Costco receipt</strong>
-      <span class="upload-hint">Admin · splits a warehouse basket into item categories on the ledger</span>
-      <div class="upload-row">
-        <input type="file" id="rfile" accept="application/pdf">
-        <button id="ubtn" onclick="uploadReceipt()">Upload &amp; split</button>
-      </div>
-      <div id="uresult"></div>
-    </div>
-    <div class="upload-card" style="margin-top:10px">
-      <strong>📜 Question log</strong>
-      <span class="upload-hint">Admin · every question asked of the agent, all users</span>
-      <div class="upload-row">
-        <select id="qlog-user"><option value="">All users</option></select>
-        <button onclick="loadChatLog()">Refresh</button>
-      </div>
-      <div id="qlog"></div>
-    </div>
-  </div>
-
   <div class="suggest" id="suggest"></div>
   <div id="chat"></div>
 </div>
+
+<!-- admin side drawers -->
+<div id="backdrop" onclick="closeDrawers()"></div>
+
+<aside class="drawer" id="drawer-upload">
+  <div class="drawer-hd"><strong>🧾 Upload Costco receipt</strong>
+    <button class="drawer-x" onclick="closeDrawers()">✕</button></div>
+  <div class="drawer-body">
+    <span class="upload-hint">Splits a warehouse basket into item categories on the ledger.</span>
+    <div class="upload-row">
+      <input type="file" id="rfile" accept="application/pdf">
+      <button id="ubtn" onclick="uploadReceipt()">Upload &amp; split</button>
+    </div>
+    <div id="uresult"></div>
+  </div>
+</aside>
+
+<aside class="drawer" id="drawer-log">
+  <div class="drawer-hd"><strong>📜 Question log</strong>
+    <button class="drawer-x" onclick="closeDrawers()">✕</button></div>
+  <div class="drawer-body">
+    <span class="upload-hint">Every question asked of the agent, all users.</span>
+    <div class="upload-row">
+      <select id="qlog-user"><option value="">All users</option></select>
+      <button onclick="loadChatLog()">Refresh</button>
+    </div>
+    <div id="qlog"></div>
+  </div>
+</aside>
+
+<button id="totop" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="Back to top">↑ Top</button>
 
 <div id="inputbar"><div class="inputbox">
   <textarea id="q" rows="1" placeholder="Ask about income, expenses, trends, anomalies…  (↑ recalls previous · type 'history')"></textarea>
@@ -623,10 +679,29 @@ async function loadChatLog() {
       <td>${render(e.q || '')}</td></tr>`).join('') + '</table>';
 }
 
+function jumpTo(id) {
+  if (id === 'chat') { $('q').focus(); window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }); return; }
+  $(id).scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function openDrawer(which) {
+  closeDrawers();
+  $('drawer-' + which).classList.add('open');
+  $('backdrop').classList.add('show');
+  if (which === 'log') loadChatLog();
+}
+function closeDrawers() {
+  document.querySelectorAll('.drawer').forEach(d => d.classList.remove('open'));
+  $('backdrop').classList.remove('show');
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawers(); });
+window.addEventListener('scroll', () => {
+  $('totop').style.display = window.scrollY > 400 ? 'block' : 'none';
+});
+
 async function initAdmin() {
   try {
     const r = await fetch('/api/whoami'); const d = await r.json();
-    if (d.admin) { $('upload').style.display = 'block'; loadChatLog(); }
+    if (d.admin) document.querySelectorAll('.admin-only').forEach(b => b.style.display = 'inline-block');
   } catch (e) {}
 }
 

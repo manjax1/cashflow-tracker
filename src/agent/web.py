@@ -153,27 +153,63 @@ def _authed():
 CHATLOG_FLUSH_SECS = 60
 
 
-def _chatlog_load_from_drive():
-    """On boot, pull the durable chat log from Drive so history survives
-    Railway redeploys. No-op if not configured or already loaded."""
-    if _chatlog["loaded"] or not CHATLOG_DRIVE_ID:
-        _chatlog["loaded"] = True
+def _read_jsonl(path):
+    if not os.path.exists(path):
+        return []
+    with open(path) as f:
+        return [ln.rstrip("\n") for ln in f if ln.strip()]
+
+
+def _chatlog_sync_down():
+    """Merge Drive's chat log into the local file — non-destructive union,
+    deduped by exact line, ordered by timestamp. Safe to call anytime."""
+    if not CHATLOG_DRIVE_ID:
         return
+    tmp = CHAT_LOG + ".drive"
     try:
-        from src.drive_sync import download_ledger  # generic file download
+        from src.drive_sync import download_ledger
         os.makedirs(os.path.dirname(CHAT_LOG), exist_ok=True)
-        download_ledger(CHATLOG_DRIVE_ID, CHAT_LOG)
+        download_ledger(CHATLOG_DRIVE_ID, tmp)
     except Exception as e:
         audit("chatlog_download_failed", {"error": str(e)})
+        return
+    seen, merged = set(), []
+    for ln in _read_jsonl(tmp) + _read_jsonl(CHAT_LOG):
+        if ln not in seen:
+            seen.add(ln)
+            merged.append(ln)
+    def _ts(ln):
+        try:
+            return json.loads(ln).get("ts", "")
+        except json.JSONDecodeError:
+            return ""
+    merged.sort(key=_ts)
+    with open(CHAT_LOG, "w") as f:
+        f.write("\n".join(merged) + ("\n" if merged else ""))
+    try:
+        os.remove(tmp)
+    except OSError:
+        pass
+
+
+def _chatlog_load_from_drive():
+    """On boot, seed the local chat log from Drive so history survives
+    Railway redeploys."""
+    if _chatlog["loaded"]:
+        return
+    _chatlog_sync_down()
     _chatlog["loaded"] = True
 
 
 def _chatlog_flush_to_drive():
+    """Merge Drive + local (so a stale container never clobbers history),
+    then upload the union back to Drive."""
     if not (CHATLOG_DRIVE_ID and _chatlog["dirty"]):
         return
     try:
         from src.drive_sync import get_drive_service
         from googleapiclient.http import MediaFileUpload
+        _chatlog_sync_down()   # pull remote and merge BEFORE overwriting Drive
         svc = get_drive_service()
         svc.files().update(fileId=CHATLOG_DRIVE_ID,
                            media_body=MediaFileUpload(CHAT_LOG, mimetype="text/plain")).execute()
@@ -474,6 +510,7 @@ def chat_log():
     optionally filtered by user. Reads logs/web_chat.jsonl."""
     if not _is_admin():
         return jsonify({"error": "admin only"}), 403
+    _chatlog_sync_down()   # ensure the panel reflects the full cross-session history
     who = request.args.get("user", "").strip() or None
     limit = int(request.args.get("limit", "200"))
     entries, users = [], set()

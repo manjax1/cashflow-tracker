@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
-"""Create an empty file in Google Drive via the service account and print its
-ID — for the durable web chat log (CHATLOG_DRIVE_FILE_ID).
+"""Create an empty Drive file via the service account and print its ID.
 
-Usage:
-    python scripts/create_drive_file.py "cashflow-chatlog.jsonl"
+⚠️  LIMITATION: service accounts have NO storage quota on personal Google
+accounts, so a file they OWN cannot hold uploaded content (uploads fail with
+'storageQuotaExceeded'). This script is only useful with a Google Workspace
+Shared Drive.
 
-Then set the printed ID as CHATLOG_DRIVE_FILE_ID on Railway. The file is owned
-by the service account; to view it yourself, share it or move it into a folder
-the service account can write to.
+PREFERRED for personal Gmail: create the file yourself (upload it in the Drive
+web UI so YOU own it), share it with the service-account email as Editor, and
+use that file's ID — exactly how the ledger file works. Then push_rules /
+chat-log flush (which UPDATE the file, using your quota) succeed.
 """
 
 import os
@@ -33,9 +35,14 @@ def main():
     f = svc.files().create(
         body=meta, media_body=MediaInMemoryUpload(b"", mimetype="text/plain"),
         fields="id").execute()
+    # Suggest an env-var name based on the file, or take one as arg 2.
+    var = sys.argv[2] if len(sys.argv) > 2 else (
+        "RULES_DRIVE_FILE_ID" if "rule" in name.lower()
+        else "CHATLOG_DRIVE_FILE_ID" if ("chat" in name.lower() or "log" in name.lower())
+        else "DRIVE_FILE_ID")
     print("Created Drive file:", name)
-    print("CHATLOG_DRIVE_FILE_ID =", f["id"])
-    print("\nSet that as an env var on Railway (and locally in .env if you want).")
+    print("File ID:", f["id"])
+    print(f"\nSet it as an env var on Railway (and in local .env):\n  {var} = {f['id']}")
 
 
 if __name__ == "__main__":

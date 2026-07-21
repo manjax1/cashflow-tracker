@@ -30,6 +30,9 @@ from .agent import Agent                                        # noqa: E402
 from .tools import ACTION_TOOLS, TOOLS, audit                   # noqa: E402
 
 READ_TOOLS = [t for t in TOOLS if t["name"] not in ACTION_TOOLS]
+# Admins additionally get recategorization (proposal-only; approved in the UI).
+WEB_ADMIN_ACTIONS = {"recategorize_transaction", "recategorize_batch"}
+ADMIN_TOOLS = READ_TOOLS + [t for t in TOOLS if t["name"] in WEB_ADMIN_ACTIONS]
 PASSWORD = os.environ.get("AGENT_WEB_PASSWORD", "")  # legacy LAN-only fallback
 CHATLOG_DRIVE_ID = os.environ.get("CHATLOG_DRIVE_FILE_ID", "")
 _chatlog = {"loaded": False, "dirty": False, "last_flush": 0}
@@ -122,9 +125,20 @@ def _get_agent():
     if not sid:
         sid = secrets.token_hex(8)
         session["sid"] = sid
+    admin = _is_admin()
     with _agents_lock:
         if sid not in _agents:
-            _agents[sid] = Agent(tools=READ_TOOLS, read_only=True)
+            a = Agent(tools=ADMIN_TOOLS if admin else READ_TOOLS, read_only=not admin)
+            if admin:
+                a.system += (
+                    "\nADMIN: you may recategorize transactions. When a query surfaces a "
+                    "transaction that is clearly miscategorized or uncategorized and the "
+                    "correct category is obvious, proactively call recategorize_transaction "
+                    "(or recategorize_batch for several) — these are PROPOSALS the admin "
+                    "approves in the UI, so never ask permission first and never claim the "
+                    "change is done. Be judicious: only propose when the right category is "
+                    "clear, and use exact existing category names.")
+            _agents[sid] = a
         return _agents[sid]
 
 
@@ -257,9 +271,13 @@ def chat():
     except Exception as e:
         audit("web_chat_error", {"error": str(e)})
         return jsonify({"error": f"{type(e).__name__}: {e}"}), 500
+    from . import tools as _tools
+    _tools.PENDING.clear()   # web approval is per-response; don't accumulate globally
+    proposals = _extract_proposals(agent.last_tool_calls) if _is_admin() else []
     _log_chat(session.get("user", session["sid"]), message, answer,
               agent.last_tool_calls, agent.stats)
-    return jsonify({"answer": answer,
+    return jsonify({"proposals": proposals,
+                    "answer": answer,
                     "tool_calls": agent.last_tool_calls,
                     "stats": agent.stats})
 
@@ -396,6 +414,58 @@ def _is_admin():
 @app.get("/api/whoami")
 def whoami():
     return jsonify({"user": session.get("user"), "admin": _is_admin()})
+
+
+def _extract_proposals(tool_calls):
+    """Flatten recategorization tool calls into UI proposals, enriched with
+    each transaction's current category/description for display."""
+    by_ref = {str(t["SourceRef"]): t for t in ledger.load_transactions()}
+    items = []
+    for tc in tool_calls or []:
+        if tc["name"] == "recategorize_transaction":
+            items.append(tc["input"])
+        elif tc["name"] == "recategorize_batch":
+            items.extend(tc["input"].get("items", []))
+    out = []
+    for it in items:
+        ref = str(it.get("source_ref", ""))
+        tx = by_ref.get(ref)
+        if not tx:
+            continue
+        out.append({"source_ref": ref, "new_category": it.get("new_category"),
+                    "reason": it.get("reason", ""), "date": tx["Date"],
+                    "amount": tx["Amount"], "description": tx["Description"][:70],
+                    "old_category": tx["Category"]})
+    return out
+
+
+@app.post("/api/apply_recategorization")
+def apply_recategorization():
+    """Admin-only: execute an approved recategorization and sync to Drive.
+    Body: {source_ref, new_category, reason}. No rule creation via web —
+    rules stay in git/CLI so they reach the daily sync."""
+    if not _is_admin():
+        return jsonify({"error": "admin only"}), 403
+    body = request.json or {}
+    ref, new_cat = body.get("source_ref"), body.get("new_category")
+    if not ref or not new_cat:
+        return jsonify({"error": "source_ref and new_category required"}), 400
+    from . import tools as _tools
+    with _upload_lock:
+        try:
+            ensure_ledger()
+            result = _tools.execute_recategorize(
+                {"source_ref": ref, "new_category": new_cat,
+                 "reason": body.get("reason", "web admin recategorization")})
+            if "not found" not in result and os.environ.get("GOOGLE_DRIVE_FILE_ID"):
+                from src.drive_sync import upload_ledger
+                upload_ledger(os.environ["GOOGLE_DRIVE_FILE_ID"], ledger.LEDGER_PATH)
+        except Exception as e:
+            audit("web_recategorize_error", {"error": str(e)})
+            return jsonify({"error": f"{type(e).__name__}: {e}"}), 500
+    audit("web_recategorize_applied",
+          {"user": session.get("user"), "source_ref": ref, "new_category": new_cat})
+    return jsonify({"status": "applied", "result": result})
 
 
 @app.get("/api/chat_log")

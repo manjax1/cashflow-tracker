@@ -9,6 +9,7 @@ invoices_data/
 Costco-Purchases/
 gmail_credentials.json
 gmail_token.json
+evals/runs/
 logs/
 __pycache__/
 *.pyc

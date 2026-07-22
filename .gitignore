@@ -10,6 +10,7 @@ Costco-Purchases/
 gmail_credentials.json
 gmail_token.json
 evals/runs/
+evals/candidates.jsonl
 logs/
 __pycache__/
 *.pyc

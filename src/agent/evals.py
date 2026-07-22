@@ -28,6 +28,8 @@ from . import ledger                      # noqa: E402
 ROOT = ledger.REPO_ROOT
 CASES = os.path.join(ROOT, "evals", "cases.jsonl")
 RUNS_DIR = os.path.join(ROOT, "evals", "runs")
+CANDIDATES = os.path.join(ROOT, "evals", "candidates.jsonl")
+JUDGE_MODEL = os.environ.get("JUDGE_MODEL", "claude-haiku-4-5-20251001")
 
 
 # --------------------------- deterministic oracles ---------------------------
@@ -99,16 +101,55 @@ def check_not_contains(answer, text=None, **_):
     return ok, "" if ok else f"answer should not contain: {text!r}"
 
 
+JUDGE_TOOL = {
+    "name": "verdict",
+    "description": "Return the grading verdict for the answer.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "passed": {"type": "boolean"},
+            "reason": {"type": "string", "description": "one concise sentence"},
+        },
+        "required": ["passed", "reason"],
+    },
+}
+
+
+def check_judge(answer, question=None, rubric=None, facts=None, **_):
+    """LLM-as-judge for fuzzy answers. Ground-truth facts (computed by our
+    oracles) are fed to the judge so it grades against them rather than
+    re-deriving numbers itself."""
+    import anthropic
+    fact_lines = []
+    for f in (facts or []):
+        val = ORACLES[f["oracle"]](**f.get("args", {}))
+        fact_lines.append(f"- {f.get('label', f['oracle'])}: {val}")
+    facts_str = ("\n\nKnown facts (ground truth — grade against these, do not "
+                 "recompute):\n" + "\n".join(fact_lines)) if fact_lines else ""
+    prompt = (f"You are strictly grading an AI financial assistant's answer.\n\n"
+              f"Question: {question}\n\nAnswer:\n{answer}\n\n"
+              f"A PASSING answer must: {rubric}{facts_str}\n\n"
+              "Call verdict with passed=true only if the rubric is satisfied.")
+    resp = anthropic.Anthropic().messages.create(
+        model=JUDGE_MODEL, max_tokens=400, tools=[JUDGE_TOOL],
+        tool_choice={"type": "tool", "name": "verdict"},
+        messages=[{"role": "user", "content": prompt}])
+    v = next(b.input for b in resp.content if b.type == "tool_use")
+    return v["passed"], v.get("reason", "")
+
+
 CHECKS = {"tools_include": check_tools_include, "tools_exclude": check_tools_exclude,
           "number": check_number, "contains": check_contains,
-          "not_contains": check_not_contains}
+          "not_contains": check_not_contains, "judge": check_judge}
 
 
-def run_check(spec, answer, agent_tools):
+def run_check(spec, answer, agent_tools, question=None):
     fn = CHECKS[spec["type"]]
     kw = {k: v for k, v in spec.items() if k != "type"}
     if spec["type"] in ("tools_include", "tools_exclude"):
         return fn(agent_tools, **kw)
+    if spec["type"] == "judge":
+        return fn(answer, question=question, **kw)
     return fn(answer, **kw)
 
 
@@ -142,7 +183,7 @@ def run(tag=None, baseline=None, verbose=False):
         tot_in += agent.stats["input_tokens"]; tot_out += agent.stats["output_tokens"]
         fails = []
         for spec in c.get("checks", []):
-            ok, why = run_check(spec, answer, atools)
+            ok, why = run_check(spec, answer, atools, question=c["question"])
             if not ok:
                 fails.append(f"[{spec['type']}] {why}")
         passed = not fails
@@ -189,6 +230,57 @@ def list_cases():
         print(f"  {c['id']:<34} {c.get('tags', [])}  — {c['question'][:60]}")
 
 
+def _slug(q):
+    s = re.sub(r"[^a-z0-9]+", "_", q.lower()).strip("_")
+    return s[:40] or "case"
+
+
+def harvest():
+    """Turn the durable web chat log into candidate eval cases. Pulls the log
+    from Drive (CHATLOG_DRIVE_FILE_ID), then writes evals/candidates.jsonl with
+    one case per unique question, pre-filled with the tools the agent used and
+    the answer as a reference comment. You then curate: add a `number` oracle or
+    a `judge` rubric and move the good ones into cases.jsonl."""
+    src = os.path.join(ROOT, "logs", "web_chat.jsonl")
+    drive_id = os.environ.get("CHATLOG_DRIVE_FILE_ID")
+    if drive_id:
+        try:
+            from src.drive_sync import download_ledger
+            src = os.path.join(ROOT, "logs", "_harvest_chatlog.jsonl")
+            os.makedirs(os.path.dirname(src), exist_ok=True)
+            download_ledger(drive_id, src)
+        except Exception as e:
+            print(f"⚠️  Drive chat-log download failed ({e}); using local {src}")
+    if not os.path.exists(src):
+        sys.exit("No chat log found to harvest from.")
+
+    existing_q = {c["question"] for c in (load_cases() if os.path.exists(CASES) else [])}
+    seen, candidates = set(), []
+    with open(src) as f:
+        for line in f:
+            try:
+                r = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            q = (r.get("q") or "").strip()
+            if not q or q in seen or q in existing_q:
+                continue
+            seen.add(q)
+            candidates.append({
+                "id": _slug(q), "question": q,
+                "checks": [{"type": "tools_include", "tools": r.get("tools", [])}],
+                "tags": ["harvested"],
+                "_answer_ref": (r.get("a") or "")[:200],
+            })
+    os.makedirs(os.path.dirname(CANDIDATES), exist_ok=True)
+    with open(CANDIDATES, "w") as f:
+        for c in candidates:
+            f.write(json.dumps(c) + "\n")
+    print(f"Wrote {len(candidates)} candidate case(s) to {CANDIDATES}")
+    print("Curate them (add a `number` oracle or `judge` rubric), then move "
+          "keepers into evals/cases.jsonl.")
+
+
 if __name__ == "__main__":
     args = sys.argv[1:]
     if args and args[0] == "run":
@@ -197,5 +289,7 @@ if __name__ == "__main__":
         run(tag=tag, baseline=base, verbose="--verbose" in args or "-v" in args)
     elif args and args[0] == "list":
         list_cases()
+    elif args and args[0] == "harvest":
+        harvest()
     else:
         print(__doc__)

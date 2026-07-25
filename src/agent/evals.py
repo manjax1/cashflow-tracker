@@ -64,6 +64,63 @@ ORACLES = {"category_sum": category_sum, "category_monthly_avg": category_monthl
            "count": count, "net": net}
 
 
+# --------------------------- data-integrity invariants ---------------------------
+# Descriptions that denote an internal transfer / credit-card payment. Such a row
+# must NEVER count toward income — it should be an excluded transfer
+# (IncludeInNet=False). This guards the "card payment leaked in as income" class
+# of bug: BofA books the card-side leg of a bill payment (e.g. the descriptor
+# 'ONLINE/MOBILE RECURRING FROM CHK 5799') as a negative/credit, which without a
+# rule lands as fake income. That leak inflated income by ~$12K across two cards
+# before it was caught by hand — this invariant catches it automatically.
+TRANSFER_DESC_PATTERNS = [
+    "FROM CHK 5799",
+    "PAYMENT - THANK YOU",
+    "CREDIT CARD Bill",
+    "Online Scheduled Payment to ACCT#",
+]
+
+
+def _income_transfer_leaks():
+    """IncludeInNet income rows whose description looks like a transfer/payment."""
+    out = []
+    for t in ledger.load_transactions():
+        if not t.get("IncludeInNet"):
+            continue
+        if str(t.get("Type", "")).lower() != "income":
+            continue
+        desc = str(t.get("Description") or "")
+        if any(p.lower() in desc.lower() for p in TRANSFER_DESC_PATTERNS):
+            out.append(t)
+    return out
+
+
+def check_invariants():
+    """Deterministic ledger-integrity assertions (no agent needed).
+    Returns list of (name, passed, detail)."""
+    results = []
+    leaks = _income_transfer_leaks()
+    total = round(sum(t["Amount"] for t in leaks), 2)
+    if leaks:
+        eg = leaks[0]
+        detail = (f"{len(leaks)} transfer/payment row(s) totaling ${total:,.2f} "
+                  f"counted as income — e.g. {eg['Date']} "
+                  f"{str(eg.get('Description'))[:34]!r} on {eg.get('Account')}")
+    else:
+        detail = "no transfer/payment row counted as income"
+    results.append(("no_transfer_counted_as_income", not leaks, detail))
+    return results
+
+
+def invariants():
+    print("Data-integrity invariants:\n")
+    results = check_invariants()
+    for name, ok, detail in results:
+        print(f"  {'✓' if ok else '✗'}  {name}\n        {detail}")
+    n_pass = sum(ok for _, ok, _ in results)
+    print(f"\n{n_pass}/{len(results)} invariant(s) held")
+    return results
+
+
 # ------------------------------- checks --------------------------------
 
 def _numbers_in(text):
@@ -197,6 +254,14 @@ def run(tag=None, baseline=None, verbose=False):
             print(f"        tools: {atools}")
             print(f"        answer: {answer[:400]}")
 
+    # Data-integrity invariants (no agent) — always run, folded into totals.
+    for name, ok, detail in check_invariants():
+        results.append({"id": f"invariant:{name}", "passed": ok,
+                        "fails": [] if ok else [detail], "answer": "", "tools": []})
+        print(f"  {'✓' if ok else '✗'}  invariant:{name}")
+        if not ok:
+            print(f"        {detail}")
+
     n_pass = sum(r["passed"] for r in results)
     dt = time.time() - t0
     print(f"\n{n_pass}/{len(results)} passed  ·  {tot_in}+{tot_out} tokens  ·  {dt:.1f}s")
@@ -289,6 +354,8 @@ if __name__ == "__main__":
         run(tag=tag, baseline=base, verbose="--verbose" in args or "-v" in args)
     elif args and args[0] == "list":
         list_cases()
+    elif args and args[0] == "invariants":
+        invariants()
     elif args and args[0] == "harvest":
         harvest()
     else:

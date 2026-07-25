@@ -84,39 +84,102 @@ def run_sync(from_date: date = None, to_date: date = None) -> dict:
             print("⚠️  Could not download existing ledger — will create fresh file.")
 
     client = PlaidClient()
-    access_token = clean_env(os.getenv("PLAID_ACCESS_TOKEN"), "PLAID_ACCESS_TOKEN")
-
-    if not access_token or not client.verify_access_token(access_token):
-        if is_cloud:
-            raise RuntimeError("Plaid access token invalid or missing. Run link flow locally first.")
-        from link_flow import run_link_flow
-        run_link_flow(client)
-        access_token = clean_env(os.getenv("PLAID_ACCESS_TOKEN"), "PLAID_ACCESS_TOKEN")
 
     end = to_date if to_date else date.today()
     start = from_date if from_date else end - timedelta(days=7)
     print(f"Fetching transactions {start} → {end}")
 
-    raw_transactions = client.get_transactions(access_token, start, end)
-    accounts = client.get_accounts(access_token)
-    account_map = {a["account_id"]: _account_label(a) for a in accounts}
-
-    # Accounts excluded from household cash-flow tracking (mask → reason).
-    # 6450 (Tanusha credit card) is intentionally NOT listed here — her spending is tracked.
-    EXCLUDED_MASKS = {
+    # ── Plaid items ──────────────────────────────────────────────────────
+    # Each item is a separate Plaid login.
+    #   • primary — your BofA login. Many accounts; filtered by an EXCLUDE
+    #     list (everything is kept except the masks below).
+    #   • additional items (e.g. Shalini's BofA login) use an INCLUDE list so
+    #     we pull ONLY the named account(s). This is what prevents double-
+    #     counting anything the primary item already covers — notably the
+    #     joint checking x5799, which lives under both logins.
+    #
+    # 6450 (Tanusha credit card) is intentionally NOT excluded — tracked.
+    PRIMARY_EXCLUDED_MASKS = {
         "4719": "Prateek checking (son)",
         "0043": "Tanusha checking (daughter)",
         "5663": "Adv Relationship Banking (2nd checking, no household activity)",
         "8305": "Primary mortgage loan account (payment already captured via checking debit)",
     }
-    excluded_account_ids = {a["account_id"] for a in accounts if a.get("mask") in EXCLUDED_MASKS}
-    acct_mask_lookup     = {a["account_id"]: a.get("mask", "?") for a in accounts}
-    excluded_by_account: dict[str, list] = {mask: [] for mask in EXCLUDED_MASKS}
-    for tx in raw_transactions:
-        mask = acct_mask_lookup.get(tx.get("account_id", ""), "")
-        if mask in EXCLUDED_MASKS:
-            excluded_by_account[mask].append(tx)
-    raw_transactions = [tx for tx in raw_transactions if tx.get("account_id") not in excluded_account_ids]
+
+    items = [{
+        "name": "primary",
+        "token": clean_env(os.getenv("PLAID_ACCESS_TOKEN"), "PLAID_ACCESS_TOKEN"),
+        "mode": "exclude",
+        "masks": set(PRIMARY_EXCLUDED_MASKS),
+        "label_override": None,
+        "required": True,
+    }]
+
+    # Shalini's BofA login — sync ONLY her Premium Rewards Visa (x3070).
+    # Her joint checking (x5799) is already captured via the primary item,
+    # so the include-list deliberately omits it to avoid double-counting.
+    shalini_token = clean_env(os.getenv("PLAID_ACCESS_TOKEN_SHALINI"), "PLAID_ACCESS_TOKEN_SHALINI")
+    if shalini_token:
+        items.append({
+            "name": "shalini",
+            "token": shalini_token,
+            "mode": "include",
+            "masks": {"3070"},
+            "label_override": "Shalini BoA VISA",
+            "required": False,
+        })
+
+    raw_transactions: list = []
+    account_map: dict = {}
+    excluded_by_account: dict[str, list] = {mask: [] for mask in PRIMARY_EXCLUDED_MASKS}
+
+    for item in items:
+        token = item["token"]
+        # Verify the token. The primary item is mandatory (locally we fall
+        # back to the interactive link flow); additional items are best-effort
+        # so an expired secondary login never blocks the household sync.
+        if not token or not client.verify_access_token(token):
+            if item["required"]:
+                if is_cloud:
+                    raise RuntimeError("Plaid access token invalid or missing. Run link flow locally first.")
+                from link_flow import run_link_flow
+                run_link_flow(client)
+                token = clean_env(os.getenv("PLAID_ACCESS_TOKEN"), "PLAID_ACCESS_TOKEN")
+            else:
+                print(f"⚠️  Plaid item '{item['name']}' token missing/invalid — skipping "
+                      f"(re-link with: python src/link_item.py {item['name']}).")
+                continue
+
+        item_txns = client.get_transactions(token, start, end)
+        item_accounts = client.get_accounts(token)
+
+        mode, masks, override = item["mode"], item["masks"], item.get("label_override")
+        mask_by_id = {a["account_id"]: a.get("mask", "") for a in item_accounts}
+
+        kept_ids = set()
+        for a in item_accounts:
+            mask = a.get("mask", "")
+            keep = (mask in masks) if mode == "include" else (mask not in masks)
+            if keep:
+                account_map[a["account_id"]] = override or _account_label(a)
+                kept_ids.add(a["account_id"])
+
+        kept = dropped = 0
+        for tx in item_txns:
+            aid = tx.get("account_id", "")
+            if aid in kept_ids:
+                raw_transactions.append(tx)
+                kept += 1
+            else:
+                dropped += 1
+                # Primary-item exclusions are reported in the sync summary.
+                mask = mask_by_id.get(aid, "")
+                if item["name"] == "primary" and mask in excluded_by_account:
+                    excluded_by_account[mask].append(tx)
+
+        if item["name"] != "primary":
+            print(f"[item:{item['name']}] {kept} txns kept "
+                  f"(masks {sorted(masks)}), {dropped} from other accounts skipped")
 
     rules = _load_rules_with_fallback()
 
@@ -241,7 +304,7 @@ def run_sync(from_date: date = None, to_date: date = None) -> dict:
             print(f"⚠️  _Meta update/re-upload failed (non-fatal): {e}")
 
     excl_parts = [
-        f"{len(txns)} from {mask} ({EXCLUDED_MASKS[mask]})"
+        f"{len(txns)} from {mask} ({PRIMARY_EXCLUDED_MASKS[mask]})"
         for mask, txns in excluded_by_account.items() if txns
     ]
     if excl_parts:

@@ -275,6 +275,8 @@ def import_csvs(
     ledger_path: str,
     dry_run: bool = False,
     account_label: str = None,
+    before: str = None,
+    after: str = None,
 ) -> None:
     parser_fn = parse_checking_csv if csv_type == "checking" else parse_credit_card_csv
     default_label = "Checking" if csv_type == "checking" else "Credit Card"
@@ -295,6 +297,16 @@ def import_csvs(
         except Exception as e:
             print(f"  ❌ Parse failed: {e}")
             continue
+
+        # Optional date window — used to import historical statement rows only up
+        # to the date Plaid coverage begins, so the two sources never overlap.
+        if before or after:
+            n_before = len(txns)
+            txns = [t for t in txns
+                    if (not before or t["date"] < before)
+                    and (not after or t["date"] >= after)]
+            win = f"[{after or '...'} , {before or '...'})"
+            print(f"  Date filter {win}: kept {len(txns)} of {n_before}")
 
         print(f"  Rows parsed: {len(txns)}")
 
@@ -361,6 +373,16 @@ if __name__ == "__main__":
         metavar="LABEL",
         help='Override account label written to ledger (default: Checking or Credit Card)',
     )
+    parser.add_argument(
+        "--before",
+        metavar="YYYY-MM-DD",
+        help="Import only rows dated strictly before this date (avoids overlap with Plaid coverage).",
+    )
+    parser.add_argument(
+        "--after",
+        metavar="YYYY-MM-DD",
+        help="Import only rows dated on/after this date.",
+    )
     args = parser.parse_args()
 
     ledger_path = clean_env(os.getenv("SPENDING_LEDGER_FILE_PATH"), "SPENDING_LEDGER_FILE_PATH")
@@ -374,4 +396,6 @@ if __name__ == "__main__":
         ledger_path=ledger_path,
         dry_run=args.dry_run,
         account_label=args.account_label,
+        before=args.before,
+        after=args.after,
     )

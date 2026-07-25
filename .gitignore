@@ -1,6 +1,8 @@
 .env
 *.xlsx
 spending_rules.json
+Shalini-3070-historical-data/
+*.dryrun.txt
 spending_rules.compact.json
 outbox/
 users.json

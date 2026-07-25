@@ -55,7 +55,7 @@ SUCCESS_HTML = """<!DOCTYPE html>
 </body></html>"""
 
 
-def run_link_flow(client):
+def run_link_flow(client, env_key: str = "PLAID_ACCESS_TOKEN"):
     app = Flask(__name__)
     _shutdown = threading.Event()
 
@@ -72,9 +72,9 @@ def run_link_flow(client):
     def exchange_token():
         public_token = request.json["public_token"]
         access_token = client.exchange_public_token(public_token)
-        set_key(ENV_PATH, "PLAID_ACCESS_TOKEN", access_token)
-        os.environ["PLAID_ACCESS_TOKEN"] = access_token
-        print(f"✅ Access token saved to {ENV_PATH}")
+        set_key(ENV_PATH, env_key, access_token)
+        os.environ[env_key] = access_token
+        print(f"✅ Access token saved to {ENV_PATH} as {env_key}")
         _shutdown.set()
         return SUCCESS_HTML
 

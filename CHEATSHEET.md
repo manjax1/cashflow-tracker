@@ -12,13 +12,20 @@ source .venv/bin/activate
 
 | Command | Purpose |
 |---|---|
-| `python src/main.py` | Run a sync: pull recent Plaid transactions, categorize, process any new Adriana files in Drive, write ledger, upload to Drive. |
+| `python src/main.py` | Run a sync: pull recent Plaid transactions (all linked items), categorize, process any new Adriana files in Drive, write ledger, upload to Drive. |
 | `python src/main.py --from-date 2025-06-01` | Backfill from a specific date (YYYY-MM-DD; can't be in the future). |
+| `python src/link_item.py shalini` | One-time: link Shalini's BofA login (opens Plaid Link in the browser; she enters her own credentials). Syncs ONLY her Premium Rewards Visa x3070, labeled "Shalini BoA VISA". |
+| `python src/link_item.py primary` | Re-link your own BofA login (e.g. after Plaid asks for re-auth). |
+| `python scripts/backfill_shalini.py --dry-run` | Preview the one-time historical pull of x3070 purchases (2025-06-25 → today), by category. |
+| `python scripts/backfill_shalini.py` | Write x3070 purchases into the ledger like the other card (idempotent; dedups by transaction_id). |
+| `python scripts/reconcile_shalini_cc.py` | Reconcile itemized x3070 purchases against the BofA bill-payments per cycle; flags coverage gaps. |
 | `python src/api.py` | Run the sync API server locally. |
 | `curl -X POST https://<sync-service>.railway.app/sync` | Trigger the deployed sync on Railway. |
 | `curl -X POST https://<sync-service>.railway.app/sync/test` | Test connections (Plaid, Drive, email) without a full sync. |
 
 *Adriana ledgers auto-process when a file named `Adriana Managed Properties Ledger - <Month> <Year>` lands in the Adriana Drive folder. Idempotent per month.*
+
+*Multiple Plaid logins ("items"): the **primary** item (your BofA login) keeps everything except an exclude-list of masks; **additional** items use an include-list so only named accounts are pulled — this is how Shalini's card is added without double-counting the joint checking x5799. To activate on Railway, add the `PLAID_ACCESS_TOKEN_SHALINI` value (written to `.env` by `link_item.py shalini`) to the Railway environment, then the daily cloud sync includes it automatically.*
 
 ---
 
@@ -89,6 +96,7 @@ source .venv/bin/activate
 | `python -m src.agent.evals run --verbose` | Print the agent's answer/tools for any failing case. |
 | `python -m src.agent.evals list` | List all cases. |
 | `python -m src.agent.evals harvest` | Pull the Drive chat log → candidate cases in `evals/candidates.jsonl`. |
+| `python -m src.agent.evals invariants` | Data-integrity checks (no agent): asserts no transfer/card-payment row is counted as income. Also runs automatically inside `evals run`. |
 
 ---
 
@@ -101,6 +109,9 @@ source .venv/bin/activate
 | `python scripts/compact_rules.py --print` | Same, also print to stdout. |
 | `python scripts/rename_category.py "Old" "New"` | Rename a category across the ledger (backs up first). |
 | `python scripts/rename_category.py "Old" "New" --keyword GFLP` | Rename only rows whose description contains the keyword. |
+| `python scripts/exclude_shalini_cc_payments.py --dry-run` | Preview neutralizing internal-transfer legs that leaked into totals: the x3070 lump bill-payments (checking side) AND `FROM CHK 5799` card-side payment credits (both x0605 and x3070, wrongly booked as income). |
+| `python scripts/exclude_shalini_cc_payments.py` | Apply it: sets those rows to `Credit Card Payment` + `IncludeInNet=False` (backs up first). |
+| `python src/csv_importer.py --type credit --account-label "Shalini BoA VISA" --before 2026-04-27 <statements.csv>` | Backfill x3070 history Plaid can't reach (pre-April-2026) from BofA statement CSVs; `--before` prevents overlap with Plaid. Add `--dry-run` to preview. |
 
 ---
 
@@ -151,3 +162,14 @@ pip install -r requirements.txt                      # after new dependencies
 - **New Costco receipts:** drop PDFs in `Costco-Purchases/` → `costco extract` → `costco reconcile apply` → (CLI) `push`.
 - **Fix a miscategorization fast:** ask the admin web agent, or `rename_category.py` for a bulk/typo fix.
 - **Before any prompt/model change:** `python -m src.agent.evals run --baseline last`.
+- **Add Shalini's x3070 card end-to-end** (run locally — needs Plaid pkg + network):
+  1. `python src/link_item.py shalini` — Shalini completes Plaid Link with her BofA credentials. *(done)*
+  2. `python scripts/push_rules_to_drive.py` — publish the updated rule (x3070 bill-pay → excluded transfer).
+  3. `python scripts/backfill_shalini.py --dry-run` then `python scripts/backfill_shalini.py` — pull x3070 purchases from 2025-06-25 and write them in.
+  4. `python scripts/exclude_shalini_cc_payments.py` — neutralize the 3 historical lump payments (~$2,108). Run right after step 3 so there's no gap.
+  5. `python scripts/reconcile_shalini_cc.py` — verify coverage per billing cycle; supply statement CSVs for any flagged gap.
+  6. (CLI) `push` to sync Drive. `PLAID_ACCESS_TOKEN_SHALINI` is already on Railway, so the daily cloud sync keeps x3070 current.
+
+  *Note: Plaid returns only ~90 days for BofA, so the initial backfill covers ~late-April 2026 on. For the June 2025–April 2026 gap, import the x3070 statement CSVs:*
+  `python src/csv_importer.py --type credit --account-label "Shalini BoA VISA" --before 2026-04-27 --dry-run <csvs>` *then without `--dry-run`.*
+  *Also re-run `push_rules_to_drive.py` + `exclude_shalini_cc_payments.py` after adding the `FROM CHK 5799` rule (fixes card-payment credits that were leaking as income on both cards).*

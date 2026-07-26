@@ -87,6 +87,9 @@
   .prop-tx { font-size: 12.5px; color: var(--muted); }
   .prop-move { font-size: 14px; margin: 4px 0 8px; }
   .prop-move .old { color: #b3402a; } .prop-move .new { color: #2c7a4b; font-weight: 650; }
+  .prop-move select.prop-cat { font-size: 13.5px; font-weight: 650; color: #2c7a4b;
+    border: 1px solid var(--border); border-radius: 8px; padding: 3px 8px;
+    background: var(--bg); cursor: pointer; max-width: 280px; }
   .prop-act { display: flex; gap: 8px; align-items: center; }
   .prop-act button { border: none; border-radius: 8px; padding: 5px 14px; font-size: 12.5px; cursor: pointer; }
   .prop-act .ok { background: var(--accent); color: #fff; }
@@ -387,27 +390,40 @@ function showHistory() {
   });
 }
 
+function _catOptions(selected) {
+  // All ledger categories (expense + income), de-duped and sorted. The agent's
+  // suggested category is pre-selected; if it's somehow not in the list, add it.
+  const all = [...(META.expense_categories || []), ...(META.income_categories || [])];
+  const uniq = Array.from(new Set(all)).sort((a, b) => a.localeCompare(b));
+  if (selected && !uniq.includes(selected)) uniq.unshift(selected);
+  const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+  return uniq.map(c => `<option value="${esc(c)}"${c === selected ? ' selected' : ''}>${esc(c)}</option>`).join('');
+}
+
 function renderProposals(container, proposals) {
   const box = document.createElement('div');
   box.className = 'proposals';
-  box.innerHTML = '<div class="prop-hd">Proposed recategorizations — review &amp; apply:</div>';
+  box.innerHTML = '<div class="prop-hd">Proposed recategorizations — review, adjust &amp; apply:</div>';
   proposals.forEach(pr => {
     const card = document.createElement('div');
     card.className = 'prop';
     card.innerHTML = `
       <div class="prop-tx">${pr.date} · ${fmt(pr.amount)} · ${pr.description}</div>
-      <div class="prop-move"><span class="old">${pr.old_category}</span> → <span class="new">${pr.new_category}</span></div>
+      <div class="prop-move"><span class="old">${pr.old_category}</span> → <select class="prop-cat">${_catOptions(pr.new_category)}</select></div>
       <div class="prop-act"><button class="ok" >Apply</button><button class="no">Dismiss</button></div>`;
+    const sel = card.querySelector('.prop-cat');
     const [okB, noB] = card.querySelectorAll('button');
     okB.onclick = async () => {
-      okB.disabled = noB.disabled = true; okB.textContent = 'applying…';
+      const chosen = sel.value;                         // dropdown value, not the suggestion
+      okB.disabled = noB.disabled = sel.disabled = true; okB.textContent = 'applying…';
       try {
         const r = await fetch('/api/apply_recategorization', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ source_ref: pr.source_ref, new_category: pr.new_category, reason: pr.reason }) });
+          body: JSON.stringify({ source_ref: pr.source_ref, new_category: chosen, reason: pr.reason }) });
         const d = await r.json();
         if (d.error) throw new Error(d.error);
-        card.querySelector('.prop-act').innerHTML = '<span class="applied">✔ applied &amp; synced</span>';
+        card.querySelector('.prop-act').innerHTML =
+          `<span class="applied">✔ applied &amp; synced → ${chosen}</span>`;
       } catch (e) {
         card.querySelector('.prop-act').innerHTML = `<span class="failed">⚠ ${e.message}</span>`;
       }

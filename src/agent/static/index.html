@@ -90,6 +90,9 @@
   .prop-move select.prop-cat { font-size: 13.5px; font-weight: 650; color: #2c7a4b;
     border: 1px solid var(--border); border-radius: 8px; padding: 3px 8px;
     background: var(--bg); cursor: pointer; max-width: 280px; }
+  .prop-move input.prop-newcat { font-size: 13.5px; font-weight: 650; color: #2c7a4b;
+    margin-left: 6px; border: 1px solid var(--accent); border-radius: 8px; padding: 3px 8px;
+    background: var(--bg); max-width: 220px; }
   .prop-act { display: flex; gap: 8px; align-items: center; }
   .prop-act button { border: none; border-radius: 8px; padding: 5px 14px; font-size: 12.5px; cursor: pointer; }
   .prop-act .ok { background: var(--accent); color: #fff; }
@@ -409,13 +412,20 @@ function renderProposals(container, proposals) {
     card.className = 'prop';
     card.innerHTML = `
       <div class="prop-tx">${pr.date} · ${fmt(pr.amount)} · ${pr.description}</div>
-      <div class="prop-move"><span class="old">${pr.old_category}</span> → <select class="prop-cat">${_catOptions(pr.new_category)}</select></div>
+      <div class="prop-move"><span class="old">${pr.old_category}</span> → <select class="prop-cat">${_catOptions(pr.new_category)}<option value="__new__">＋ New category…</option></select><input class="prop-newcat" type="text" placeholder="New category name" style="display:none"></div>
       <div class="prop-act"><button class="ok" >Apply</button><button class="no">Dismiss</button></div>`;
     const sel = card.querySelector('.prop-cat');
+    const newInput = card.querySelector('.prop-newcat');
+    sel.onchange = () => {                               // reveal free-text field for a brand-new category
+      const isNew = sel.value === '__new__';
+      newInput.style.display = isNew ? 'inline-block' : 'none';
+      if (isNew) newInput.focus();
+    };
     const [okB, noB] = card.querySelectorAll('button');
     okB.onclick = async () => {
-      const chosen = sel.value;                         // dropdown value, not the suggestion
-      okB.disabled = noB.disabled = sel.disabled = true; okB.textContent = 'applying…';
+      const chosen = sel.value === '__new__' ? newInput.value.trim() : sel.value;
+      if (!chosen) { newInput.focus(); return; }         // require a name for a new category
+      okB.disabled = noB.disabled = sel.disabled = newInput.disabled = true; okB.textContent = 'applying…';
       try {
         const r = await fetch('/api/apply_recategorization', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },

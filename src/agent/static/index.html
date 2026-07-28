@@ -137,6 +137,15 @@
   #results td.amt { text-align: right; white-space: nowrap; }
   #results td.amt.income { color: #2c7a4b; }
   #results tr:hover { background: var(--bg); }
+  #results th.selcell, #results td.selcell { width: 26px; text-align: center; padding-right: 0; }
+  #results th.selcell input, #results td.selcell input { cursor: pointer; }
+  #results .seltotals { color: var(--accent); font-weight: 600; margin: 2px 0 6px; }
+  #results .seltotals b { color: var(--accent); }
+  #results .selby { font-size: 12.5px; color: var(--muted); margin: 4px 0; }
+  #results .selby .yb { border: 1px solid var(--border); background: var(--bg); color: var(--ink);
+    border-radius: 7px; padding: 2px 9px; margin-left: 5px; font-size: 12px; cursor: pointer; }
+  #results .selby .yb:hover { border-color: var(--accent); }
+  #results .selby .yb.clr { color: var(--muted); }
   /* pivot matrix */
   .pivot-wrap { overflow-x: auto; }
   /* full-bleed: detailed view breaks out of the 880px column to use the
@@ -243,6 +252,7 @@
     <div class="search-row" id="row-text">
       <input type="text" id="s-q" placeholder="Search descriptions… e.g. Costco, Zelle, mortgage"
              onkeydown="if(event.key==='Enter')doSearch()">
+      <select id="s-year-text" onchange="syncMonthYearText()"></select>
       <select id="s-month-text"></select>
       <button class="go" onclick="doSearch()">Search</button>
     </div>
@@ -608,9 +618,19 @@ async function loadMeta() {
     META.months.map(m => `<option value="${m}">${MONTH_FMT(m)}</option>`).join('');
   $('s-month-text').innerHTML = monthOpts;
   $('s-month-cat').innerHTML = monthOpts;
-  $('s-year-cat').innerHTML = '<option value="">All years</option>' +
+  const yearOpts = '<option value="">All years</option>' +
     (META.years || []).map(y => `<option value="${y}">${y}</option>`).join('');
+  $('s-year-cat').innerHTML = yearOpts;
+  $('s-year-text').innerHTML = yearOpts;
   fillCategories();
+}
+
+// keep the text-tab month options consistent with the chosen year
+function syncMonthYearText() {
+  const y = $('s-year-text').value;
+  const opts = ['<option value="">All months</option>'].concat(
+    META.months.filter(m => !y || m.startsWith(y)).map(m => `<option value="${m}">${MONTH_FMT(m)}</option>`));
+  $('s-month-text').innerHTML = opts.join('');
 }
 
 // keep month options consistent with the chosen year (or all months)
@@ -628,6 +648,7 @@ async function doSearch() {
     if (!q) return;
     params.set('q', q);
     if ($('s-month-text').value) params.set('month', $('s-month-text').value);
+    else if ($('s-year-text').value) params.set('year', $('s-year-text').value);
   } else {
     params.set('category', $('s-category').value);
     params.set('tx_type', $('s-type').value);
@@ -640,14 +661,48 @@ async function doSearch() {
   if (d.error) { $('results').innerHTML = `<div class="totals">⚠ ${d.error}</div>`; return; }
   if (!d.count) { $('results').innerHTML = '<div class="totals">No matching transactions.</div>'; return; }
   const rows = d.transactions.map(t => `
-    <tr><td>${t.Date}</td><td>${t.Description.length > 58 ? t.Description.slice(0,58) + '…' : t.Description}</td>
+    <tr><td class="selcell"><input type="checkbox" class="rowsel" data-amt="${t.Amount}" data-type="${t.Type}" data-year="${t.Date.slice(0,4)}"></td>
+    <td>${t.Date}</td><td>${t.Description.length > 58 ? t.Description.slice(0,58) + '…' : t.Description}</td>
     <td>${t.Category}</td>
     <td class="amt ${t.Type === 'Income' ? 'income' : ''}">${t.Type === 'Income' ? '+' : '−'}${fmt(t.Amount)}</td></tr>`).join('');
+  const years = [...new Set(d.transactions.map(t => t.Date.slice(0,4)))].sort().reverse();
+  const selBy = years.length > 1
+    ? `<div class="selby">Select by year:${years.map(y => `<button class="yb" data-y="${y}">${y}</button>`).join('')}<button class="yb clr">Clear</button></div>`
+    : '';
   $('results').innerHTML = `
     <div class="totals"><b>${d.count}</b> transactions${d.truncated ? ' (showing 200)' : ''}
       · income <b>${fmt(d.totals.income)}</b> · expenses <b>${fmt(d.totals.expense)}</b>
       · net <b>${fmt(d.totals.net)}</b></div>
-    <table><tr><th>Date</th><th>Description</th><th>Category</th><th style="text-align:right">Amount</th></tr>${rows}</table>`;
+    ${selBy}
+    <div class="seltotals" id="sel-totals" style="display:none"></div>
+    <table><tr><th class="selcell"><input type="checkbox" id="sel-all" title="Select all rows"></th>
+      <th>Date</th><th>Description</th><th>Category</th><th style="text-align:right">Amount</th></tr>${rows}</table>`;
+
+  // Row selection → running total of the selected subset (e.g. tick just the
+  // 2026 rows to total a calendar period). Selecting none hides the line.
+  const boxes = Array.from(document.querySelectorAll('#results .rowsel'));
+  const selLine = $('sel-totals'), selAll = $('sel-all');
+  const updateSel = () => {
+    const chk = boxes.filter(b => b.checked);
+    if (!chk.length) { selLine.style.display = 'none'; if (selAll) selAll.checked = false; return; }
+    let inc = 0, exp = 0;
+    chk.forEach(b => { const a = parseFloat(b.dataset.amt) || 0;
+      if (b.dataset.type === 'Income') inc += a; else exp += a; });
+    selLine.style.display = '';
+    selLine.innerHTML = `Selected <b>${chk.length}</b> of ${boxes.length} · income <b>${fmt(inc)}</b>`
+      + ` · expenses <b>${fmt(exp)}</b> · net <b>${fmt(inc - exp)}</b>`;
+    if (selAll) selAll.checked = chk.length === boxes.length;
+  };
+  boxes.forEach(b => b.onchange = updateSel);
+  if (selAll) selAll.onchange = () => { boxes.forEach(b => b.checked = selAll.checked); updateSel(); };
+  // Select-by-year shortcut: tick exactly the rows for that calendar year.
+  document.querySelectorAll('#results .selby .yb').forEach(btn => {
+    btn.onclick = () => {
+      const y = btn.dataset.y;                          // undefined on the "Clear" button
+      boxes.forEach(b => { b.checked = y ? (b.dataset.year === y) : false; });
+      updateSel();
+    };
+  });
 }
 
 SUGGESTIONS.forEach(s => {

@@ -160,6 +160,11 @@
   .pivot td.num { text-align: right; }
   .pivot tr.section td { font-weight: 650; background: var(--accent-soft); }
   .pivot tr.subtotal td { font-weight: 600; border-top: 2px solid var(--border); }
+  .pivot tr.memo td { color: var(--muted); font-style: italic; }
+  .basis-toggle { font-size: 12.5px; color: var(--muted); margin: 4px 0 8px; }
+  .basis-toggle .bt { border: 1px solid var(--border); background: var(--bg); color: var(--ink);
+    border-radius: 7px; padding: 3px 11px; margin-left: 6px; font-size: 12px; cursor: pointer; }
+  .basis-toggle .bt.on { background: var(--accent); color: #fff; border-color: var(--accent); }
   .mode-toggle { margin-left: auto; }
 
   /* upload card */
@@ -543,37 +548,56 @@ function setMonthlyMode(m) {
 
 const fmtC = n => n === 0 ? '' : (n < 0 ? '−' : '') + '$' + Math.abs(n).toLocaleString(undefined, {maximumFractionDigits: 0});
 
+let _pivotData = null, pivotBasis = 'cash';   // 'cash' (default) or 'margin'
+
 async function loadMonthlyDetail() {
   $('results').innerHTML = '<div class="totals">loading…</div>';
   const r = await fetch('/api/monthly_detail');
-  const d = await r.json();
-  if (d.error) { $('results').innerHTML = `<div class="totals">⚠ ${d.error}</div>`; return; }
-  const M = d.months;
+  _pivotData = await r.json();
+  if (_pivotData.error) { $('results').innerHTML = `<div class="totals">⚠ ${_pivotData.error}</div>`; return; }
+  renderPivot();
+}
+
+function renderPivot() {
+  const d = _pivotData, M = d.months, s = d.subtotals;
+  const margin = pivotBasis === 'margin';
   const head = '<tr><th class="cat">Category</th>' +
     M.map(m => `<th class="num">${MONTH_FMT(m)}${m === d.partial_month ? '*' : ''}</th>`).join('') +
     '<th class="num">Total</th></tr>';
   const row = (r, cls = '') => `<tr class="${cls}"><td class="cat">${r.category}</td>` +
     r.values.map(v => `<td class="num">${fmtC(v)}</td>`).join('') +
     `<td class="num"><b>${fmtC(r.total ?? r.values.reduce((a, b) => a + b, 0))}</b></td></tr>`;
-  const totalRow = (label, vals, cls) =>
-    row({ category: label, values: vals }, cls);
-  const html = `
+  const totalRow = (label, vals, cls) => row({ category: label, values: vals }, cls);
+
+  const rentalExp = margin ? s.rental_expense_margin : s.rental_expense;
+  const totalExp  = margin ? s.expense_margin        : s.expense;
+  const net       = margin ? s.net_margin            : s.net;
+  const toggle = `<div class="basis-toggle">View:
+      <button class="bt ${margin ? '' : 'on'}" data-b="cash">Cash-flow</button>
+      <button class="bt ${margin ? 'on' : ''}" data-b="margin">Margin (excl. principal)</button></div>`;
+  const principalMemo = margin
+    ? totalRow('↳ Mortgage principal excluded (equity)', s.rental_principal, 'memo') : '';
+
+  $('results').innerHTML = `
     <div class="totals">Category × month — trailing ${M.length} months${d.partial_month ? ' · * partial month' : ''}</div>
+    ${toggle}
     <div class="pivot-wrap"><table class="pivot">
       ${head}
       ${row({category: 'INCOME', values: [], total: null}, 'section').replace(/<td[^>]*><\/td>/g, '') }
       ${d.income_rows.map(x => row(x)).join('')}
-      ${totalRow('Total Income', d.subtotals.income, 'subtotal')}
+      ${totalRow('Total Income', s.income, 'subtotal')}
       ${row({category: 'EXPENSES — RENTAL', values: [], total: null}, 'section').replace(/<td[^>]*><\/td>/g, '')}
       ${d.rental_expense_rows.map(x => row(x)).join('')}
-      ${totalRow('Total Rental Expense', d.subtotals.rental_expense, 'subtotal')}
+      ${principalMemo}
+      ${totalRow(margin ? 'Total Rental Expense (excl. principal)' : 'Total Rental Expense', rentalExp, 'subtotal')}
       ${row({category: 'EXPENSES — PERSONAL', values: [], total: null}, 'section').replace(/<td[^>]*><\/td>/g, '')}
       ${d.personal_expense_rows.map(x => row(x)).join('')}
-      ${totalRow('Total Personal Expense', d.subtotals.personal_expense, 'subtotal')}
-      ${totalRow('Total Expense', d.subtotals.expense, 'subtotal')}
-      ${totalRow('NET (Income − Expense)', d.subtotals.net, 'section')}
+      ${totalRow('Total Personal Expense', s.personal_expense, 'subtotal')}
+      ${totalRow('Total Expense', totalExp, 'subtotal')}
+      ${totalRow(margin ? 'NET — Margin (principal excluded)' : 'NET (Income − Expense)', net, 'section')}
     </table></div>`;
-  $('results').innerHTML = html;
+  document.querySelectorAll('#results .basis-toggle .bt').forEach(b =>
+    b.onclick = () => { pivotBasis = b.dataset.b; renderPivot(); });
 }
 
 async function loadMonthly() {

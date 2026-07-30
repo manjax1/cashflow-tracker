@@ -115,6 +115,19 @@ source .venv/bin/activate
 
 ---
 
+## Rental margin (principal vs cash-flow)
+
+`mortgage_pi.json` maps each rental mortgage debit **amount** → `{property, principal}` (nearest $10). Two analytics views are derived from it:
+
+- **Cash-flow** (default): the full mortgage payment is an expense.
+- **Margin**: the principal portion is treated as equity (excluded); interest, tax, insurance, mgmt, and maintenance stay as costs.
+
+Where it shows up: the web dashboard's **Category × month** view has a Cash-flow ⇄ Margin toggle; the agent's `get_cashflow_summary` returns `rental_rollup.margin` + `principal_excluded` alongside the cash net (ask it for "rental margin excluding principal"); and the spreadsheet **Monthly Summary** shows a principal memo row + a `NET — MARGIN` row beside `NET INCOME (Cash-flow)`.
+
+*When a mortgage payment amount changes (escrow re-analysis) or a property is added, add the new amount to `mortgage_pi.json` and commit. It's deployed with the code (not on Drive).*
+
+---
+
 ## Users (web 2FA)
 
 | Command | Purpose |

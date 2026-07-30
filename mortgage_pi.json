@@ -1,0 +1,17 @@
+{
+  "_comment": "Principal portion of each recurring RENTAL mortgage payment, keyed by the exact ledger debit amount (the stable key even as servicers change). Principal rounded to nearest $10 (approximate is fine per owner). Used to compute the profitability/margin view, where principal is treated as equity build (not an expense). Only the principal is excluded in the margin view; interest + any escrowed tax/insurance remain real expenses. When a payment amount changes (e.g. escrow re-analysis), add the new amount here pointing at the same property/principal. Primary residence mortgage is intentionally excluded (rental scope only).",
+  "amounts": {
+    "1132.55": {"property": "807 W Center St, Manteca CA",        "principal": 460},
+    "2147.61": {"property": "16945 Strauss Ct, Lathrop CA",       "principal": 980},
+    "1901.20": {"property": "16150 Sheltered Cove, Lathrop CA",   "principal": 1030},
+    "1921.78": {"property": "16150 Sheltered Cove, Lathrop CA",   "principal": 1030},
+    "1641.93": {"property": "2516 Mission Rd, Stockton CA",       "principal": 950},
+    "2177.27": {"property": "1769 Mulholland Dr, Lathrop CA",     "principal": 910},
+    "2187.00": {"property": "1769 Mulholland Dr, Lathrop CA",     "principal": 910},
+    "2100.77": {"property": "2431 Mulholland Dr, Lathrop CA",     "principal": 850},
+    "1653.90": {"property": "2 Cove Rd, Ponte Vedra Beach FL",    "principal": 1250},
+    "1248.66": {"property": "6812 Dalmatian Cir, Plano TX",       "principal": 960},
+    "1992.17": {"property": "18 Meadow Star Ct, Spring TX",       "principal": 820},
+    "1871.35": {"property": "18 Meadow Star Ct, Spring TX",       "principal": 820}
+  }
+}

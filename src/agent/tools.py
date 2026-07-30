@@ -38,7 +38,7 @@ TOOLS = [
     },
     {
         "name": "get_cashflow_summary",
-        "description": "Computed aggregates (income, expense, net) for a period, grouped. THIS tool does the math — never compute totals yourself. Includes a Rental - * rollup.",
+        "description": "Computed aggregates (income, expense, net) for a period, grouped. THIS tool does the math — never compute totals yourself. The rental_rollup ALWAYS returns both the cash-flow view (net) and the profitability/margin view (margin), plus principal_excluded — for rental margin questions read those fields; you do not need to call twice.",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -46,6 +46,8 @@ TOOLS = [
                 "end_date": {"type": "string"},
                 "group_by": {"type": "string", "enum": ["category", "month", "account", "type"], "default": "category"},
                 "category": {"type": "string", "description": "Optional category prefix filter"},
+                "basis": {"type": "string", "enum": ["cash", "margin"], "default": "cash",
+                          "description": "'cash' = full mortgage payment is an expense (actual cash out; default). 'margin' = the principal portion of rental mortgages is excluded as equity, leaving interest/tax/insurance as costs — the profitability view."},
             },
             "required": ["start_date", "end_date"],
         },

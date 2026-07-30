@@ -25,6 +25,35 @@ RULES_PATH = os.path.join(REPO_ROOT, "spending_rules.json")
 _cache = {"mtime": None, "rows": None}
 _splits_cache = {"mtime": None, "splits": None}
 
+MORTGAGE_PI_PATH = os.path.join(REPO_ROOT, "mortgage_pi.json")
+_mpi_cache = {"data": None}
+
+
+def load_mortgage_pi():
+    """Map of rental mortgage debit amount -> {property, principal}. Used to
+    derive the profitability/margin view (principal = equity build, not a cost)."""
+    if _mpi_cache["data"] is None:
+        try:
+            with open(MORTGAGE_PI_PATH) as f:
+                _mpi_cache["data"] = json.load(f).get("amounts", {})
+        except Exception:
+            _mpi_cache["data"] = {}
+    return _mpi_cache["data"]
+
+
+def rental_principal(rows):
+    """Sum of the principal (equity) portion of the rental mortgage payments in
+    `rows`, matched by exact debit amount. Only 'Rental - Mortgage' expense rows
+    count; interest and any escrowed tax/insurance are left as real expenses."""
+    mp = load_mortgage_pi()
+    total = 0.0
+    for t in rows:
+        if t.get("Category") == "Rental - Mortgage" and t.get("Type") == "Expense":
+            hit = mp.get(f"{float(t['Amount']):.2f}")
+            if hit:
+                total += hit["principal"]
+    return round(total, 2)
+
 
 def _parse_date(v):
     if isinstance(v, datetime):
@@ -152,10 +181,19 @@ def query_transactions(start_date, end_date, category=None, account=None,
     }
 
 
-def get_cashflow_summary(start_date, end_date, group_by="category", category=None):
-    """Aggregates income/expense/net. group_by: category|month|account|type."""
+def get_cashflow_summary(start_date, end_date, group_by="category", category=None, basis="cash"):
+    """Aggregates income/expense/net. group_by: category|month|account|type.
+
+    basis:
+      'cash'   — full mortgage payment is an expense (actual cash out). Default.
+      'margin' — the principal portion of rental mortgages is treated as equity
+                 (excluded from expenses). Interest, tax, insurance, mgmt fees
+                 and maintenance all remain expenses.
+    The rental_rollup always reports BOTH views (net + margin) plus the
+    principal excluded, so callers can show them side by side."""
     rows = _filter(effective_rows(), start_date, end_date, category=category)
     rows = [t for t in rows if _in_net(t)]
+    principal = rental_principal(rows)
 
     def key(t):
         if group_by == "month":
@@ -188,15 +226,32 @@ def get_cashflow_summary(start_date, end_date, group_by="category", category=Non
 
     rental_exp = sum(g["expense"] for g in out_groups if g["group"].startswith("Rental"))
     rental_inc = sum(g["income"] for g in out_groups if g["group"].startswith("Rental"))
+    rental_net_cash = rental_inc - rental_exp
+
+    # Margin view: exclude principal (equity) from the rental mortgage expense.
+    if basis == "margin" and principal:
+        totals["expense"] -= principal
+        for g in out_groups:
+            if g["group"] == "Rental - Mortgage":
+                g["expense"] = round(g["expense"] - principal, 2)
+                g["net"] = round(g["income"] - g["expense"], 2)
+
     return {
         "start_date": start_date,
         "end_date": end_date,
         "group_by": group_by,
+        "basis": basis,
         "total_income": round(totals["income"], 2),
         "total_expense": round(totals["expense"], 2),
         "net": round(totals["income"] - totals["expense"], 2),
-        "rental_rollup": {"income": round(rental_inc, 2), "expense": round(rental_exp, 2),
-                          "net": round(rental_inc - rental_exp, 2)},
+        "rental_rollup": {
+            "income": round(rental_inc, 2),
+            "expense": round(rental_exp, 2),            # cash basis (full payment)
+            "net": round(rental_net_cash, 2),           # cash-flow view
+            "principal_excluded": round(principal, 2),
+            "expense_margin": round(rental_exp - principal, 2),
+            "margin": round(rental_net_cash + principal, 2),  # profitability view
+        },
         "groups": out_groups,
     }
 

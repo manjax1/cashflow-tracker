@@ -425,6 +425,20 @@ def monthly_detail():
 
     inc_tot = sum_rows(income_rows)
     exp_tot = sum_rows(expense_rows)
+    net_cash = [round(a - b, 2) for a, b in zip(inc_tot, exp_tot)]
+
+    # Rental mortgage principal (equity) per month — powers the cash-vs-margin
+    # toggle. Margin view excludes principal, so margin net = cash net + principal.
+    mp = ledger.load_mortgage_pi()
+    principal = [0.0] * len(months)
+    for t in txns:
+        if t["Category"] == "Rental - Mortgage" and t["Type"] == "Expense":
+            hit = mp.get(f"{float(t['Amount']):.2f}")
+            if hit and t["Date"][:7] in m_idx:
+                principal[m_idx[t["Date"][:7]]] += hit["principal"]
+    principal = [round(v, 2) for v in principal]
+    rental_exp = sum_rows(rental_rows)
+
     ledger_end = max(t["Date"] for t in txns)
     return jsonify({
         "months": months,
@@ -435,10 +449,14 @@ def monthly_detail():
         "expense_rows": expense_rows,
         "subtotals": {
             "income": inc_tot,
-            "rental_expense": sum_rows(rental_rows),
+            "rental_expense": rental_exp,
+            "rental_expense_margin": [round(a - b, 2) for a, b in zip(rental_exp, principal)],
+            "rental_principal": principal,
             "personal_expense": sum_rows(personal_rows),
             "expense": exp_tot,
-            "net": [round(a - b, 2) for a, b in zip(inc_tot, exp_tot)],
+            "expense_margin": [round(a - b, 2) for a, b in zip(exp_tot, principal)],
+            "net": net_cash,                                              # cash-flow view
+            "net_margin": [round(n + p, 2) for n, p in zip(net_cash, principal)],  # margin view
         },
     })
 

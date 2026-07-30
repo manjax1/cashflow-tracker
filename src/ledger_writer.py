@@ -1,5 +1,7 @@
+import json
 import os
 from calendar import monthrange as _cal_mrange
+from collections import defaultdict
 from datetime import date
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -24,6 +26,37 @@ HIGHLIGHT_FONT   = Font(name="Arial", bold=True, size=10)
 
 CURRENCY_FMT = '_($* #,##0.00_);_($* (#,##0.00);_($* "-"??_);_(@_)'
 MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+_MORTGAGE_PI_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "mortgage_pi.json")
+
+
+def _rental_principal_by_month(tx_ws) -> dict:
+    """{(year, month): principal $} for rental mortgage payments, from mortgage_pi.json.
+    Powers the 'Rental Margin (principal excluded)' rows in the Monthly Summary."""
+    try:
+        with open(_MORTGAGE_PI_PATH) as f:
+            mp = json.load(f).get("amounts", {})
+    except Exception:
+        mp = {}
+    out = defaultdict(float)
+    if not mp:
+        return out
+    header = [str(c.value) for c in tx_ws[1]]
+    di, ci, ti, ai = (header.index("Date"), header.index("Category"),
+                      header.index("Type"), header.index("Amount"))
+    for r in tx_ws.iter_rows(min_row=2, values_only=True):
+        if r[di] is None or str(r[ci]) != "Rental - Mortgage" or str(r[ti]) != "Expense":
+            continue
+        try:
+            hit = mp.get(f"{float(r[ai] or 0):.2f}")
+        except (TypeError, ValueError):
+            continue
+        if not hit:
+            continue
+        dv = r[di]
+        ds = dv.date().isoformat() if hasattr(dv, "date") else str(dv)[:10]
+        out[(int(ds[:4]), int(ds[5:7]))] += hit["principal"]
+    return out
 
 _PALETTE = [
     "FFF2CC", "D9EAD3", "CFE2F3", "F4CCCC", "EAD1DC",
@@ -406,8 +439,10 @@ def _refresh_summary_formulas(wb, year: int):
         cur += 1
 
     # Net Income (Total Income − Total Expense) — per-month column formulas
+    ms_net_income = None
     if ms_income_subtotal and ms_grand_expense:
-        ms.cell(row=cur, column=1, value="NET INCOME").font = NET_FONT
+        ms_net_income = cur
+        ms.cell(row=cur, column=1, value="NET INCOME (Cash-flow)").font = NET_FONT
         ms.cell(row=cur, column=1).fill = NET_FILL
         for col in range(2, total_col + 1):
             ltr = get_column_letter(col)
@@ -421,6 +456,52 @@ def _refresh_summary_formulas(wb, year: int):
         ni_avg.number_format = CURRENCY_FMT
         ni_avg.fill = NET_FILL
         ni_avg.font = NET_FONT
+        cur += 1
+
+    # ── Rental Margin view (principal excluded) ─────────────────────────────
+    # Two extra rows so BOTH views are visible: a memo of the rental mortgage
+    # principal (equity, not a true cost) per month, and a margin NET that adds
+    # it back to the cash-flow NET. Principal is a static value (derived from
+    # mortgage_pi.json, not present in the Transactions sheet); the margin NET is
+    # a live formula = cash NET + principal.
+    principal_by_ym = _rental_principal_by_month(tx_ws)
+    if ms_net_income and principal_by_ym:
+        memo_font = Font(name="Arial", size=9, italic=True, color="7A6A55")
+        b_ltr = get_column_letter(2)
+        m_ltr = get_column_letter(1 + len(active_months))
+
+        pr_row = cur
+        ms.cell(row=pr_row, column=1,
+                value="Mortgage Principal (equity — excluded in margin)").font = memo_font
+        for col_idx, (yr, mn) in enumerate(active_months, start=2):
+            c = ms.cell(row=pr_row, column=col_idx,
+                        value=round(principal_by_ym.get((yr, mn), 0.0), 2))
+            c.number_format = CURRENCY_FMT
+            c.font = memo_font
+        ms.cell(row=pr_row, column=total_col,
+                value=f"=SUM({b_ltr}{pr_row}:{m_ltr}{pr_row})").number_format = CURRENCY_FMT
+        ms.cell(row=pr_row, column=total_col).font = memo_font
+        pa = ms.cell(row=pr_row, column=avg_col,
+                     value=f"=AVERAGE({_avg_start}{pr_row}:{_avg_end}{pr_row})")
+        pa.number_format = CURRENCY_FMT
+        pa.font = memo_font
+        cur += 1
+
+        mg_row = cur
+        ms.cell(row=mg_row, column=1,
+                value="NET — MARGIN (rental principal excluded)").font = NET_FONT
+        ms.cell(row=mg_row, column=1).fill = NET_FILL
+        for col in range(2, total_col + 1):
+            ltr = get_column_letter(col)
+            c = ms.cell(row=mg_row, column=col, value=f"={ltr}{ms_net_income}+{ltr}{pr_row}")
+            c.number_format = CURRENCY_FMT
+            c.fill = NET_FILL
+            c.font = NET_FONT
+        ma = ms.cell(row=mg_row, column=avg_col,
+                     value=f"=AVERAGE({_avg_start}{mg_row}:{_avg_end}{mg_row})")
+        ma.number_format = CURRENCY_FMT
+        ma.fill = NET_FILL
+        ma.font = NET_FONT
         cur += 1
 
     # Stacked bar chart (expense categories only)

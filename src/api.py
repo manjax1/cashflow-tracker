@@ -1,3 +1,4 @@
+# Redeploy marker: 2026-07-30 — force Railway rebuild (rental margin feature).
 import os
 import sys
 import threading

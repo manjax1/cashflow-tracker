@@ -558,11 +558,14 @@ def upload_receipt():
     if not _is_admin():
         return jsonify({"error": "admin only"}), 403
     f = request.files.get("file")
-    if not f or not f.filename.lower().endswith(".pdf"):
-        return jsonify({"error": "please upload a Costco receipt PDF"}), 400
+    ALLOWED = (".pdf", ".jpg", ".jpeg", ".png", ".webp", ".gif", ".heic", ".heif")
+    ext = os.path.splitext(f.filename)[1].lower() if f and f.filename else ""
+    if not f or ext not in ALLOWED:
+        return jsonify({"error": "please upload a Costco receipt as a PDF or image "
+                                 "(JPEG, PNG, HEIC)"}), 400
     import anthropic
     from . import costco
-    tmp = os.path.join("/tmp", f"upload_{secrets.token_hex(6)}.pdf")
+    tmp = os.path.join("/tmp", f"upload_{secrets.token_hex(6)}{ext}")
     f.save(tmp)
     try:
         receipt = costco.extract_receipt(tmp, anthropic.Anthropic())

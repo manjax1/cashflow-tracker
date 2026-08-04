@@ -79,6 +79,38 @@ Classification rules (use ONLY the provided taxonomy names):
 - Fuel -> Transportation
 Report net_price exactly (extended minus discount). Do not compute the total."""
 
+# Vision tool — used for photographed/scanned receipts (no text layer) or
+# unrecognized layouts, where the model must read the header fields too.
+COSTCO_VISION_TOOL = {
+    "name": "record_receipt_full",
+    "description": "Record a Costco receipt read from an image: header fields plus line items.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "date": {"type": "string", "description": "purchase date, YYYY-MM-DD"},
+            "total": {"type": "number", "description": "grand total; NEGATIVE if the receipt is a refund/return"},
+            "card_last4": {"type": "string", "description": "last 4 digits of the tender card, if shown"},
+            "type": {"type": "string", "enum": ["warehouse", "gas", "return"]},
+            "instant_savings": {"type": "number", "description": "sum of discounts, else 0"},
+            "items": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string", "description": "decoded readable name"},
+                        "raw": {"type": "string"},
+                        "net_price": {"type": "number", "description": "extended price minus any instant-savings; negative for a return line"},
+                        "category": {"type": "string"},
+                        "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
+                    },
+                    "required": ["name", "net_price", "category"],
+                },
+            },
+        },
+        "required": ["date", "total", "type", "items"],
+    },
+}
+
 
 def parse_receipt_meta(text):
     """Deterministic: date, total, tender, card last-4, type.
@@ -110,9 +142,66 @@ def parse_receipt_meta(text):
     }
 
 
+def _allocate(receipt):
+    """Spread the receipt total across item net_prices (folds tax/rounding in),
+    writing allocated_amount on each item. No-op if total or items are missing."""
+    items = receipt.get("items", [])
+    base = sum(abs(i["net_price"]) for i in items)
+    total = abs(receipt["total"] if receipt.get("total") is not None else base)
+    if base > 0:
+        for i in items:
+            i["allocated_amount"] = round(abs(i["net_price"]) * total / base, 2)
+        drift = round(total - sum(i["allocated_amount"] for i in items), 2)
+        if drift:
+            big = max(items, key=lambda x: x["allocated_amount"])
+            big["allocated_amount"] = round(big["allocated_amount"] + drift, 2)
+
+
+def _extract_via_vision(path, client):
+    """Read a photographed/scanned receipt (no text layer) or an unrecognized
+    layout directly from the PDF image. Returns the full receipt dict."""
+    import base64
+    with open(path, "rb") as f:
+        b64 = base64.standard_b64encode(f.read()).decode()
+    cats = invoices.taxonomy()
+    prompt = (
+        "This is a photographed/scanned Costco receipt or store audit print-out. "
+        "Read it carefully and call record_receipt_full with the header fields and "
+        "EVERY line item. Notes: 'total' is the grand total (make it NEGATIVE only if "
+        "the whole receipt is a refund); a line ending in '-' (e.g. '6.00-') is a return/"
+        "credit, so its net_price is negative; decode Costco abbreviations to readable names.\n\n"
+        "Taxonomy categories (use EXACT names):\n" + "\n".join(f"- {c}" for c in cats))
+    resp = client.messages.create(
+        model=invoices.MODEL, max_tokens=4000, system=COSTCO_SYSTEM,
+        tools=[COSTCO_VISION_TOOL], tool_choice={"type": "tool", "name": "record_receipt_full"},
+        messages=[{"role": "user", "content": [
+            {"type": "document",
+             "source": {"type": "base64", "media_type": "application/pdf", "data": b64}},
+            {"type": "text", "text": prompt}]}])
+    v = next(b.input for b in resp.content if b.type == "tool_use")
+    return {
+        "source_file": os.path.basename(path),
+        "date": v.get("date"),
+        "total": v.get("total"),
+        "card_last4": v.get("card_last4"),
+        "type": v.get("type") or "warehouse",
+        "instant_savings": v.get("instant_savings") or 0,
+        "items": v.get("items", []),
+        "_extracted_at": datetime.now().isoformat(timespec="seconds"),
+        "_via": "vision",
+    }
+
+
 def extract_receipt(path, client):
     text = invoices.read_pdf(path)
     meta = parse_receipt_meta(text)
+    # Scanned image or unrecognized layout: the text layer is empty and the
+    # regex can't find the total -> read the receipt image with the vision model.
+    if meta.get("total") is None or len((text or "").strip()) < 40:
+        receipt = _extract_via_vision(path, client)
+        _allocate(receipt)
+        return receipt
+
     receipt = {"source_file": os.path.basename(path), **meta,
                "_extracted_at": datetime.now().isoformat(timespec="seconds")}
     if meta["type"] == "gas":
@@ -129,16 +218,7 @@ def extract_receipt(path, client):
         tools=[COSTCO_TOOL], tool_choice={"type": "tool", "name": "record_receipt"},
         messages=[{"role": "user", "content": prompt}])
     receipt["items"] = next(b.input for b in resp.content if b.type == "tool_use")["items"]
-    # reconcile: scale item net_prices to the receipt total (tax spread in)
-    base = sum(abs(i["net_price"]) for i in receipt["items"])
-    total = abs(meta["total"] or base)
-    if base > 0:
-        for i in receipt["items"]:
-            i["allocated_amount"] = round(abs(i["net_price"]) * total / base, 2)
-        drift = round(total - sum(i["allocated_amount"] for i in receipt["items"]), 2)
-        if drift:
-            big = max(receipt["items"], key=lambda x: x["allocated_amount"])
-            big["allocated_amount"] = round(big["allocated_amount"] + drift, 2)
+    _allocate(receipt)   # reconcile: scale item net_prices to the receipt total
     return receipt
 
 
@@ -175,6 +255,8 @@ def extract_all(dry_run=False):
 
 
 def _match_charge(cc, date, amount, ttype):
+    if amount is None or not date:
+        return []
     return [t for t in cc if abs(t["Amount"] - abs(amount)) < 0.01
             and t["Type"] == ttype and t["Date"][:7] == date[:7]
             and abs(int(t["Date"][8:10]) - int(date[8:10])) <= 4]
@@ -192,13 +274,21 @@ def split_one(receipt, ledger_path):
     ledger_start = min(t["Date"] for t in txns)
     cc = [t for t in txns if "costco" in t["Description"].lower()
           and t["Account"] == "Credit Card"]
-    d, tot, typ = receipt["date"], receipt["total"], receipt["type"]
+    d, tot, typ = receipt.get("date"), receipt.get("total"), receipt.get("type")
+    if tot is None:
+        return {"status": "no_total",
+                "reason": "couldn't read the total from this receipt image — try a sharper, "
+                          "flatter photo, or the emailed/printed PDF"}
+    if not d:
+        return {"status": "no_date", "reason": "couldn't read the purchase date from this receipt"}
     ttype = "Income" if (tot or 0) < 0 else "Expense"
     hits = _match_charge(cc, d, tot, ttype)
     if not hits:
         return {"status": "no_match",
-                "reason": ("charge not yet synced from the bank — try again after the "
-                           "next sync" if d >= ledger_start else "purchase predates the ledger")}
+                "reason": (f"no matching Costco charge of ${abs(tot):,.2f} on/near {d} in the "
+                           "ledger — it may not have synced from the bank yet (try after the "
+                           "next sync), or this card isn't one of the connected accounts"
+                           if d >= ledger_start else "purchase predates the ledger")}
     ref = str(hits[0]["SourceRef"])
     if ref in ledger.load_splits():
         return {"status": "already_split", "parent_ref": ref}

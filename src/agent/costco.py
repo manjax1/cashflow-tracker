@@ -157,12 +157,51 @@ def _allocate(receipt):
             big["allocated_amount"] = round(big["allocated_amount"] + drift, 2)
 
 
+IMAGE_EXTS = (".jpg", ".jpeg", ".png", ".webp", ".gif", ".heic", ".heif")
+_RAW_IMAGE_MEDIA = {".png": "image/png", ".webp": "image/webp", ".gif": "image/gif",
+                    ".jpg": "image/jpeg", ".jpeg": "image/jpeg"}
+
+
+def _vision_source_block(path):
+    """Build the Anthropic content block for a receipt file. PDFs go as a
+    'document' block; image files as an 'image' block. HEIC/HEIF (and large
+    photos) are normalized to JPEG and downscaled so the API accepts them."""
+    import base64
+    ext = os.path.splitext(path)[1].lower()
+    with open(path, "rb") as f:
+        raw = f.read()
+    if ext == ".pdf":
+        return {"type": "document",
+                "source": {"type": "base64", "media_type": "application/pdf",
+                           "data": base64.standard_b64encode(raw).decode()}}
+    # Image: convert/downscale via Pillow (HEIC needs pillow-heif). Fall back to
+    # raw bytes for common formats if Pillow isn't available.
+    try:
+        import io
+        from PIL import Image
+        if ext in (".heic", ".heif"):
+            import pillow_heif
+            pillow_heif.register_heif_opener()
+        img = Image.open(io.BytesIO(raw)).convert("RGB")
+        img.thumbnail((1600, 1600))                       # cap long edge; cheaper + reliable
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG", quality=88)
+        data = base64.standard_b64encode(buf.getvalue()).decode()
+        return {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": data}}
+    except Exception:
+        media = _RAW_IMAGE_MEDIA.get(ext)
+        if not media:
+            raise ValueError(f"{ext} images need Pillow/pillow-heif on the server; "
+                             "please upload a JPEG, PNG, or PDF instead")
+        return {"type": "image",
+                "source": {"type": "base64", "media_type": media,
+                           "data": base64.standard_b64encode(raw).decode()}}
+
+
 def _extract_via_vision(path, client):
     """Read a photographed/scanned receipt (no text layer) or an unrecognized
-    layout directly from the PDF image. Returns the full receipt dict."""
-    import base64
-    with open(path, "rb") as f:
-        b64 = base64.standard_b64encode(f.read()).decode()
+    layout directly from the receipt image/PDF. Returns the full receipt dict."""
+    source_block = _vision_source_block(path)
     cats = invoices.taxonomy()
     prompt = (
         "This is a photographed/scanned Costco receipt or store audit print-out. "
@@ -174,10 +213,7 @@ def _extract_via_vision(path, client):
     resp = client.messages.create(
         model=invoices.MODEL, max_tokens=4000, system=COSTCO_SYSTEM,
         tools=[COSTCO_VISION_TOOL], tool_choice={"type": "tool", "name": "record_receipt_full"},
-        messages=[{"role": "user", "content": [
-            {"type": "document",
-             "source": {"type": "base64", "media_type": "application/pdf", "data": b64}},
-            {"type": "text", "text": prompt}]}])
+        messages=[{"role": "user", "content": [source_block, {"type": "text", "text": prompt}]}])
     v = next(b.input for b in resp.content if b.type == "tool_use")
     return {
         "source_file": os.path.basename(path),
@@ -193,10 +229,16 @@ def _extract_via_vision(path, client):
 
 
 def extract_receipt(path, client):
+    # A bare image file (phone photo) has no text layer to parse — read it with
+    # the vision model directly.
+    if os.path.splitext(path)[1].lower() in IMAGE_EXTS:
+        receipt = _extract_via_vision(path, client)
+        _allocate(receipt)
+        return receipt
     text = invoices.read_pdf(path)
     meta = parse_receipt_meta(text)
-    # Scanned image or unrecognized layout: the text layer is empty and the
-    # regex can't find the total -> read the receipt image with the vision model.
+    # Scanned image-only PDF or unrecognized layout: the text layer is empty and
+    # the regex can't find the total -> read the receipt image with the vision model.
     if meta.get("total") is None or len((text or "").strip()) < 40:
         receipt = _extract_via_vision(path, client)
         _allocate(receipt)

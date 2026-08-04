@@ -285,9 +285,9 @@
   <div class="drawer-hd"><strong>🧾 Upload Costco receipt</strong>
     <button class="drawer-x" onclick="closeDrawers()">✕</button></div>
   <div class="drawer-body">
-    <span class="upload-hint">Splits a warehouse basket into item categories on the ledger.</span>
+    <span class="upload-hint">Splits a warehouse basket into item categories on the ledger. PDF or photo (JPEG, PNG, HEIC).</span>
     <div class="upload-row">
-      <input type="file" id="rfile" accept="application/pdf">
+      <input type="file" id="rfile" accept="application/pdf,image/*,.heic,.heif">
       <button id="ubtn" onclick="uploadReceipt()">Upload &amp; split</button>
     </div>
     <div id="uresult"></div>

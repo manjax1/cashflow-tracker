@@ -579,7 +579,11 @@ def upload_receipt():
         try:
             ensure_ledger()                       # fresh copy from Drive
             result = costco.split_one(receipt, ledger.LEDGER_PATH)
-            if result["status"] == "split" and os.environ.get("GOOGLE_DRIVE_FILE_ID"):
+            # No charge yet? Queue it — the daily sync auto-splits it once the
+            # charge posts (natural 1–2 day lag between the store trip and sync).
+            if result["status"] == "no_match":
+                result = costco.queue_pending(receipt, ledger.LEDGER_PATH)
+            if result["status"] in ("split", "queued") and os.environ.get("GOOGLE_DRIVE_FILE_ID"):
                 from src.drive_sync import upload_ledger
                 upload_ledger(os.environ["GOOGLE_DRIVE_FILE_ID"], ledger.LEDGER_PATH)
         except Exception as e:

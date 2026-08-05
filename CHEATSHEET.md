@@ -84,6 +84,8 @@ source .venv/bin/activate
 | `python -m src.agent.costco reconcile` | Match receipts to ledger charges; show proposed splits (dry-run). |
 | `python -m src.agent.costco reconcile apply` | Write the item-level splits to the Splits sheet. |
 
+*Web upload accepts a PDF **or a phone photo** (JPEG/PNG/HEIC). If the matching card charge hasn't synced yet, the receipt is saved to a `PendingReceipts` sheet in the ledger and **auto-splits on the next daily sync** once the charge posts — so you can upload in the store and let it reconcile itself.*
+
 ---
 
 ## Eval harness

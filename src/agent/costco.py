@@ -364,6 +364,81 @@ def split_one(receipt, ledger_path):
             "breakdown": {k: round(v, 2) for k, v in breakdown.items()}}
 
 
+# ── Deferred reconciliation: queue receipts whose charge hasn't posted yet ──
+_PENDING_HEADERS = ["ReceiptID", "Date", "Total", "Type", "Items", "QueuedAt", "ReceiptJSON"]
+
+
+def queue_pending(receipt, ledger_path):
+    """Save an already-extracted receipt that has no matching charge yet, into a
+    'PendingReceipts' sheet in the ledger. The daily sync retries it once the
+    charge posts. Keyed by receipt_id — re-queuing the same receipt replaces its
+    row (idempotent). The full classified receipt is stored, so reconciliation
+    later is pure matching (no re-reading the image)."""
+    import openpyxl
+    rid = receipt.get("receipt_id") or receipt_id(receipt)
+    wb = openpyxl.load_workbook(ledger_path)
+    if "PendingReceipts" in wb.sheetnames:
+        ws = wb["PendingReceipts"]
+    else:
+        ws = wb.create_sheet("PendingReceipts")
+        ws.append(_PENDING_HEADERS)
+    for r in range(ws.max_row, 1, -1):                 # drop any prior row for this receipt
+        if str(ws.cell(row=r, column=1).value) == rid:
+            ws.delete_rows(r, 1)
+    ws.append([rid, receipt.get("date"), receipt.get("total"), receipt.get("type"),
+               len(receipt.get("items", [])),
+               datetime.now().isoformat(timespec="seconds"), json.dumps(receipt)])
+    wb.save(ledger_path)
+    ledger._cache["mtime"] = None
+    audit("costco_receipt_queued", {"receipt": rid, "total": receipt.get("total")})
+    return {"status": "queued", "receipt_id": rid, "date": receipt.get("date"),
+            "total": receipt.get("total"),
+            "reason": "saved — it'll auto-split when the charge posts (usually within a day or two)"}
+
+
+def reconcile_pending(ledger_path):
+    """Retry every queued receipt against the current ledger charges. Resolved
+    ones (split / already split / gas) are removed from the queue; the rest stay
+    for the next run. Called by the daily sync. Returns a summary dict."""
+    import openpyxl
+    wb = openpyxl.load_workbook(ledger_path, read_only=True)
+    if "PendingReceipts" not in wb.sheetnames:
+        wb.close()
+        return {"processed": 0, "split": 0, "resolved": 0, "still_pending": 0, "details": []}
+    rows = [r for r in wb["PendingReceipts"].iter_rows(min_row=2, values_only=True) if r and r[0]]
+    wb.close()
+    ji = _PENDING_HEADERS.index("ReceiptJSON")
+    resolved, details, split_n = [], [], 0
+    for r in rows:
+        try:
+            receipt = json.loads(r[ji])
+        except (TypeError, ValueError, json.JSONDecodeError):
+            continue
+        receipt.setdefault("receipt_id", str(r[0]))
+        res = split_one(receipt, ledger_path)
+        d = {"receipt_id": str(r[0]), "status": res["status"]}
+        if res["status"] == "split":
+            d.update({"date": res.get("date"), "charge": res.get("charge"),
+                      "items": res.get("items"), "breakdown": res.get("breakdown", {})})
+        details.append(d)
+        if res["status"] in ("split", "already_split", "gas_no_split"):
+            resolved.append(str(r[0]))
+            split_n += res["status"] == "split"
+    if resolved:
+        wb2 = openpyxl.load_workbook(ledger_path)
+        ws2 = wb2["PendingReceipts"]
+        for rr in range(ws2.max_row, 1, -1):
+            if str(ws2.cell(row=rr, column=1).value) in resolved:
+                ws2.delete_rows(rr, 1)
+        wb2.save(ledger_path)
+        ledger._cache["mtime"] = None
+        ledger._splits_cache["mtime"] = None
+        audit("costco_pending_reconciled",
+              {"split": split_n, "resolved": len(resolved), "still_pending": len(rows) - len(resolved)})
+    return {"processed": len(rows), "split": split_n, "resolved": len(resolved),
+            "still_pending": len(rows) - len(resolved), "details": details}
+
+
 def reconcile(apply=False):
     """Match saved Costco receipts to discrete ledger charges and split them
     into item categories via the Splits sheet. Receipts with no discrete

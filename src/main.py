@@ -262,8 +262,8 @@ def run_sync(from_date: date = None, to_date: date = None) -> dict:
         from agent.costco import reconcile_pending
         pend = reconcile_pending(ledger_path)
         summary["costco_pending"] = pend
-        if pend.get("split") or pend.get("still_pending"):
-            print(f"🧾 Costco pending: split {pend['split']}, "
+        if pend.get("split") or pend.get("expired") or pend.get("still_pending"):
+            print(f"🧾 Costco pending: split {pend['split']}, expired {pend.get('expired', 0)}, "
                   f"{pend['still_pending']} still awaiting a charge")
     except Exception as e_costco:
         print(f"⚠️  Costco pending reconcile failed (non-fatal): {e_costco}")

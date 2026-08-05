@@ -594,6 +594,35 @@ def upload_receipt():
                     "result": result})
 
 
+@app.get("/api/pending_receipts")
+def pending_receipts():
+    """Admin-only: list Costco receipts queued and awaiting a charge."""
+    if not _is_admin():
+        return jsonify({"error": "admin only"}), 403
+    from . import costco
+    return jsonify({"pending": costco.list_pending(ledger.LEDGER_PATH),
+                    "expiry_days": costco.PENDING_EXPIRY_DAYS})
+
+
+@app.post("/api/clear_pending")
+def clear_pending():
+    """Admin-only: remove a queued receipt by receipt_id and sync to Drive."""
+    if not _is_admin():
+        return jsonify({"error": "admin only"}), 403
+    from . import costco
+    rid = (request.json or {}).get("receipt_id")
+    if not rid:
+        return jsonify({"error": "receipt_id required"}), 400
+    with _upload_lock:
+        ensure_ledger()
+        removed = costco.remove_pending(ledger.LEDGER_PATH, [rid])
+        if removed and os.environ.get("GOOGLE_DRIVE_FILE_ID"):
+            from src.drive_sync import upload_ledger
+            upload_ledger(os.environ["GOOGLE_DRIVE_FILE_ID"], ledger.LEDGER_PATH)
+    audit("web_pending_cleared", {"user": session.get("user"), "receipt_id": rid, "removed": removed})
+    return jsonify({"status": "cleared", "removed": removed})
+
+
 @app.get("/api/dashboard")
 def dashboard():
     if not _authed():

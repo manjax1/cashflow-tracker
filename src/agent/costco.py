@@ -18,7 +18,7 @@ import os
 import re
 import sys
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from dotenv import load_dotenv
 
@@ -396,19 +396,65 @@ def queue_pending(receipt, ledger_path):
             "reason": "saved — it'll auto-split when the charge posts (usually within a day or two)"}
 
 
-def reconcile_pending(ledger_path):
-    """Retry every queued receipt against the current ledger charges. Resolved
-    ones (split / already split / gas) are removed from the queue; the rest stay
-    for the next run. Called by the daily sync. Returns a summary dict."""
+def list_pending(ledger_path):
+    """Return the queued receipts awaiting a charge (for the web drawer)."""
     import openpyxl
     wb = openpyxl.load_workbook(ledger_path, read_only=True)
     if "PendingReceipts" not in wb.sheetnames:
         wb.close()
-        return {"processed": 0, "split": 0, "resolved": 0, "still_pending": 0, "details": []}
+        return []
+    out = []
+    for r in wb["PendingReceipts"].iter_rows(min_row=2, values_only=True):
+        if r and r[0]:
+            out.append({"receipt_id": str(r[0]), "date": r[1], "total": r[2],
+                        "type": r[3], "items": r[4], "queued_at": r[5]})
+    wb.close()
+    return out
+
+
+def remove_pending(ledger_path, receipt_ids):
+    """Delete queued receipts by id (manual clear from the web). Returns count."""
+    import openpyxl
+    ids = {str(x) for x in receipt_ids}
+    wb = openpyxl.load_workbook(ledger_path)
+    if "PendingReceipts" not in wb.sheetnames:
+        wb.close()
+        return 0
+    ws = wb["PendingReceipts"]
+    removed = 0
+    for rr in range(ws.max_row, 1, -1):
+        if str(ws.cell(row=rr, column=1).value) in ids:
+            ws.delete_rows(rr, 1)
+            removed += 1
+    if removed:
+        wb.save(ledger_path)
+        ledger._cache["mtime"] = None
+        audit("costco_pending_cleared", {"count": removed, "ids": sorted(ids)})
+    return removed
+
+
+PENDING_EXPIRY_DAYS = int(os.getenv("COSTCO_PENDING_EXPIRY_DAYS", "100"))
+
+
+def reconcile_pending(ledger_path):
+    """Retry every queued receipt against the current ledger charges. Resolved
+    ones (split / already split / gas) are removed. Receipts that still haven't
+    matched after PENDING_EXPIRY_DAYS (default 100) are expired and removed so
+    receipts on un-connected cards don't linger forever. Called by the daily
+    sync. Returns a summary dict."""
+    import openpyxl
+    wb = openpyxl.load_workbook(ledger_path, read_only=True)
+    if "PendingReceipts" not in wb.sheetnames:
+        wb.close()
+        return {"processed": 0, "split": 0, "resolved": 0, "expired": 0,
+                "still_pending": 0, "details": []}
     rows = [r for r in wb["PendingReceipts"].iter_rows(min_row=2, values_only=True) if r and r[0]]
     wb.close()
     ji = _PENDING_HEADERS.index("ReceiptJSON")
-    resolved, details, split_n = [], [], 0
+    qi = _PENDING_HEADERS.index("QueuedAt")
+    cutoff = datetime.now() - timedelta(days=PENDING_EXPIRY_DAYS)
+
+    resolved, expired, details, split_n = [], [], [], 0
     for r in rows:
         try:
             receipt = json.loads(r[ji])
@@ -420,23 +466,37 @@ def reconcile_pending(ledger_path):
         if res["status"] == "split":
             d.update({"date": res.get("date"), "charge": res.get("charge"),
                       "items": res.get("items"), "breakdown": res.get("breakdown", {})})
-        details.append(d)
         if res["status"] in ("split", "already_split", "gas_no_split"):
             resolved.append(str(r[0]))
             split_n += res["status"] == "split"
-    if resolved:
+        else:
+            # Unmatched — expire it if it's been queued longer than the limit.
+            try:
+                too_old = datetime.fromisoformat(str(r[qi])) < cutoff
+            except (TypeError, ValueError):
+                too_old = False
+            if too_old:
+                expired.append(str(r[0]))
+                d.update({"status": "expired", "date": receipt.get("date"),
+                          "total": receipt.get("total")})
+        details.append(d)
+
+    to_remove = set(resolved) | set(expired)
+    if to_remove:
         wb2 = openpyxl.load_workbook(ledger_path)
         ws2 = wb2["PendingReceipts"]
         for rr in range(ws2.max_row, 1, -1):
-            if str(ws2.cell(row=rr, column=1).value) in resolved:
+            if str(ws2.cell(row=rr, column=1).value) in to_remove:
                 ws2.delete_rows(rr, 1)
         wb2.save(ledger_path)
         ledger._cache["mtime"] = None
         ledger._splits_cache["mtime"] = None
         audit("costco_pending_reconciled",
-              {"split": split_n, "resolved": len(resolved), "still_pending": len(rows) - len(resolved)})
+              {"split": split_n, "resolved": len(resolved), "expired": len(expired),
+               "still_pending": len(rows) - len(to_remove)})
     return {"processed": len(rows), "split": split_n, "resolved": len(resolved),
-            "still_pending": len(rows) - len(resolved), "details": details}
+            "expired": len(expired), "still_pending": len(rows) - len(to_remove),
+            "details": details}
 
 
 def reconcile(apply=False):

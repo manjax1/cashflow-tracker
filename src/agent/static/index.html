@@ -750,6 +750,8 @@ async function uploadReceipt() {
       const chips = Object.entries(res.breakdown)
         .map(([c, v]) => `<span class="chip">${c} ${fmt(v)}</span>`).join('');
       $('uresult').innerHTML = `<span class="ok">✔ Split ${fmt(res.charge)} charge on ${res.date} into ${res.items} items:</span><div class="brk">${chips}</div>`;
+    } else if (res.status === 'queued') {
+      $('uresult').innerHTML = `<span class="ok">🧾 Receipt saved (${d.receipt.date}, ${fmt(Math.abs(d.receipt.total))}, ${d.receipt.items} items). It'll auto-split when the charge posts — usually within a day or two.</span>`;
     } else if (res.status === 'no_match') {
       $('uresult').innerHTML = `<span class="warn">Receipt read (${d.receipt.date}, ${fmt(Math.abs(d.receipt.total))}). ${res.reason}.</span>`;
     } else if (res.status === 'already_split') {

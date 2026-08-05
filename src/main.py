@@ -255,6 +255,19 @@ def run_sync(from_date: date = None, to_date: date = None) -> dict:
         except Exception as e_adriana:
             print(f"⚠️  Adriana sync failed (non-fatal): {e_adriana}")
 
+    # ── Costco pending-receipt reconciliation ────────────────────────────
+    # Receipts uploaded before their charge posted are queued in the ledger;
+    # now that fresh charges are in, try to auto-split them.
+    try:
+        from agent.costco import reconcile_pending
+        pend = reconcile_pending(ledger_path)
+        summary["costco_pending"] = pend
+        if pend.get("split") or pend.get("still_pending"):
+            print(f"🧾 Costco pending: split {pend['split']}, "
+                  f"{pend['still_pending']} still awaiting a charge")
+    except Exception as e_costco:
+        print(f"⚠️  Costco pending reconcile failed (non-fatal): {e_costco}")
+
     need_snapshot    = False
     snapshot_attachment: list[dict] | None = None
     year_month = date.today().strftime("%Y-%m")

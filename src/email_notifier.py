@@ -66,6 +66,32 @@ def _build_html(summary: dict) -> str:
         if excluded_rental > 0 else ""
     )
 
+    # Costco pending-receipt reconciliation note — a reminder that a receipt you
+    # uploaded earlier just matched a charge that posted, and was auto-split.
+    costco_pending = summary.get("costco_pending") or {}
+    costco_splits = [d for d in costco_pending.get("details", []) if d.get("status") == "split"]
+    costco_note = ""
+    if costco_splits:
+        def _line(d):
+            bd = ", ".join(f"{k} ${v:,.2f}" for k, v in (d.get("breakdown") or {}).items())
+            return (f"<li style='margin:2px 0'>{d.get('date','')} · "
+                    f"${abs(d.get('charge') or 0):,.2f} · {d.get('items', 0)} items"
+                    + (f" — {bd}" if bd else "") + "</li>")
+        still = costco_pending.get("still_pending", 0)
+        still_txt = (f" &nbsp;·&nbsp; {still} receipt(s) still awaiting a charge"
+                     if still else "")
+        n = len(costco_splits)
+        costco_note = (
+            f"<div style='margin-top:18px;padding:10px 14px;background:#eef6ee;"
+            f"border-left:4px solid #2E7D32;border-radius:4px;font-size:13px'>"
+            f"<strong style='color:#2E7D32'>🧾 {n} Costco receipt{'s' if n != 1 else ''} "
+            f"reconciled</strong>{still_txt}"
+            f"<div style='color:#33503f;margin-top:4px'>A receipt you uploaded earlier matched "
+            f"a charge that posted today, and was auto-split into item categories:</div>"
+            f"<ul style='margin:6px 0 0 0;padding-left:18px;color:#33503f'>"
+            + "".join(_line(d) for d in costco_splits) + "</ul></div>"
+        )
+
     from datetime import timedelta
     next_sync = (date.today() + timedelta(days=1)).strftime("%Y-%m-%d")
 
@@ -98,6 +124,7 @@ def _build_html(summary: dict) -> str:
 </table>
 {new_tx_section}
 {excluded_note}
+{costco_note}
 <details style='margin-top:20px'>
   <summary style='cursor:pointer;font-weight:bold;color:#1F3864'>All Transactions Fetched This Run ({len(all_transactions)})</summary>
   <table style='border-collapse:collapse;width:100%;font-size:12px;margin-top:8px'>

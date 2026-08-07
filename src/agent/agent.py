@@ -82,20 +82,32 @@ class Agent:
         for _ in range(MAX_TURNS):
             t0 = time.time()
             resp = self.client.messages.create(
-                model=MODEL, max_tokens=8000, system=self.system,
+                model=MODEL, max_tokens=16000, system=self.system,
                 tools=self.tools, messages=self.history)
             self.stats["turns"] += 1
             self.stats["input_tokens"] += resp.usage.input_tokens
             self.stats["output_tokens"] += resp.usage.output_tokens
             self.history.append({"role": "assistant", "content": resp.content})
 
-            if resp.stop_reason != "tool_use":
+            tool_uses = [b for b in resp.content if b.type == "tool_use"]
+
+            # A tool call cut off at the output limit yields an incomplete
+            # tool_use. Appending it with no tool_result corrupts every later
+            # turn (the "tool_use without tool_result" 400). Drop it and guide.
+            if resp.stop_reason == "max_tokens" and tool_uses:
+                self.history.pop()
+                audit("tool_use_truncated", {"tools": [b.name for b in tool_uses]})
+                return ("That request was too large to complete in one step — the tool "
+                        "call exceeded the response limit. For bulk recategorization, it's "
+                        "better to create a few keyword rules (which also auto-classify "
+                        "future transactions) or work in smaller batches. See "
+                        "`scripts/suggest_rules.py` for the baseline workflow.")
+
+            if not tool_uses:
                 return "".join(b.text for b in resp.content if b.type == "text")
 
             results = []
-            for block in resp.content:
-                if block.type != "tool_use":
-                    continue
+            for block in tool_uses:
                 self.stats["tool_calls"] += 1
                 self.last_tool_calls.append({"name": block.name, "input": block.input})
                 if self.verbose:

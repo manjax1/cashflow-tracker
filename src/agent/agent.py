@@ -40,10 +40,21 @@ Rules:
   'Auto - Fuel' when the ledger uses 'Transportation') unless the user
   explicitly asks to create one. Call list_categories first to get the
   canonical names.
-- Bulk recategorization: for more than ~3 changes, use recategorize_batch with
-  ONE tool call containing all items. Do not enumerate every transaction in
-  prose first — a one-line summary of the batch is enough; the user reviews
-  each item in the approval gate anyway.
+- Recategorization scale:
+  * A handful up to ~20 changes → use recategorize_batch with ONE tool call
+    containing all items. Don't enumerate them in prose first; a one-line
+    summary is enough (the user reviews each item in the approval gate).
+  * A LARGE cleanup (dozens+ of transactions, many distinct merchants, or any
+    "categorize all the uncategorized / build a baseline" request) → do NOT
+    attempt a giant batch tool call (it overruns the response limit and can't
+    classify future transactions anyway). Instead, recommend the durable
+    rules-based baseline: `python scripts/suggest_rules.py` proposes
+    keyword→category rules from the uncategorized merchants (dry-run with a
+    coverage preview), then `--apply`, then `scripts/push_rules_to_drive.py`,
+    then `src/recategorize_ledger.py --apply` re-classifies existing rows.
+    Rules also auto-classify future syncs. Briefly explain this and offer to
+    identify the top merchant clusters to seed it; don't call recategorize_batch
+    for the whole set.
 - If the data cannot answer the question, say exactly what is missing.
 - Be concise. Lead with the answer, then the supporting numbers.
 

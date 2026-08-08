@@ -346,18 +346,23 @@ function toggleDash() {
 async function refreshLedger() {
   const b = $('btn-refresh'); const orig = b.textContent;
   b.disabled = true; b.textContent = '⟳ refreshing…';
+  let waitMs = 3000;
   try {
     const r = await fetch('/api/refresh_ledger', { method: 'POST' });
-    const d = await r.json();
-    if (d.error) throw new Error(d.error);
+    const raw = await r.text();
+    let d; try { d = JSON.parse(raw); } catch { throw new Error(`HTTP ${r.status}: ${raw.slice(0, 120)}`); }
+    if (!r.ok || d.error) throw new Error(d.error || `HTTP ${r.status}`);
     b.textContent = `✓ through ${d.end}`;
     await loadMeta();          // refresh category/month/year dropdowns
     await loadDashboard();     // refresh the dashboard cards
   } catch (e) {
-    b.textContent = '⚠ refresh failed';
-    console.error(e);
+    const msg = e.message || 'refresh failed';
+    b.textContent = '⚠ ' + msg.slice(0, 60);   // show the actual reason on the button
+    b.title = msg;                              // full text on hover
+    console.error('refresh_ledger:', e);
+    waitMs = 8000;                              // leave it up long enough to read
   }
-  setTimeout(() => { b.textContent = orig; b.disabled = false; }, 3000);
+  setTimeout(() => { b.textContent = orig; b.disabled = false; }, waitMs);
 }
 
 async function loadDashboard() {

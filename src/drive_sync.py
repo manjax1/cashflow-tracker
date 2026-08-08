@@ -24,7 +24,9 @@ def download_ledger(file_id: str, local_path: str):
     try:
         service = get_drive_service()
         request = service.files().get_media(fileId=file_id)
-        os.makedirs(os.path.dirname(local_path), exist_ok=True)
+        d = os.path.dirname(local_path)
+        if d:
+            os.makedirs(d, exist_ok=True)
         with open(local_path, "wb") as f:
             downloader = MediaIoBaseDownload(f, request)
             done = False

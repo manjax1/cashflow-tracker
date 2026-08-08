@@ -22,6 +22,13 @@ LEDGER_PATH = os.environ.get(
 )
 RULES_PATH = os.path.join(REPO_ROOT, "spending_rules.json")
 
+# Categories the system recognizes as valid even before any transaction uses
+# them (e.g. "Investments" is a decided excluded-from-net bucket). Surfaced by
+# list_categories so the agent treats them as known rather than novel — and so
+# it recategorizes to them directly instead of asking to "create" them.
+# Keep in sync with filters.EXCLUDED_FROM_NET_CATEGORIES.
+KNOWN_UNUSED_CATEGORIES = ["Investments"]
+
 _cache = {"mtime": None, "rows": None}
 _splits_cache = {"mtime": None, "splits": None}
 
@@ -328,7 +335,15 @@ def list_categories():
             "expense": round(v["expense"], 2), "first_seen": v["first_seen"],
             "last_seen": v["last_seen"]} for k, v in cats.items()]
     out.sort(key=lambda c: c["count"], reverse=True)
-    return {"categories": out, "note": "Categories prefixed 'Rental - ' roll up into rental subtotals."}
+    present = {c["category"] for c in out}
+    for k in KNOWN_UNUSED_CATEGORIES:                # recognized categories, not yet applied
+        if k not in present:
+            out.append({"category": k, "count": 0, "income": 0.0, "expense": 0.0,
+                        "first_seen": "", "last_seen": "", "decided_unused": True})
+    return {"categories": out,
+            "note": "Categories prefixed 'Rental - ' roll up into rental subtotals. Entries with "
+                    "count 0 / decided_unused=true are recognized, already-decided categories (e.g. "
+                    "Investments, excluded from net) — use them directly; do not ask to 'create' them."}
 
 
 def get_category_rules(keyword_filter=None):

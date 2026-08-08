@@ -327,8 +327,22 @@ def meta():
     months = sorted({t["Date"][:7] for t in txns}, reverse=True)
     years = sorted({t["Date"][:4] for t in txns}, reverse=True)
     cats = ledger.list_categories()["categories"]
-    income_cats = sorted(c["category"] for c in cats if c["income"] > c["expense"])
-    expense_cats = sorted(c["category"] for c in cats if c["expense"] >= c["income"])
+    income_cats = {c["category"] for c in cats if c["income"] > c["expense"]}
+    expense_cats = {c["category"] for c in cats if c["expense"] >= c["income"]}
+    # Also offer all DECIDED categories (canonical taxonomy + excluded-from-net
+    # ones like Investments) even before any transaction uses them — so a
+    # recategorization can pick them without the "＋ New category" step.
+    try:
+        from . import invoices
+        known = set(invoices.taxonomy())
+    except Exception:
+        known = set()
+    known |= {"Investments"}                       # keep in sync with filters.EXCLUDED_FROM_NET_CATEGORIES
+    for c in known:
+        if c and c not in income_cats and c not in expense_cats:
+            (income_cats if c.startswith("Income") else expense_cats).add(c)
+    income_cats = sorted(income_cats)
+    expense_cats = sorted(expense_cats)
     return jsonify({"months": months, "years": years, "income_categories": income_cats,
                     "expense_categories": expense_cats})
 

@@ -481,10 +481,12 @@ def refresh_ledger():
         ledger._cache["mtime"] = None
         ledger._splits_cache["mtime"] = None
         _ledger_fetched_at = time.time()
+        txns = ledger.load_transactions()          # inside try, so read errors surface cleanly
+        dates = sorted(t["Date"] for t in txns) if txns else [""]
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": f"{type(e).__name__}: {e}"}), 500
-    txns = ledger.load_transactions()
-    dates = sorted(t["Date"] for t in txns) if txns else [""]
     return jsonify({"status": "refreshed", "count": len(txns),
                     "start": dates[0], "end": dates[-1]})
 

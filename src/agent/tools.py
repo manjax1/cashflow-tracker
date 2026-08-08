@@ -190,16 +190,22 @@ def execute_recategorize(args):
         ".xlsx", f"_BACKUP_{datetime.now():%Y-%m-%d_%H%M%S}.xlsx")
     shutil.copy2(ledger.LEDGER_PATH, backup)
 
+    # Categories excluded from net (kept in sync with filters.EXCLUDED_FROM_NET_CATEGORIES).
+    EXCLUDED_FROM_NET = {"One-Off - Non-Recurring (excluded from Net)", "Investments"}
+
     wb = openpyxl.load_workbook(ledger.LEDGER_PATH)
     ws = wb["Transactions"]
     header = [c.value for c in ws[1]]
     ref_col = header.index("SourceRef") + 1
     cat_col = header.index("Category") + 1
+    inc_col = header.index("IncludeInNet") + 1
     hit = None
     for row in ws.iter_rows(min_row=2):
         if str(row[ref_col - 1].value) == args["source_ref"]:
             old = row[cat_col - 1].value
             row[cat_col - 1].value = args["new_category"]
+            # Keep the net-inclusion flag consistent with the new category.
+            row[inc_col - 1].value = args["new_category"] not in EXCLUDED_FROM_NET
             hit = old
             break
     if hit is None:

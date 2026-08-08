@@ -1,5 +1,14 @@
 import json
 
+# Categories visible in the ledger but excluded from Income/Expense/Net totals
+# (written with IncludeInNet=False). Investments = capital outflow (buying an
+# asset), not household spending — the $ amount is still captured via the
+# category, it just doesn't reduce cashflow net.
+EXCLUDED_FROM_NET_CATEGORIES = {
+    "One-Off - Non-Recurring (excluded from Net)",
+    "Investments",
+}
+
 PFC_CATEGORY_MAP = {
     "FOOD_AND_DRINK": "Dining",
     "TRANSPORTATION": "Transportation",
@@ -192,7 +201,7 @@ def categorize(transaction: dict, rules: list, account_label: str = "") -> dict:
 
             tx_type = "Income" if amount < 0 else "Expense"
             # Visible in Transactions sheet but excluded from Income/Expense/Net totals
-            exclude_from_net = (cat == "One-Off - Non-Recurring (excluded from Net)")
+            exclude_from_net = cat in EXCLUDED_FROM_NET_CATEGORIES
             return {
                 "excluded": False,
                 "category": cat,

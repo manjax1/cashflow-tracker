@@ -58,6 +58,27 @@ def _rental_principal_by_month(tx_ws) -> dict:
         out[(int(ds[:4]), int(ds[5:7]))] += hit["principal"]
     return out
 
+
+def _category_total_by_month(tx_ws, category: str) -> dict:
+    """{(year, month): $} summed for one category, regardless of IncludeInNet.
+    Used to surface excluded-from-net buckets (e.g. Investments) as a memo row."""
+    out = defaultdict(float)
+    header = [str(c.value) for c in tx_ws[1]]
+    di, ci, ti, ai = (header.index("Date"), header.index("Category"),
+                      header.index("Type"), header.index("Amount"))
+    for r in tx_ws.iter_rows(min_row=2, values_only=True):
+        if r[di] is None or str(r[ci]) != category:
+            continue
+        try:
+            amt = float(r[ai] or 0)
+        except (TypeError, ValueError):
+            continue
+        dv = r[di]
+        ds = dv.date().isoformat() if hasattr(dv, "date") else str(dv)[:10]
+        out[(int(ds[:4]), int(ds[5:7]))] += amt
+    return out
+
+
 _PALETTE = [
     "FFF2CC", "D9EAD3", "CFE2F3", "F4CCCC", "EAD1DC",
     "D9D2E9", "FCE5CD", "D0E4F1", "E6F4EA", "FFF3E0",
@@ -502,6 +523,28 @@ def _refresh_summary_formulas(wb, year: int):
         ma.number_format = CURRENCY_FMT
         ma.fill = NET_FILL
         ma.font = NET_FONT
+        cur += 1
+
+    # ── Investments memo (capital outflow — captured but excluded from net) ──
+    inv_by_ym = _category_total_by_month(tx_ws, "Investments")
+    if any(inv_by_ym.values()):
+        inv_font = Font(name="Arial", size=9, italic=True, color="1F5C3A")
+        b_ltr = get_column_letter(2)
+        m_ltr = get_column_letter(1 + len(active_months))
+        ir = cur
+        ms.cell(row=ir, column=1,
+                value="Investments (capital — excluded from net)").font = inv_font
+        for col_idx, (yr, mn) in enumerate(active_months, start=2):
+            c = ms.cell(row=ir, column=col_idx, value=round(inv_by_ym.get((yr, mn), 0.0), 2))
+            c.number_format = CURRENCY_FMT
+            c.font = inv_font
+        ms.cell(row=ir, column=total_col,
+                value=f"=SUM({b_ltr}{ir}:{m_ltr}{ir})").number_format = CURRENCY_FMT
+        ms.cell(row=ir, column=total_col).font = inv_font
+        ia = ms.cell(row=ir, column=avg_col,
+                     value=f"=AVERAGE({_avg_start}{ir}:{_avg_end}{ir})")
+        ia.number_format = CURRENCY_FMT
+        ia.font = inv_font
         cur += 1
 
     # Stacked bar chart (expense categories only)

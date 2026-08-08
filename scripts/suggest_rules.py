@@ -20,6 +20,7 @@ Idempotent: keywords already present in spending_rules.json are skipped.
 import argparse
 import json
 import os
+import re
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
@@ -140,6 +141,59 @@ def simulate(rules, unc_rows):
     return report, covered_rows, round(covered_amt, 2), len(remaining)
 
 
+# Owner category conventions — force these over the LLM's guess so recurring
+# merchants land consistently (and future runs stay stable). Applied to the
+# generated proposals; hand-edited --apply-file rules are honored as-is.
+MERCHANT_OVERRIDES = [
+    ("TJ MAXX", "Clothing"), ("TJMAXX", "Clothing"),
+    ("DD'S DISCOUNTS", "Clothing"), ("DDS DISCOUNTS", "Clothing"),
+    ("ROSS DRESS", "Clothing"), ("ROSS STORES", "Clothing"), ("TARGET", "Clothing"),
+    ("AQUI", "Dining"), ("BITES", "Dining"),
+    ("ARCO", "Transportation"), ("76 ", "Transportation"),
+    ("CITI CARD ONLINE", "Credit Card Payment"),  # old Citi (Costco), now paid via BofA VISA
+]
+
+
+def _apply_overrides(rules):
+    for r in rules:
+        ku = str(r["keyword"]).upper()
+        for sub, cat in MERCHANT_OVERRIDES:
+            if sub in ku:
+                r["category"] = cat
+                break
+    return rules
+
+
+def _norm(s):
+    return re.sub(r"[^a-z0-9]", "", str(s).lower())
+
+
+def lint(rules):
+    """Clean the proposed rules: drop keywords made redundant by a shorter one
+    of the same category; flag same-merchant category conflicts and short/risky
+    keywords. Returns (kept_rules, warnings)."""
+    warnings = []
+    kept = []
+    for r in sorted(rules, key=lambda r: len(_norm(r["keyword"]))):
+        nl = _norm(r["keyword"])
+        redundant = False
+        for k in kept:
+            nk = _norm(k["keyword"])
+            if nk and nk in nl:
+                if k["category"] == r["category"]:
+                    redundant = True
+                    warnings.append(f"merged: '{r['keyword']}' ⊂ '{k['keyword']}' (same category, {r['category']})")
+                    break
+                warnings.append(f"CONFLICT: '{r['keyword']}'→{r['category']} vs "
+                                f"'{k['keyword']}'→{k['category']} — same merchant, different category; pick one")
+        if redundant:
+            continue
+        if len(r["keyword"]) < 6:
+            warnings.append(f"SHORT keyword '{r['keyword']}'→{r['category']} — risk of false matches; lengthen or drop")
+        kept.append(r)
+    return kept, warnings
+
+
 def apply_rules(rules):
     with open(RULES_PATH) as f:
         existing = json.load(f)
@@ -153,7 +207,22 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--min-count", type=int, default=1, help="only merchants seen at least N times")
     ap.add_argument("--apply", action="store_true", help="append accepted rules to spending_rules.json")
+    ap.add_argument("--out", metavar="FILE", help="write the proposed rules to an editable JSON file")
+    ap.add_argument("--apply-file", metavar="FILE",
+                    help="skip the LLM; append hand-edited rules from FILE to spending_rules.json")
     args = ap.parse_args()
+
+    categories = [c for c in invoices.taxonomy() if c != UNCATEGORIZED]
+    existing_keywords = [r["keyword"] for r in json.load(open(RULES_PATH))]
+
+    # Apply-from-file path: read edited rules, re-validate, append. No LLM call.
+    if args.apply_file:
+        edited = json.load(open(args.apply_file))
+        rules = validate_and_dedup(edited, categories, existing_keywords)
+        n = apply_rules(rules)
+        print(f"Applied {len(rules)} rules from {args.apply_file} → spending_rules.json now has {n} rules.")
+        print("Next: python scripts/push_rules_to_drive.py  &&  python src/recategorize_ledger.py --apply  (then 'push').")
+        return
 
     unc_rows, merchants = load_uncategorized()
     merchants = [m for m in merchants if m["count"] >= args.min_count]
@@ -163,12 +232,10 @@ def main():
     if not merchants:
         return
 
-    categories = [c for c in invoices.taxonomy() if c != UNCATEGORIZED]
-    existing_keywords = [r["keyword"] for r in json.load(open(RULES_PATH))]
-
     import anthropic
     proposed = _propose_rules_llm(merchants, categories, anthropic.Anthropic())
-    rules = validate_and_dedup(proposed, categories, existing_keywords)
+    rules = _apply_overrides(validate_and_dedup(proposed, categories, existing_keywords))
+    rules, warnings = lint(rules)
     report, cov_rows, cov_amt, still = simulate(rules, unc_rows)
 
     print(f"\nProposed {len(rules)} new rules — would classify {cov_rows}/{len(unc_rows)} "
@@ -178,8 +245,25 @@ def main():
     for r in report:
         print(f"{r['keyword'][:31]:32} {r['category'][:25]:26} {r['rows']:>4} ${r['amount']:>10,.2f}")
 
+    if warnings:
+        conflicts = [w for w in warnings if w.startswith("CONFLICT")]
+        shorts = [w for w in warnings if w.startswith("SHORT")]
+        merged = [w for w in warnings if w.startswith("merged")]
+        print(f"\n⚠️  Review ({len(conflicts)} conflicts, {len(shorts)} short keywords, "
+              f"{len(merged)} auto-merged):")
+        for w in conflicts + shorts:
+            print(f"   {w}")
+        if merged:
+            print(f"   …and {len(merged)} redundant variants auto-merged.")
+
+    if args.out:
+        with open(args.out, "w") as f:
+            json.dump(rules, f, indent=2)
+        print(f"\nWrote {len(rules)} rules to {args.out}. Edit it (fix conflicts, drop risky "
+              f"keywords), then:\n   python scripts/suggest_rules.py --apply-file {args.out}")
+        return
     if not args.apply:
-        print("\nDRY RUN — nothing written. Re-run with --apply to add these to spending_rules.json.")
+        print("\nDRY RUN — nothing written. Use --out FILE to hand-edit, or --apply to add directly.")
         return
     n = apply_rules(rules)
     print(f"\nAppended {len(rules)} rules → spending_rules.json now has {n} rules.")

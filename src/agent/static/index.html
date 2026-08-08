@@ -377,6 +377,7 @@ async function loadDashboard() {
       <div class="value ${d.ytd.rental.net>=0?'pos':'neg'}">${fmt(d.ytd.rental.net)} <span style="font-size:12px;color:var(--muted)">· ${d.anomaly_count} ⚠</span></div></div>`;
 
   const labels = d.trends.net.map(p => p.period);
+  Chart.getChart('trendChart')?.destroy();   // reused on Refresh — clear the prior chart first
   new Chart($('trendChart'), { type: 'line', data: { labels,
     datasets: [
       { label: 'Income',  data: d.trends.income.map(p=>p.value),  borderColor: '#2c7a4b', tension: .3, pointRadius: 2 },
@@ -387,6 +388,7 @@ async function loadDashboard() {
                              x: { ticks: { font: { size: 10 } } } } } });
 
   $('monthTitle').textContent = d.month.label + ' — top expenses';
+  Chart.getChart('catChart')?.destroy();     // same: destroy before re-creating
   new Chart($('catChart'), { type: 'bar', data: {
     labels: d.month.top_expenses.map(g => g.group.replace('Rental - ', 'R·')),
     datasets: [{ data: d.month.top_expenses.map(g => g.expense), backgroundColor: '#c9644288', borderRadius: 4 }] },

@@ -92,6 +92,20 @@ def _build_html(summary: dict) -> str:
             + "".join(_line(d) for d in costco_splits) + "</ul></div>"
         )
 
+    rs = summary.get("rules_source") or {}
+    rules_note = ""
+    if rs:
+        ok = rs.get("ok")
+        bg, fg, icon = (("#eef6ee", "#2c5c3f", "✓") if ok else ("#fdecea", "#a2472e", "⚠️"))
+        extra = f" — Drive load failed: {rs['drive_error']}" if rs.get("drive_error") else ""
+        rules_note = (
+            f"<div style='margin-top:14px;padding:8px 12px;background:{bg};border-radius:4px;"
+            f"font-size:12.5px;color:{fg}'>{icon} Categorization rules: "
+            f"<b>{rs.get('count', 0)}</b> loaded from <b>{rs.get('source', '?')}</b>{extra}."
+            + ("" if ok else " New/updated rules may not be applied — push rules to Drive and "
+               "verify RULES_DRIVE_FILE_ID on Railway.") + "</div>"
+        )
+
     from datetime import timedelta
     next_sync = (date.today() + timedelta(days=1)).strftime("%Y-%m-%d")
 
@@ -125,6 +139,7 @@ def _build_html(summary: dict) -> str:
 {new_tx_section}
 {excluded_note}
 {costco_note}
+{rules_note}
 <details style='margin-top:20px'>
   <summary style='cursor:pointer;font-weight:bold;color:#1F3864'>All Transactions Fetched This Run ({len(all_transactions)})</summary>
   <table style='border-collapse:collapse;width:100%;font-size:12px;margin-top:8px'>

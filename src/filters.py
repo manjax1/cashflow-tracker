@@ -70,16 +70,17 @@ def categorize_retail_with_refunds(transaction: dict) -> dict | None:
     "Income - Retail Refunds" on the refund side.
     """
     RETAILER_CATEGORIES = {
-        "ROSS STORES":  "Shopping",
-        "UNIQLO":       "Shopping",
-        "MARSHALLS":    "Shopping",
-        "NORDSTROM":    "Shopping",
-        "NIKE":         "Shopping",
+        "ROSS STORES":  "Clothing",     # owner convention: off-price / apparel stores -> Clothing
+        "ROSS DRESS":   "Clothing",     # 'Ross Dress for Less' variant
+        "UNIQLO":       "Clothing",
+        "MARSHALLS":    "Clothing",
+        "NORDSTROM":    "Clothing",
+        "NIKE":         "Clothing",     # shoes; no separate Footwear category (tracked as Clothing)
         "COSTCO GAS":   "Transportation",
         "COSTCO WHSE":  "Other Credit Card Expenses",
         "COSTCO":       "Other Credit Card Expenses",
         "CHIPOTLE":     "Dining",
-        "TARGET":       "Other - Uncategorized",
+        "TARGET":       "Clothing",      # was Uncategorized — this is why Target rows were blank
     }
     name_upper = transaction.get("name", "").upper()
     purchase_category = next(

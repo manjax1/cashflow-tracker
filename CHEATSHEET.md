@@ -106,6 +106,10 @@ source .venv/bin/activate
 
 | Command | Purpose |
 |---|---|
+| `python scripts/suggest_rules.py` | Propose keyword→category rules from the uncategorized transactions (dry-run + coverage preview + lint warnings). |
+| `python scripts/suggest_rules.py --out rules.json` | Write proposals to an editable file; hand-fix, then `--apply-file rules.json`. |
+| `python scripts/suggest_rules.py --apply-file rules.json` | Append your reviewed rules to `spending_rules.json`. |
+| `python src/recategorize_ledger.py` / `--apply` | Re-apply all rules to existing rows (dry-run diff, then write). Second review gate. |
 | `python scripts/push_rules_to_drive.py` | Upload `spending_rules.json` to Drive (the sync loads it — no redeploy). |
 | `python scripts/compact_rules.py` | Generate minified `spending_rules.compact.json` (legacy `RULES_JSON` fallback). |
 | `python scripts/compact_rules.py --print` | Same, also print to stdout. |

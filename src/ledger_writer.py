@@ -975,7 +975,12 @@ def write_spending_ledger(filepath: str, new_transactions: list) -> dict:
     written_transactions: list = []
     for tx in sorted(new_transactions, key=lambda t: t.get("date", ""), reverse=True):
         key = _tx_dedup_key(tx)
-        if key in existing_keys:
+        # Also match on the date|desc|amount composite, not just the id. Plaid
+        # re-authentication issues NEW transaction_ids for the same real
+        # transactions; without the composite check they'd be re-added as
+        # duplicates on the next sync.
+        comp = f"{tx.get('date')}|{tx.get('name', '').strip().lower()}|{abs(tx.get('amount', 0)):.2f}"
+        if key in existing_keys or comp in existing_keys:
             skipped += 1
             continue
 
@@ -995,6 +1000,7 @@ def write_spending_ledger(filepath: str, new_transactions: list) -> dict:
                 c.number_format = CURRENCY_FMT
 
         existing_keys.add(key)
+        existing_keys.add(comp)   # guard against intra-batch composite duplicates too
         added += 1
         written_transactions.append({
             "date":          tx.get("date"),

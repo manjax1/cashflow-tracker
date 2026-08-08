@@ -94,6 +94,26 @@ def _income_transfer_leaks():
     return out
 
 
+# A large transaction never legitimately appears twice on the same day with the
+# same merchant + amount (payroll, rent, mortgage, wires are once-per-period).
+# Genuine same-signature repeats (subway taps, small utilities) are small, so a
+# dollar floor separates "duplicate" from "real repeat". This catches the Plaid
+# re-authentication doubling class of bug.
+DUP_AMOUNT_FLOOR = float(os.environ.get("DUP_AMOUNT_FLOOR", "200"))
+
+
+def _large_duplicate_signatures():
+    from collections import Counter
+    sigs = Counter()
+    for t in ledger.load_transactions():
+        amt = abs(float(t.get("Amount") or 0))
+        if amt < DUP_AMOUNT_FLOOR:
+            continue
+        sigs[(str(t.get("Date"))[:10], str(t.get("Description")).strip().lower(),
+              str(t.get("Account")), round(amt, 2), str(t.get("Type")))] += 1
+    return [(sig, n) for sig, n in sigs.items() if n > 1]
+
+
 def check_invariants():
     """Deterministic ledger-integrity assertions (no agent needed).
     Returns list of (name, passed, detail)."""
@@ -108,6 +128,18 @@ def check_invariants():
     else:
         detail = "no transfer/payment row counted as income"
     results.append(("no_transfer_counted_as_income", not leaks, detail))
+
+    dups = _large_duplicate_signatures()
+    if dups:
+        double_counted = round(sum((n - 1) * sig[3] for sig, n in dups), 2)
+        eg = max(dups, key=lambda x: x[0][3])
+        detail = (f"{len(dups)} large signature(s) appear 2+ times "
+                  f"(~${double_counted:,.0f} double-counted) — e.g. {eg[0][0]} "
+                  f"${eg[0][3]:,.2f} ×{eg[1]} {eg[0][1][:30]!r}. "
+                  f"Likely a re-auth/duplication; run scripts/dedup_ledger.py.")
+    else:
+        detail = f"no transaction >= ${DUP_AMOUNT_FLOOR:,.0f} is duplicated same-day"
+    results.append(("no_duplicate_large_transactions", not dups, detail))
     return results
 
 

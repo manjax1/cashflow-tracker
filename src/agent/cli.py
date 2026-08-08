@@ -196,8 +196,26 @@ def review_proposals():
             print("✘ Discarded. Nothing was modified or sent.")
 
 
-def push_ledger():
-    """Upload the local ledger to Google Drive (after local recategorizations)."""
+def _drive_ledger_stats(file_id):
+    """Latest date + txn count of the CURRENT Drive ledger, without touching the
+    local copy. Returns (latest_date, count) or None if it can't be read."""
+    import tempfile, openpyxl
+    from src.drive_sync import download_ledger
+    tmp = os.path.join(tempfile.gettempdir(), "_drive_ledger_check.xlsx")
+    download_ledger(file_id, tmp)
+    wb = openpyxl.load_workbook(tmp, read_only=True)
+    ws = wb["Transactions"]
+    dates = sorted(str(r[0])[:10] for r in ws.iter_rows(min_row=2, values_only=True) if r and r[0])
+    wb.close()
+    return (dates[-1], len(dates)) if dates else ("", 0)
+
+
+def push_ledger(force=False):
+    """Upload the local ledger to Google Drive (after local recategorizations).
+
+    Safety guard: before overwriting, compare against the current Drive copy. If
+    Drive has newer transactions (the daily sync ran since your last refresh),
+    refuse — pushing would clobber them. Use force to override deliberately."""
     file_id = os.environ.get("GOOGLE_DRIVE_FILE_ID")
     if not file_id:
         print("GOOGLE_DRIVE_FILE_ID not set; cannot push to Drive.")
@@ -205,9 +223,27 @@ def push_ledger():
     from src.drive_sync import upload_ledger
     txns = ledger.load_transactions()
     dates = sorted(t["Date"] for t in txns)
-    print(f"Pushing local ledger ({len(txns)} transactions, {dates[0]} .. {dates[-1]}) to Drive...")
+    local_max, local_n = dates[-1], len(txns)
+
+    if not force:
+        try:
+            drive_max, drive_n = _drive_ledger_stats(file_id)
+        except Exception as e:
+            print(f"⚠️  Couldn't read the Drive copy to compare ({e}). Aborting to be safe; "
+                  f"use 'push force' only if you're certain.")
+            return
+        if drive_max > local_max or drive_n > local_n:
+            print("⛔ Drive has NEWER data than your local copy — push aborted to avoid clobbering it:")
+            print(f"     Drive : {drive_n} txns, latest {drive_max}")
+            print(f"     Local : {local_n} txns, latest {local_max}")
+            print("   Run 'refresh' to pull the newer data, re-apply your changes, then push.")
+            print("   (To overwrite intentionally, use 'push force'.)")
+            return
+
+    print(f"Pushing local ledger ({local_n} transactions, {dates[0]} .. {local_max}) to Drive...")
     upload_ledger(file_id, ledger.LEDGER_PATH)
-    tools.audit("ledger_pushed_to_drive", {"transactions": len(txns), "latest": dates[-1]})
+    tools.audit("ledger_pushed_to_drive", {"transactions": local_n, "latest": local_max})
+    print(f"✅ Uploaded ledger to Drive ← {ledger.LEDGER_PATH}")
 
 
 def main():
@@ -258,11 +294,14 @@ def main():
             except Exception as e:
                 print(f"refresh failed: {type(e).__name__}: {e}")
             continue
-        if q.lower() == "push":
-            confirm = input("Push local ledger to Drive, overwriting the cloud copy? [y/N] ").strip().lower()
+        if q.lower() in ("push", "push force", "push!"):
+            force = q.lower() in ("push force", "push!")
+            prompt = ("FORCE push (overwrite Drive even if it's newer)? [y/N] " if force
+                      else "Push local ledger to Drive (guarded — aborts if Drive is newer)? [y/N] ")
+            confirm = input(prompt).strip().lower()
             if confirm == "y":
                 try:
-                    push_ledger()
+                    push_ledger(force=force)
                 except Exception as e:
                     print(f"push failed: {type(e).__name__}: {e}")
             else:

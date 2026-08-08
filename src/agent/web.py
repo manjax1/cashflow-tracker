@@ -465,6 +465,30 @@ def _is_admin():
     return _authed() and (not ADMIN_USERS or session.get("user") in ADMIN_USERS)
 
 
+@app.post("/api/refresh_ledger")
+def refresh_ledger():
+    """Force a fresh pull of the ledger from Drive (the Master), bypassing the
+    staleness cache. Returns the new coverage so the UI can confirm."""
+    if not _authed():
+        return jsonify({"error": "unauthorized"}), 401
+    file_id = os.environ.get("GOOGLE_DRIVE_FILE_ID")
+    if not file_id:
+        return jsonify({"error": "Drive not configured"}), 400
+    global _ledger_fetched_at
+    try:
+        from src.drive_sync import download_ledger
+        download_ledger(file_id, ledger.LEDGER_PATH)
+        ledger._cache["mtime"] = None
+        ledger._splits_cache["mtime"] = None
+        _ledger_fetched_at = time.time()
+    except Exception as e:
+        return jsonify({"error": f"{type(e).__name__}: {e}"}), 500
+    txns = ledger.load_transactions()
+    dates = sorted(t["Date"] for t in txns) if txns else [""]
+    return jsonify({"status": "refreshed", "count": len(txns),
+                    "start": dates[0], "end": dates[-1]})
+
+
 @app.get("/api/whoami")
 def whoami():
     return jsonify({"user": session.get("user"), "admin": _is_admin()})

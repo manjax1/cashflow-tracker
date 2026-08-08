@@ -21,6 +21,10 @@ from drive_sync import download_ledger, upload_ledger, get_drive_service
 
 RULES_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "spending_rules.json")
 
+# Records where the daily sync loaded its categorization rules from — surfaced in
+# the sync email so a silent fallback to a stale RULES_JSON is immediately visible.
+_RULES_SOURCE = {"source": "unknown", "count": 0, "ok": False}
+
 
 def _resolve_ledger_path() -> tuple[str, bool]:
     return resolve_ledger_path()
@@ -42,15 +46,18 @@ def _load_rules_with_fallback() -> list:
             download_ledger(rules_drive_id, RULES_PATH)   # generic Drive file download
             rules = load_rules(RULES_PATH)
             print(f"✅ Loaded {len(rules)} rules from Drive")
+            _RULES_SOURCE.update(source="Drive", count=len(rules), ok=True)
             return rules
         except Exception as e:
             print(f"⚠️  Drive rules load failed: {e} — falling back")
+            _RULES_SOURCE["drive_error"] = str(e)
 
     rules_json_env = clean_env(os.getenv("RULES_JSON"), "RULES_JSON")
     if rules_json_env:
         try:
             rules = json.loads(rules_json_env)
             print(f"✅ Loaded {len(rules)} rules from RULES_JSON env var")
+            _RULES_SOURCE.update(source="RULES_JSON env var (STALE fallback)", count=len(rules), ok=False)
             from filters import load_rules as _sort_rules
             return sorted(rules, key=lambda r: len(r["keyword"]), reverse=True)
         except Exception as e:
@@ -60,9 +67,11 @@ def _load_rules_with_fallback() -> list:
         from filters import load_rules
         rules = load_rules(RULES_PATH)
         print(f"✅ Loaded {len(rules)} rules from {RULES_PATH}")
+        _RULES_SOURCE.update(source="local file", count=len(rules), ok=not bool(os.getenv("RAILWAY_ENVIRONMENT")))
         return rules
 
     print("⚠️  No spending_rules.json and no RULES_JSON env var — using Plaid categories only.")
+    _RULES_SOURCE.update(source="none", count=0, ok=False)
     return []
 
 
@@ -232,6 +241,7 @@ def run_sync(from_date: date = None, to_date: date = None) -> dict:
         "excluded_rental_count": excluded_rental_count,
         "ledger_path": ledger_path,
         "plaid_env": plaid_env,
+        "rules_source": dict(_RULES_SOURCE),
     }
 
     # ── Adriana rental file processing ───────────────────────────────────

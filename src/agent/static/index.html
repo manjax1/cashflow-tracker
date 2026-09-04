@@ -181,6 +181,8 @@
   #uresult .ok { color: #2c7a4b; } #uresult .warn { color: var(--muted); }
   #uresult .brk { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 5px; }
   #uresult .chip { background: var(--accent-soft); border-radius: 16px; padding: 2px 9px; font-size: 12px; }
+  #uresult .datewarn { margin-top: 8px; padding: 8px 10px; border-radius: 8px; font-size: 13px;
+    color: #8a4b00; background: #fff4e5; border: 1px solid #f0c67d; }
   #pending-list { margin-top: 14px; }
   #pending-list .ph { font-size: 12px; font-weight: 650; color: var(--muted); margin-bottom: 6px; }
   #pending-list .pi { display: flex; align-items: center; justify-content: space-between;
@@ -793,6 +795,9 @@ async function uploadReceipt() {
       $('uresult').innerHTML = `<span class="warn">This charge is already split — nothing to do.</span>`;
     } else {
       $('uresult').innerHTML = `<span class="warn">${res.note || res.status}</span>`;
+    }
+    if (d.date_warning) {
+      $('uresult').innerHTML += `<div class="datewarn">⚠️ ${d.date_warning}</div>`;
     }
     inp.value = '';
     loadPending();                       // refresh the queue (a new one may have been added)

@@ -629,8 +629,15 @@ def upload_receipt():
         except Exception as e:
             audit("upload_split_error", {"error": str(e)})
             return jsonify({"error": f"{type(e).__name__}: {e}"}), 500
+    date_warning = None
+    if receipt.get("_date_suspect"):
+        date_warning = (f"Double-check the date — I read this receipt as {receipt['date']}, "
+                        "which looks off (future-dated or over a year old). If that's wrong, "
+                        "fix it before the charge posts so it reconciles.")
     return jsonify({"receipt": {"date": receipt["date"], "total": receipt["total"],
-                               "type": receipt["type"], "items": len(receipt.get("items", []))},
+                               "type": receipt["type"], "items": len(receipt.get("items", [])),
+                               "date_suspect": bool(receipt.get("_date_suspect"))},
+                    "date_warning": date_warning,
                     "result": result})
 
 

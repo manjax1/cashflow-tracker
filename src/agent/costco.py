@@ -87,7 +87,14 @@ COSTCO_VISION_TOOL = {
     "input_schema": {
         "type": "object",
         "properties": {
-            "date": {"type": "string", "description": "purchase date, YYYY-MM-DD"},
+            "date": {"type": "string", "description": "purchase date in YYYY-MM-DD, read from the "
+                     "transaction line at the very BOTTOM of the receipt (format 'MM/DD/YYYY HH:MM' "
+                     "next to the register/sequence numbers and barcode). Do NOT use the 'Date of "
+                     "Birth' line — that is an age check for alcohol/tobacco and is usually masked "
+                     "(xx/xx/xx)."},
+            "date_footer": {"type": "string", "description": "the exact raw bottom transaction line "
+                            "as printed, e.g. '09/04/2026 12:53 423 11 226 18'. Copy the digits "
+                            "verbatim even if faint; this is the authoritative purchase date."},
             "total": {"type": "number", "description": "grand total; NEGATIVE if the receipt is a refund/return"},
             "card_last4": {"type": "string", "description": "last 4 digits of the tender card, if shown"},
             "type": {"type": "string", "enum": ["warehouse", "gas", "return"]},
@@ -208,16 +215,21 @@ def _extract_via_vision(path, client):
         "Read it carefully and call record_receipt_full with the header fields and "
         "EVERY line item. Notes: 'total' is the grand total (make it NEGATIVE only if "
         "the whole receipt is a refund); a line ending in '-' (e.g. '6.00-') is a return/"
-        "credit, so its net_price is negative; decode Costco abbreviations to readable names.\n\n"
+        "credit, so its net_price is negative; decode Costco abbreviations to readable names.\n"
+        "DATE: the purchase date is ONLY on the transaction line at the very bottom of the "
+        "receipt ('MM/DD/YYYY HH:MM' beside the register/sequence numbers and barcode). Copy "
+        "that whole line verbatim into 'date_footer' and set 'date' from it. Never take the "
+        "date from the 'Date of Birth' line (an age check, usually masked xx/xx/xx).\n\n"
         "Taxonomy categories (use EXACT names):\n" + "\n".join(f"- {c}" for c in cats))
     resp = client.messages.create(
         model=invoices.MODEL, max_tokens=4000, system=COSTCO_SYSTEM,
         tools=[COSTCO_VISION_TOOL], tool_choice={"type": "tool", "name": "record_receipt_full"},
         messages=[{"role": "user", "content": [source_block, {"type": "text", "text": prompt}]}])
     v = next(b.input for b in resp.content if b.type == "tool_use")
-    return {
+    receipt = {
         "source_file": os.path.basename(path),
         "date": v.get("date"),
+        "date_footer": v.get("date_footer"),
         "total": v.get("total"),
         "card_last4": v.get("card_last4"),
         "type": v.get("type") or "warehouse",
@@ -226,6 +238,41 @@ def _extract_via_vision(path, client):
         "_extracted_at": datetime.now().isoformat(timespec="seconds"),
         "_via": "vision",
     }
+    return _finalize_date(receipt)
+
+
+# Costco's real purchase date is the bottom transaction line 'MM/DD/YYYY HH:MM';
+# the 'Date of Birth' line (age check) is a decoy the model can latch onto. When
+# the model returns that raw footer, re-derive the date deterministically from it
+# so a single misread digit (e.g. day 04 -> 08, year 2026 -> 2023) can't slip in.
+_DATE_FOOTER_RE = re.compile(r"(\d{1,2})/(\d{1,2})/(\d{2,4})")
+
+
+def _finalize_date(receipt):
+    footer = receipt.get("date_footer") or ""
+    m = _DATE_FOOTER_RE.search(footer)
+    if m:
+        mm, dd, yy = (int(g) for g in m.groups())
+        if yy < 100:
+            yy += 2000
+        try:
+            iso = datetime(yy, mm, dd).strftime("%Y-%m-%d")
+            receipt["date"] = iso
+        except ValueError:
+            pass  # unparseable footer -> keep the model's own date
+    # Plausibility flag: a warehouse receipt uploaded now should be recent and not
+    # future-dated. Flag (don't silently trust) anything wildly off, so the upload
+    # response / queue can surface it rather than misfiling by 3 years.
+    d = receipt.get("date")
+    if d:
+        try:
+            dt = datetime.strptime(d, "%Y-%m-%d")
+            now = datetime.now()
+            if dt > now + timedelta(days=2) or dt < now - timedelta(days=400):
+                receipt["_date_suspect"] = True
+        except ValueError:
+            receipt["_date_suspect"] = True
+    return receipt
 
 
 def extract_receipt(path, client):

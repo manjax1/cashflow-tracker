@@ -310,6 +310,20 @@ def chat():
     from . import tools as _tools
     _tools.PENDING.clear()   # web approval is per-response; don't accumulate globally
     proposals = _extract_proposals(agent.last_tool_calls) if _is_admin() else []
+    # Persist this turn's proposals to the durable PendingProposals queue on Drive
+    # so they survive later turns/redeploys and show in the Pending Approvals panel.
+    if proposals:
+        from . import proposals as _props
+        with _upload_lock:
+            try:
+                ensure_ledger()
+                n = _props.queue_proposals(proposals, ledger.LEDGER_PATH,
+                                           user=session.get("user", ""))
+                if n and os.environ.get("GOOGLE_DRIVE_FILE_ID"):
+                    from src.drive_sync import upload_ledger
+                    upload_ledger(os.environ["GOOGLE_DRIVE_FILE_ID"], ledger.LEDGER_PATH)
+            except Exception as e:
+                audit("proposals_persist_error", {"error": str(e)})
     _log_chat(session.get("user", session["sid"]), message, answer,
               agent.last_tool_calls, agent.stats)
     return jsonify({"proposals": proposals,
@@ -533,6 +547,19 @@ def _extract_proposals(tool_calls):
     return out
 
 
+@app.get("/api/pending_proposals")
+def pending_proposals():
+    """Admin-only: the durable Pending Approvals queue — recategorization
+    proposals from any past chat turn that haven't been approved or discarded."""
+    if not _is_admin():
+        return jsonify({"error": "admin only"}), 403
+    from . import proposals as _props
+    with _upload_lock:
+        ensure_ledger()                                # fresh queue from Drive
+        items = _props.list_proposals(ledger.LEDGER_PATH)
+    return jsonify({"proposals": items})
+
+
 @app.post("/api/apply_recategorization")
 def apply_recategorization():
     """Admin-only: execute an approved recategorization and sync to Drive.
@@ -545,12 +572,15 @@ def apply_recategorization():
     if not ref or not new_cat:
         return jsonify({"error": "source_ref and new_category required"}), 400
     from . import tools as _tools
+    from . import proposals as _props
     with _upload_lock:
         try:
             ensure_ledger()
             result = _tools.execute_recategorize(
                 {"source_ref": ref, "new_category": new_cat,
                  "reason": body.get("reason", "web admin recategorization")})
+            if "not found" not in result:
+                _props.remove_proposals(ledger.LEDGER_PATH, [ref])   # clear from queue
             if "not found" not in result and os.environ.get("GOOGLE_DRIVE_FILE_ID"):
                 from src.drive_sync import upload_ledger
                 upload_ledger(os.environ["GOOGLE_DRIVE_FILE_ID"], ledger.LEDGER_PATH)
@@ -560,6 +590,30 @@ def apply_recategorization():
     audit("web_recategorize_applied",
           {"user": session.get("user"), "source_ref": ref, "new_category": new_cat})
     return jsonify({"status": "applied", "result": result})
+
+
+@app.post("/api/discard_proposal")
+def discard_proposal():
+    """Admin-only: remove a proposal from the Pending Approvals queue WITHOUT
+    modifying the ledger. Body: {source_ref}."""
+    if not _is_admin():
+        return jsonify({"error": "admin only"}), 403
+    ref = (request.json or {}).get("source_ref")
+    if not ref:
+        return jsonify({"error": "source_ref required"}), 400
+    from . import proposals as _props
+    with _upload_lock:
+        try:
+            ensure_ledger()
+            removed = _props.remove_proposals(ledger.LEDGER_PATH, [ref])
+            if removed and os.environ.get("GOOGLE_DRIVE_FILE_ID"):
+                from src.drive_sync import upload_ledger
+                upload_ledger(os.environ["GOOGLE_DRIVE_FILE_ID"], ledger.LEDGER_PATH)
+        except Exception as e:
+            audit("web_discard_proposal_error", {"error": str(e)})
+            return jsonify({"error": f"{type(e).__name__}: {e}"}), 500
+    audit("web_proposal_discarded", {"user": session.get("user"), "source_ref": ref})
+    return jsonify({"status": "discarded", "removed": removed})
 
 
 @app.get("/api/chat_log")

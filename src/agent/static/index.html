@@ -80,6 +80,16 @@
   .tools { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
   .tool-chip { font-size: 11.5px; color: var(--muted); background: var(--accent-soft);
                border-radius: 20px; padding: 2px 10px; }
+  /* Pending Approvals panel */
+  #approvals { margin: 14px 0 4px; border: 1px solid #f0c67d; background: #fffaf2;
+    border-radius: 14px; padding: 14px 16px; }
+  .appr-hd { font-size: 15px; font-weight: 700; color: #8a4b00; display: flex; align-items: center; gap: 8px; }
+  .appr-hd #appr-count { font-weight: 600; color: var(--muted); font-size: 13px; }
+  .appr-refresh { margin-left: auto; border: none; background: transparent; cursor: pointer;
+    font-size: 15px; color: #8a4b00; }
+  .appr-sub { font-size: 12.5px; color: var(--muted); margin: 3px 0 10px; }
+  .nav-badge { display: inline-block; margin-left: 5px; background: var(--accent); color: #fff;
+    border-radius: 10px; padding: 0 6px; font-size: 11px; font-weight: 700; min-width: 16px; }
   /* admin recategorization proposals */
   .proposals { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
   .prop-hd { font-size: 12.5px; font-weight: 650; color: var(--accent); }
@@ -234,6 +244,7 @@
       <button onclick="jumpTo('dash')">Dashboard</button>
       <button onclick="jumpTo('search')">Search</button>
       <button onclick="jumpTo('chat')">Ask</button>
+      <button class="admin-only" id="nav-approvals" onclick="jumpTo('approvals')" style="display:none">✅ Approvals<span id="approvals-badge" class="nav-badge" style="display:none">0</span></button>
       <button class="admin-only" onclick="openDrawer('upload')" style="display:none">🧾 Upload</button>
       <button class="admin-only" onclick="openDrawer('log')" style="display:none">📜 Log</button>
       <button id="btn-refresh" onclick="refreshLedger()" title="Pull the latest ledger from Drive">⟳ Refresh</button>
@@ -285,6 +296,13 @@
     </div>
     <div id="results"></div>
   </div>
+
+  <section id="approvals" style="display:none">
+    <div class="appr-hd">✅ Pending Approvals <span id="appr-count"></span>
+      <button class="appr-refresh" onclick="loadApprovals()" title="Refresh the queue">⟳</button></div>
+    <div class="appr-sub">Recategorizations the agent proposed and is waiting on you — from any past message. Nothing changes until you Apply.</div>
+    <div id="approvals-list"></div>
+  </section>
 
   <div class="suggest" id="suggest"></div>
   <div id="chat"></div>
@@ -517,6 +535,7 @@ async function send(preset) {
     thinking.innerHTML = (chips ? `<div class="tools">${chips}</div>` : '') +
       `<div class="content">${render(d.answer)}</div>`;
     if (d.proposals && d.proposals.length) renderProposals(thinking, d.proposals);
+    loadApprovals();                       // the durable panel reflects new proposals too
   } catch (e) {
     thinking.innerHTML = `<div class="content">⚠ ${e.message}</div>`;
   }
@@ -857,6 +876,76 @@ async function loadChatLog() {
       <td>${render(e.q || '')}</td></tr>`).join('') + '</table>';
 }
 
+let _isAdmin = false;
+async function loadApprovals() {
+  if (!_isAdmin) return;
+  let items = [];
+  try {
+    const r = await fetch('/api/pending_proposals');
+    if (!r.ok) return;
+    items = (await r.json()).proposals || [];
+  } catch (e) { return; }
+  const sec = $('approvals'), list = $('approvals-list');
+  const badge = $('approvals-badge'), navBtn = $('nav-approvals');
+  $('appr-count').textContent = items.length ? `(${items.length})` : '';
+  if (badge) { badge.textContent = items.length; badge.style.display = items.length ? 'inline-block' : 'none'; }
+  if (navBtn) navBtn.style.display = items.length ? 'inline-block' : 'none';
+  if (!items.length) { sec.style.display = 'none'; list.innerHTML = ''; return; }
+  sec.style.display = 'block';
+  list.innerHTML = '';
+  const box = document.createElement('div');
+  box.className = 'proposals';
+  items.forEach(pr => {
+    const card = document.createElement('div');
+    card.className = 'prop';
+    card.innerHTML = `
+      <div class="prop-tx">${pr.date} · ${fmt(pr.amount)} · ${pr.description}</div>
+      <div class="prop-move"><span class="old">${pr.old_category}</span> → <select class="prop-cat">${_catOptions(pr.new_category)}<option value="__new__">＋ New category…</option></select><input class="prop-newcat" type="text" placeholder="New category name" style="display:none"></div>
+      <div class="prop-act"><button class="ok">Apply</button><button class="no">Discard</button></div>`;
+    const sel = card.querySelector('.prop-cat');
+    const newInput = card.querySelector('.prop-newcat');
+    sel.onchange = () => {
+      const isNew = sel.value === '__new__';
+      newInput.style.display = isNew ? 'inline-block' : 'none';
+      if (isNew) newInput.focus();
+    };
+    const [okB, noB] = card.querySelectorAll('button');
+    okB.onclick = async () => {
+      const chosen = sel.value === '__new__' ? newInput.value.trim() : sel.value;
+      if (!chosen) { newInput.focus(); return; }
+      okB.disabled = noB.disabled = sel.disabled = newInput.disabled = true; okB.textContent = 'applying…';
+      try {
+        const r = await fetch('/api/apply_recategorization', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ source_ref: pr.source_ref, new_category: chosen, reason: pr.reason }) });
+        const d = await r.json();
+        if (d.error) throw new Error(d.error);
+        card.querySelector('.prop-act').innerHTML = `<span class="applied">✔ applied &amp; synced → ${chosen}</span>`;
+        setTimeout(loadApprovals, 900);            // refresh the queue (drops this row)
+      } catch (e) {
+        card.querySelector('.prop-act').innerHTML = `<span class="failed">⚠ ${e.message}</span>`;
+        okB.disabled = noB.disabled = sel.disabled = newInput.disabled = false; okB.textContent = 'Apply';
+      }
+    };
+    noB.onclick = async () => {
+      okB.disabled = noB.disabled = true; noB.textContent = 'discarding…';
+      try {
+        const r = await fetch('/api/discard_proposal', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ source_ref: pr.source_ref }) });
+        const d = await r.json();
+        if (d.error) throw new Error(d.error);
+        card.querySelector('.prop-act').innerHTML = '<span class="dismissed">discarded</span>';
+        setTimeout(loadApprovals, 700);
+      } catch (e) {
+        card.querySelector('.prop-act').innerHTML = `<span class="failed">⚠ ${e.message}</span>`;
+      }
+    };
+    box.appendChild(card);
+  });
+  list.appendChild(box);
+}
+
 function jumpTo(id) {
   if (id === 'chat') { $('q').focus(); window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }); return; }
   $(id).scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -880,7 +969,11 @@ window.addEventListener('scroll', () => {
 async function initAdmin() {
   try {
     const r = await fetch('/api/whoami'); const d = await r.json();
-    if (d.admin) document.querySelectorAll('.admin-only').forEach(b => b.style.display = 'inline-block');
+    if (d.admin) {
+      _isAdmin = true;
+      document.querySelectorAll('.admin-only').forEach(b => b.style.display = 'inline-block');
+      loadApprovals();                     // surface any queue left from earlier sessions
+    }
   } catch (e) {}
 }
 

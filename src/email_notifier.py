@@ -11,6 +11,67 @@ from email.mime.multipart import MIMEMultipart
 from utils import clean_env
 
 
+def _ym_label(ym: str) -> str:
+    try:
+        from datetime import datetime as _dt
+        return _dt.strptime(ym + "-01", "%Y-%m-%d").strftime("%B %Y")
+    except Exception:
+        return ym
+
+
+def _adriana_section(report: dict, force: bool = False) -> str:
+    """Prominent Adriana rental-import block. Red when anything needs attention
+    (errored/unmatched files, or a missing month); otherwise a compact green
+    confirmation of what imported. Returns '' when there's nothing to say and
+    not forced."""
+    report = report or {}
+    errors = report.get("errors", [])
+    unmatched = report.get("unmatched", [])
+    missing = report.get("missing_months", [])
+    imported = report.get("imported", [])
+    sanity = report.get("sanity", [])
+    has_problem = bool(errors or unmatched or missing)
+    if not (has_problem or imported or force):
+        return ""
+
+    def _li(items):
+        return "".join(f"<li style='margin:3px 0'>{x}</li>" for x in items)
+
+    if has_problem:
+        blocks = []
+        if errors:
+            blocks.append("<div style='margin-top:8px'><b>Files that errored:</b><ul style='margin:4px 0 0 0;padding-left:20px'>"
+                          + _li(f"<code>{e['name']}</code> — {e['error']}" for e in errors) + "</ul></div>")
+        if unmatched:
+            blocks.append("<div style='margin-top:8px'><b>Files in the folder that were skipped:</b><ul style='margin:4px 0 0 0;padding-left:20px'>"
+                          + _li(f"<code>{u['name']}</code> — {u['reason']}" for u in unmatched) + "</ul></div>")
+        if missing:
+            blocks.append("<div style='margin-top:8px'><b>Missing month(s):</b><ul style='margin:4px 0 0 0;padding-left:20px'>"
+                          + _li(f"No file found for <b>{_ym_label(m)}</b> (expected last month's ledger)." for m in missing) + "</ul></div>")
+        if imported:
+            blocks.append("<div style='margin-top:8px;color:#2c5c3f'><b>Imported this run:</b><ul style='margin:4px 0 0 0;padding-left:20px'>"
+                          + _li(f"{i['label']}: {i['added']} new rows, ${i['total']:,.2f}" for i in imported) + "</ul></div>")
+        return ("<div style='margin:16px 0;padding:14px 16px;background:#fdecea;"
+                "border:2px solid #a2472e;border-radius:8px;color:#7a2e1a;font-size:13.5px'>"
+                "<div style='font-size:15px;font-weight:700;color:#a2472e'>⚠️ Adriana rental import needs attention</div>"
+                + "".join(blocks) + "</div>")
+
+    # Success-only summary
+    rows = []
+    for i in imported:
+        rows.append(f"<li style='margin:3px 0'>{i['label']}: <b>{i['added']}</b> new rows, "
+                    f"${i['total']:,.2f} (skipped {i['skipped']})</li>")
+    warn = [f"<div style='margin-top:6px;color:#8a6d00'>⚠️ {_ym_label(s['ym'])} total "
+            f"${s['total']:,.2f} is {s['pct']:+.0f}% vs {_ym_label(s['prior_ym'])} "
+            f"${s['prior_total']:,.2f} — worth a look.</div>"
+            for s in sanity if s.get("flag")]
+    return ("<div style='margin:16px 0;padding:12px 14px;background:#eef6ee;"
+            "border-left:4px solid #2E7D32;border-radius:4px;font-size:13px;color:#2c5c3f'>"
+            "<b>📋 Adriana rental import</b>"
+            "<ul style='margin:6px 0 0 0;padding-left:20px'>" + "".join(rows) + "</ul>"
+            + "".join(warn) + "</div>")
+
+
 def _build_html(summary: dict) -> str:
     run_date = summary.get("date", str(date.today()))
     total_spend = summary.get("total_spend", 0.0)
@@ -112,6 +173,7 @@ def _build_html(summary: dict) -> str:
     return f"""
 <html><body style='font-family:Arial,sans-serif;max-width:700px;margin:auto'>
 <h2 style='color:#1F3864'>Cashflow Tracker — {run_date}</h2>
+{_adriana_section(summary.get("adriana"))}
 <table style='border-collapse:collapse;margin-bottom:16px'>
   <tr>
     <td style='padding:10px 20px;background:#f0f4fa;border-radius:6px;text-align:center'>
@@ -201,42 +263,64 @@ def send_via_sendgrid(recipient: str, subject: str, html_body: str, api_key: str
     return True
 
 
-def send_sync_summary(summary: dict, attachments: list[dict] | None = None):
+def _send_email(subject: str, html_body: str, attachments: list[dict] | None = None) -> bool:
+    """Send one email through the provider fallback chain (Resend → Gmail →
+    SendGrid). Returns True on the first success. Shared by the daily summary
+    and the standalone Adriana alert."""
     recipient = clean_env(os.getenv("EMAIL_RECIPIENT"), "EMAIL_RECIPIENT")
     sender = clean_env(os.getenv("EMAIL_SENDER", "onboarding@resend.dev"), "EMAIL_SENDER")
     resend_key = clean_env(os.getenv("RESEND_API_KEY"), "RESEND_API_KEY")
     sendgrid_key = clean_env(os.getenv("SENDGRID_API_KEY"), "SENDGRID_API_KEY")
     gmail_pass = clean_env(os.getenv("EMAIL_PASS"), "EMAIL_PASS")
 
-    run_date = summary.get("date", str(date.today()))
-    added = summary.get("added", 0)
-    tx_word = "transaction" if added == 1 else "transactions"
-    subject = f"Cashflow Tracker — {run_date} | {added} new {tx_word}"
-    html_body = _build_html(summary)
-
     try:
         if resend_key:
             send_via_resend(recipient, subject, html_body, resend_key,
                             "Cashflow Tracker <onboarding@resend.dev>", attachments)
             print("✅ Email sent via Resend")
-            return
+            return True
     except Exception as e:
         print(f"⚠️  Resend failed: {e}")
-
     try:
         if gmail_pass:
             send_via_gmail(recipient, subject, html_body, sender, gmail_pass)
             print("✅ Email sent via Gmail SMTP")
-            return
+            return True
     except Exception as e:
         print(f"⚠️  Gmail SMTP failed (expected on Railway): {e}")
-
     try:
         if sendgrid_key:
             send_via_sendgrid(recipient, subject, html_body, sendgrid_key, sender)
             print("✅ Email sent via SendGrid")
-            return
+            return True
     except Exception as e:
         print(f"⚠️  SendGrid failed: {e}")
+    print("⚠️  All email providers failed — no notification sent.")
+    return False
 
-    print("⚠️  All email providers failed — sync completed but no notification sent.")
+
+def send_adriana_alert(report: dict, run_date: str) -> bool:
+    """Standalone, immediate alert sent the moment Adriana processing hits a
+    problem (errored file, unmatched file in the folder, or a missing month) —
+    so it isn't buried in or dependent on the full daily summary."""
+    n = (len(report.get("errors", [])) + len(report.get("unmatched", []))
+         + len(report.get("missing_months", [])))
+    subject = (f"⚠️ Adriana rental import needs attention — {run_date} "
+               f"({n} issue{'s' if n != 1 else ''})")
+    html = (f"<html><body style='font-family:Arial,sans-serif;max-width:640px;margin:auto'>"
+            f"<h2 style='color:#a2472e'>Adriana rental import — action needed</h2>"
+            f"<p style='font-size:13px;color:#555'>Detected during the {run_date} sync. "
+            f"The daily summary email will also include this.</p>"
+            f"{_adriana_section(report, force=True)}</body></html>")
+    return _send_email(subject, html)
+
+
+def send_sync_summary(summary: dict, attachments: list[dict] | None = None):
+    run_date = summary.get("date", str(date.today()))
+    added = summary.get("added", 0)
+    tx_word = "transaction" if added == 1 else "transactions"
+    ad = summary.get("adriana") or {}
+    flag = ("  ⚠️ Adriana" if (ad.get("errors") or ad.get("unmatched")
+                               or ad.get("missing_months")) else "")
+    subject = f"Cashflow Tracker — {run_date} | {added} new {tx_word}{flag}"
+    _send_email(subject, _build_html(summary), attachments)

@@ -24,6 +24,40 @@ _MONTHS = {m: i for i, m in enumerate(
      "july", "august", "september", "october", "november", "december"], 1
 )}
 
+# Full names + common abbreviations, so "Aug", "Sept", "Sep" all resolve.
+_MONTH_ALIASES = dict(_MONTHS)
+_MONTH_ALIASES.update({
+    "jan": 1, "feb": 2, "mar": 3, "apr": 4, "jun": 6, "jul": 7,
+    "aug": 8, "sep": 9, "sept": 9, "oct": 10, "nov": 11, "dec": 12,
+})
+
+# month+year in a filename, tolerant of separators: "August 2026", "Aug-2026",
+# "Aug_2026", "Aug.2026".  (Numeric forms handled separately below.)
+_ALPHA_YM = re.compile(r"([A-Za-z]{3,9})[ _.\-]+(\d{4})")
+_NUM_YM_A = re.compile(r"\b(20\d{2})[ _.\-/](\d{1,2})\b")     # 2026-08
+_NUM_YM_B = re.compile(r"\b(\d{1,2})[ _.\-/](20\d{2})\b")     # 08-2026
+
+
+def parse_month_year(name: str):
+    """Extract (year, month) from an Adriana filename, tolerant of abbreviated
+    months and numeric formats. Returns (year, month) or None. Single source of
+    truth for both the daily-sync discovery and the diagnostic script."""
+    if not name:
+        return None
+    stem = re.sub(r"\.(xlsx|xls|csv|txt)$", "", name, flags=re.IGNORECASE)
+    m = _ALPHA_YM.search(stem)
+    if m:
+        mon = _MONTH_ALIASES.get(m.group(1).lower())
+        if mon:
+            return int(m.group(2)), mon
+    m = _NUM_YM_A.search(stem)
+    if m and 1 <= int(m.group(2)) <= 12:
+        return int(m.group(1)), int(m.group(2))
+    m = _NUM_YM_B.search(stem)
+    if m and 1 <= int(m.group(1)) <= 12:
+        return int(m.group(2)), int(m.group(1))
+    return None
+
 _EXCEL_EPOCH = datetime(1899, 12, 30)
 
 _SKIP_PAYEES = {"beginning balance", "ending balance", "reserves"}
@@ -71,37 +105,59 @@ def _dedup_key(year_month: str, property_short: str, date_str: str, amount: floa
     return f"adriana:{year_month}:{property_short}:{date_str}:{amount:.2f}"
 
 
-def list_unprocessed_adriana_files(service, wb) -> list[dict]:
-    pattern = re.compile(
-        r"Adriana Managed Properties Ledger\s*-\s*(\w+)\s+(\d{4})",
-        re.IGNORECASE,
-    )
+_NATIVE_SHEET = "application/vnd.google-apps.spreadsheet"
+
+
+def discover_adriana_files(service, wb) -> dict:
+    """Scan the Adriana folder and classify EVERY file, so nothing is dropped
+    silently. Returns:
+      {
+        "to_process":  [file_meta, …],   # recognized, downloadable, not yet done
+        "unmatched":   [{"name", "reason"}, …],  # in folder but can't be used
+        "present_months": {"2026-08", …},        # months detectable from filenames
+        "processed_months": {"2026-07", …},      # months already marked done
+      }
+    A file is 'unmatched' if its name yields no month+year, or it's a native
+    Google Sheet (the parser only reads uploaded .xlsx/.csv)."""
     resp = service.files().list(
         q=f"'{ADRIANA_FOLDER_ID}' in parents and trashed = false",
         fields="files(id, name, mimeType)",
     ).execute()
 
-    result = []
+    to_process, unmatched, present_months = [], [], set()
     for f in resp.get("files", []):
-        m = pattern.search(f["name"])
-        if not m:
+        name, mime = f["name"], f.get("mimeType", "")
+        ym_pair = parse_month_year(name)
+        if not ym_pair:
+            unmatched.append({"name": name,
+                              "reason": "filename has no recognizable month+year"})
             continue
-        month_num = _MONTHS.get(m.group(1).lower())
-        if not month_num:
-            print(f"⚠️  Adriana: unrecognized month in filename: {f['name']}")
-            continue
-        year = int(m.group(2))
+        year, month_num = ym_pair
         ym = f"{year}-{month_num:02d}"
+        present_months.add(ym)
+        if mime == _NATIVE_SHEET:
+            unmatched.append({"name": name,
+                              "reason": "native Google Sheet — re-upload as .xlsx or .csv "
+                                        "(File ▸ Download ▸ .xlsx)"})
+            continue
+        parseable = ("spreadsheetml" in mime) or ("csv" in mime) or mime == "text/plain"
+        if not parseable:
+            unmatched.append({"name": name, "reason": f"unsupported file type ({mime})"})
+            continue
         if _meta_flag_is_set(wb, f"adriana_processed:{ym}"):
             continue
-        result.append({
-            "file_id":   f["id"],
-            "name":      f["name"],
-            "year":      year,
-            "month":     month_num,
-            "mime_type": f["mimeType"],
-        })
-    return result
+        to_process.append({"file_id": f["id"], "name": name, "year": year,
+                           "month": month_num, "mime_type": mime})
+
+    processed_months = {ym for ym in present_months
+                        if _meta_flag_is_set(wb, f"adriana_processed:{ym}")}
+    return {"to_process": to_process, "unmatched": unmatched,
+            "present_months": present_months, "processed_months": processed_months}
+
+
+# Back-compat thin wrapper (older callers): just the processable list.
+def list_unprocessed_adriana_files(service, wb) -> list[dict]:
+    return discover_adriana_files(service, wb)["to_process"]
 
 
 def _cell(row, idx) -> str:

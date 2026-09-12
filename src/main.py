@@ -245,25 +245,71 @@ def run_sync(from_date: date = None, to_date: date = None) -> dict:
     }
 
     # ── Adriana rental file processing ───────────────────────────────────
+    # Robust + loud: every file in the folder is classified (imported / unmatched
+    # / errored), a missing expected month is detected, and each import is
+    # sanity-checked against the prior month. Any problem is reported in a
+    # prominent email section AND triggers an immediate standalone alert.
+    adriana_report = {"imported": [], "unmatched": [], "errors": [],
+                      "missing_months": [], "sanity": []}
     if drive_set:
         try:
-            from adriana_parser import list_unprocessed_adriana_files, parse_adriana_file
+            from adriana_parser import discover_adriana_files, parse_adriana_file
             drive_svc = get_drive_service()
             wb_check = load_workbook(ledger_path)
-            unprocessed = list_unprocessed_adriana_files(drive_svc, wb_check)
+            disc = discover_adriana_files(drive_svc, wb_check)
             wb_check.close()
-            for fm in unprocessed:
+            adriana_report["unmatched"] = disc["unmatched"]
+
+            for fm in disc["to_process"]:
+                ym_key = f"{fm['year']}-{fm['month']:02d}"
+                month_label = datetime(fm["year"], fm["month"], 1).strftime("%B %Y")
                 try:
                     a_txns = parse_adriana_file(drive_svc, fm)
                     a_result = write_spending_ledger(ledger_path, a_txns)
-                    ym_key = f"{fm['year']}-{fm['month']:02d}"
                     set_meta_flag(ledger_path, f"adriana_processed:{ym_key}")
-                    month_label = datetime(fm["year"], fm["month"], 1).strftime("%B %Y")
-                    print(f"📋 Adriana {month_label}: {a_result['added']} added, {a_result['skipped']} skipped")
+                    this_total = round(sum(t["amount"] for t in a_txns), 2)
+                    prior_ym = _prev_ym(ym_key)
+                    prior_total = _adriana_month_total(ledger_path, prior_ym)
+                    entry = {"name": fm["name"], "ym": ym_key, "label": month_label,
+                             "added": a_result["added"], "skipped": a_result["skipped"],
+                             "rows": len(a_txns), "total": this_total}
+                    adriana_report["imported"].append(entry)
+                    if len(a_txns) == 0:
+                        adriana_report["errors"].append(
+                            {"name": fm["name"], "error": "0 transactions parsed — header row "
+                             "or Property/column names may not match the expected layout"})
+                    elif prior_total > 0:
+                        pct = (this_total - prior_total) / prior_total * 100
+                        s = {"ym": ym_key, "total": this_total, "prior_ym": prior_ym,
+                             "prior_total": prior_total, "pct": round(pct, 1),
+                             "flag": abs(pct) >= 25}
+                        adriana_report["sanity"].append(s)
+                    print(f"📋 Adriana {month_label}: {a_result['added']} added, "
+                          f"{a_result['skipped']} skipped, ${this_total:,.2f} total")
                 except Exception as e_fm:
+                    adriana_report["errors"].append({"name": fm["name"], "error": str(e_fm)})
                     print(f"⚠️  Adriana '{fm['name']}': {e_fm} — skipping")
+
+            # Missing expected month: previous calendar month with no file present
+            # and not already processed.
+            prev = _prev_ym(date.today().strftime("%Y-%m"))
+            covered = disc["present_months"] | disc["processed_months"]
+            if prev not in covered:
+                adriana_report["missing_months"].append(prev)
+                print(f"⚠️  Adriana: no file found for {prev} (expected last month's ledger)")
+
+            # Immediate standalone alert the moment a problem is detected.
+            if (adriana_report["errors"] or adriana_report["unmatched"]
+                    or adriana_report["missing_months"]):
+                try:
+                    from email_notifier import send_adriana_alert
+                    send_adriana_alert(adriana_report, str(end))
+                except Exception as e_alert:
+                    print(f"⚠️  Adriana alert email failed (non-fatal): {e_alert}")
         except Exception as e_adriana:
+            adriana_report["errors"].append({"name": "(discovery)", "error": str(e_adriana)})
             print(f"⚠️  Adriana sync failed (non-fatal): {e_adriana}")
+    summary["adriana"] = adriana_report
 
     # ── Costco pending-receipt reconciliation ────────────────────────────
     # Receipts uploaded before their charge posted are queued in the ledger;
@@ -334,6 +380,37 @@ def run_sync(from_date: date = None, to_date: date = None) -> dict:
         print(f"Excluded — {', '.join(excl_parts)}")
     print(f"✅ Sync complete — {added} added, {skipped} skipped, ${total_spend:,.2f} total spend")
     return summary
+
+
+def _prev_ym(ym: str) -> str:
+    """'2026-09' -> '2026-08' (calendar previous month)."""
+    y, m = int(ym[:4]), int(ym[5:7])
+    return f"{y-1}-12" if m == 1 else f"{y}-{m-1:02d}"
+
+
+def _adriana_month_total(ledger_path: str, ym: str) -> float:
+    """Sum of Adriana transaction amounts already in the ledger for a month,
+    identified by the SourceRef prefix 'adriana:<ym>:'. Used to sanity-check a
+    freshly imported month against the prior one. Returns 0.0 if none/unreadable."""
+    try:
+        wb = load_workbook(ledger_path, read_only=True)
+        ws = wb["Transactions"]
+        header = [c.value for c in next(ws.iter_rows(min_row=1, max_row=1))]
+        ref_i = header.index("SourceRef")
+        amt_i = header.index("Amount")
+        total = 0.0
+        prefix = f"adriana:{ym}:"
+        for row in ws.iter_rows(min_row=2, values_only=True):
+            ref = row[ref_i] if ref_i < len(row) else None
+            if ref and str(ref).startswith(prefix):
+                try:
+                    total += abs(float(row[amt_i]))
+                except (TypeError, ValueError):
+                    pass
+        wb.close()
+        return round(total, 2)
+    except Exception:
+        return 0.0
 
 
 def _account_label(account: dict) -> str:

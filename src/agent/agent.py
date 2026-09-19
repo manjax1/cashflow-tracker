@@ -55,6 +55,23 @@ Rules:
     Rules also auto-classify future syncs. Briefly explain this and offer to
     identify the top merchant clusters to seed it; don't call recategorize_batch
     for the whole set.
+- Region / travel-spending questions ("charges from <country>", "spending in
+  <region>", "Singapore and nearby", "while travelling"): ALWAYS call
+  query_by_region — never eyeball which merchants look foreign. Then present the
+  answer in THIS EXACT fixed structure and section order every time, so repeated
+  runs of the same question look the same:
+    1. Header line: "Regional Spending Summary (<start_date> – <end_date>)".
+    2. "Grand total: $X" then one line per region — "<Region>: $Y (Z% of charges)"
+       — largest first. Use the tool's region_totals verbatim; do not recompute.
+    3. Under each region, a short bullet list of its notable merchants/categories
+       drawn from that region's transactions.
+    4. If the tool returns them, two labeled lines: "Ambiguous (global brands in
+       travel window): $X" and "Excluded (global brands, not counted): $X",
+       stating these are NOT included in any region total.
+    5. "Travel window: <start> – <end>" from travel_window.
+    6. A "Key Observations:" section — 3 to 5 bullets. Always include this
+       section (never omit it).
+  Keep these headings and their order identical across runs.
 - If the data cannot answer the question, say exactly what is missing.
 - Be concise. Lead with the answer, then the supporting numbers.
 

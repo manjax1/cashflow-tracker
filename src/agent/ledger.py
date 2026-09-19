@@ -188,6 +188,71 @@ def query_transactions(start_date, end_date, category=None, account=None,
     }
 
 
+def query_by_region(start_date, end_date, region=None, limit=300):
+    """Deterministically group charges by geographic region using merchant/
+    location signals in the description (see src/regions.py). Use this for any
+    'charges from <country>' or 'spending while travelling in <region>' question
+    instead of eyeballing merchant names — it is exact and repeatable.
+
+    Returns, per detected region, the tagged transactions + expense total, plus:
+      - 'ambiguous_in_window': globally-present brands (Starbucks, 7-Eleven, …)
+        that fall inside a detected travel window (dates bracketed by confirmed
+        in-region charges) — listed SEPARATELY, never folded into a region total.
+      - 'travel_window': the {start,end} spanned by country-specific charges.
+    Pass `region` (e.g. 'Singapore', 'Vietnam') to return just that one."""
+    import sys
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    import regions as _regions
+
+    rows = _filter(effective_rows(), start_date, end_date)
+    buckets = defaultdict(list)
+    country_dates = []
+    for t in rows:
+        reg = _regions.classify_region(t.get("Description", ""))
+        if reg:
+            buckets[reg].append(t)
+            if reg not in ("SEA (ambiguous)",):
+                country_dates.append(t["Date"])
+
+    # Travel window = span of country-specific (not merely ambiguous) charges.
+    window = {"start": min(country_dates), "end": max(country_dates)} if country_dates else None
+    ambiguous_in_window = []
+    if window:
+        for t in rows:
+            if (_regions.is_global_ambiguous(t.get("Description", ""))
+                    and window["start"] <= t["Date"] <= window["end"]
+                    and not _regions.classify_region(t.get("Description", ""))):
+                ambiguous_in_window.append(t)
+
+    def pack(items):
+        exp = sum(t["Amount"] for t in items if t["Type"] == "Expense")
+        inc = sum(t["Amount"] for t in items if t["Type"] == "Income")
+        rows_sorted = sorted(items, key=lambda t: t["Date"])
+        return {"count": len(items), "expense_total": round(exp, 2),
+                "income_total": round(inc, 2),
+                "transactions": rows_sorted[:limit],
+                "truncated": len(items) > limit}
+
+    region_out = {r: pack(items) for r, items in buckets.items()}
+    if region:
+        region_out = {r: v for r, v in region_out.items() if r.lower() == region.lower()}
+
+    return {
+        "start_date": start_date, "end_date": end_date,
+        "region_filter": region,
+        "regions": region_out,
+        "region_totals": {r: v["expense_total"] for r, v in region_out.items()},
+        "travel_window": window,
+        "ambiguous_in_window": pack(ambiguous_in_window) if ambiguous_in_window else
+                               {"count": 0, "expense_total": 0.0, "income_total": 0.0,
+                                "transactions": [], "truncated": False},
+        "note": "Regions are tagged deterministically from merchant/location keywords. "
+                "'SEA (ambiguous)' = SEA-only brand (e.g. Grab) with no country in the "
+                "description. 'ambiguous_in_window' = global brands during the travel "
+                "window — review before counting; not included in any region total.",
+    }
+
+
 def get_cashflow_summary(start_date, end_date, group_by="category", category=None, basis="cash"):
     """Aggregates income/expense/net. group_by: category|month|account|type.
 

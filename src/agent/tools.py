@@ -53,6 +53,19 @@ TOOLS = [
         },
     },
     {
+        "name": "query_by_region",
+        "description": "Charges grouped by geographic region — any Southeast Asian country (Singapore, Malaysia, Thailand, Vietnam, Indonesia, Philippines, Cambodia, Laos, Myanmar, Brunei) — via DETERMINISTIC merchant/location keyword tagging. ALWAYS use this for any 'charges from <country>' / 'spending in <region>' / 'while travelling' question — do NOT eyeball which merchants look foreign, that is unreliable. Returns per-region totals + transactions, a SEPARATE 'ambiguous_in_window' bucket (global brands like Starbucks/7-Eleven during the travel window — review before counting; excluded from region totals), and the detected travel_window. Pass 'region' to focus on one.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "start_date": {"type": "string", "description": "ISO date YYYY-MM-DD"},
+                "end_date": {"type": "string", "description": "ISO date YYYY-MM-DD"},
+                "region": {"type": "string", "description": "Optional single region, e.g. 'Singapore', 'Malaysia', 'Vietnam'"},
+            },
+            "required": ["start_date", "end_date"],
+        },
+    },
+    {
         "name": "get_trends",
         "description": "Deterministic time series for a metric with period-over-period deltas and trailing average. Use for any 'trend', 'over time', or 'growing/shrinking' question. Interpret the series; do not recompute it.",
         "input_schema": {
@@ -161,6 +174,7 @@ def dispatch(name, args):
                 "note": "Awaiting user approval. Nothing has been sent or modified."}
     fn = {
         "query_transactions": ledger.query_transactions,
+        "query_by_region": ledger.query_by_region,
         "get_cashflow_summary": ledger.get_cashflow_summary,
         "get_trends": ledger.get_trends,
         "list_categories": lambda: ledger.list_categories(),

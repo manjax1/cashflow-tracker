@@ -442,7 +442,10 @@ function exportMsgToPdf(msgDiv, question) {
   const stamp = new Date().toISOString().slice(0, 10);
   const title = (question || 'Response').replace(/&/g, '&amp;').replace(/</g, '&lt;');
   const wrap = document.createElement('div');
-  wrap.style.cssText = 'padding:22px;font-family:Arial,sans-serif;color:#1a1a1a;font-size:13px;line-height:1.5';
+  // Attach off-screen with an explicit width — html2canvas renders a BLANK page
+  // for a detached or zero-size node, which is why an off-DOM element exported empty.
+  wrap.style.cssText = 'position:fixed;left:-10000px;top:0;width:720px;background:#fff;'
+    + 'padding:22px;font-family:Arial,sans-serif;color:#1a1a1a;font-size:13px;line-height:1.5';
   wrap.innerHTML =
     `<div style="border-bottom:2px solid #1F3864;padding-bottom:8px;margin-bottom:14px">
        <div style="font-size:17px;font-weight:700;color:#1F3864">💰 Cashflow Tracker</div>
@@ -453,20 +456,21 @@ function exportMsgToPdf(msgDiv, question) {
   wrap.appendChild(body);
   const props = msgDiv.querySelector('.proposals');           // include any proposal cards
   if (props) wrap.appendChild(props.cloneNode(true));
+  document.body.appendChild(wrap);                            // must be in the DOM to render
   const btn = msgDiv.querySelector('.export-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'exporting…'; }
+  const done = () => {
+    wrap.remove();
+    if (btn) { btn.disabled = false; btn.textContent = '⤓ Export PDF'; }
+  };
   html2pdf().set({
     margin: 10,
     filename: `cashflow-${stamp}-${Date.now().toString().slice(-5)}.pdf`,
     image: { type: 'jpeg', quality: 0.98 },
-    html2canvas: { scale: 2, useCORS: true },
+    html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', windowWidth: 760 },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
     pagebreak: { mode: ['avoid-all', 'css', 'legacy'] },
-  }).from(wrap).save().then(() => {
-    if (btn) { btn.disabled = false; btn.textContent = '⤓ Export PDF'; }
-  }).catch(() => {
-    if (btn) { btn.disabled = false; btn.textContent = '⤓ Export PDF'; }
-  });
+  }).from(wrap).save().then(done).catch(done);
 }
 
 function addMsg(cls, html) {

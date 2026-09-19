@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Cashflow Agent</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.2/dist/html2pdf.bundle.min.js"></script>
 <style>
   :root {
     --bg: #f5f4ef; --panel: #ffffff; --ink: #1a1a17; --muted: #6b6a63;
@@ -432,45 +431,42 @@ function addExportButton(msgDiv, question) {
   msgDiv.appendChild(bar);
 }
 
+// Export a response to PDF via the browser's native print engine — reliable,
+// no external library, and the text stays selectable. Opens a clean, self-styled
+// page and triggers the print dialog (choose "Save as PDF").
 function exportMsgToPdf(msgDiv, question) {
   const content = msgDiv.querySelector('.content');
   if (!content) return;
-  if (typeof html2pdf === 'undefined') {   // library didn't load — fall back to print
-    window.print();
-    return;
-  }
   const stamp = new Date().toISOString().slice(0, 10);
   const title = (question || 'Response').replace(/&/g, '&amp;').replace(/</g, '&lt;');
-  const wrap = document.createElement('div');
-  // Attach off-screen with an explicit width — html2canvas renders a BLANK page
-  // for a detached or zero-size node, which is why an off-DOM element exported empty.
-  wrap.style.cssText = 'position:fixed;left:-10000px;top:0;width:720px;background:#fff;'
-    + 'padding:22px;font-family:Arial,sans-serif;color:#1a1a1a;font-size:13px;line-height:1.5';
-  wrap.innerHTML =
-    `<div style="border-bottom:2px solid #1F3864;padding-bottom:8px;margin-bottom:14px">
-       <div style="font-size:17px;font-weight:700;color:#1F3864">💰 Cashflow Tracker</div>
-       <div style="font-size:12px;color:#555;margin-top:2px"><b>Q:</b> ${title}</div>
-       <div style="font-size:11px;color:#888">Exported ${stamp}</div>
-     </div>`;
-  const body = content.cloneNode(true);                       // response text
-  wrap.appendChild(body);
-  const props = msgDiv.querySelector('.proposals');           // include any proposal cards
-  if (props) wrap.appendChild(props.cloneNode(true));
-  document.body.appendChild(wrap);                            // must be in the DOM to render
-  const btn = msgDiv.querySelector('.export-btn');
-  if (btn) { btn.disabled = true; btn.textContent = 'exporting…'; }
-  const done = () => {
-    wrap.remove();
-    if (btn) { btn.disabled = false; btn.textContent = '⤓ Export PDF'; }
-  };
-  html2pdf().set({
-    margin: 10,
-    filename: `cashflow-${stamp}-${Date.now().toString().slice(-5)}.pdf`,
-    image: { type: 'jpeg', quality: 0.98 },
-    html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', windowWidth: 760 },
-    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-    pagebreak: { mode: ['avoid-all', 'css', 'legacy'] },
-  }).from(wrap).save().then(done).catch(done);
+  const props = msgDiv.querySelector('.proposals');
+  const propHtml = props
+    ? '<div class="proposals">' + props.innerHTML.replace(/<button[\s\S]*?<\/button>/g, '')
+        .replace(/<select[\s\S]*?<\/select>/g, '') + '</div>'
+    : '';
+  const doc =
+    '<!doctype html><html><head><meta charset="utf-8">' +
+    '<title>Cashflow Tracker — ' + stamp + '</title><style>' +
+    'body{font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;font-size:13px;line-height:1.55;max-width:720px;margin:24px auto;padding:0 18px}' +
+    '.hd{border-bottom:2px solid #1F3864;padding-bottom:8px;margin-bottom:16px}' +
+    '.hd h1{font-size:18px;color:#1F3864;margin:0}.hd .q{font-size:12px;color:#555;margin-top:3px}.hd .d{font-size:11px;color:#888}' +
+    'table{border-collapse:collapse;width:100%;font-size:12px;margin:8px 0}th,td{border:1px solid #ddd;padding:4px 8px;text-align:left}' +
+    '.chip{display:inline-block;background:#eef;border-radius:12px;padding:2px 8px;margin:2px;font-size:11px}' +
+    '.prop{border:1px solid #ccc;border-radius:8px;padding:8px 10px;margin:6px 0}' +
+    '.noprint button{padding:8px 16px;font-size:13px;cursor:pointer}@media print{.noprint{display:none}}' +
+    '</style></head><body>' +
+    '<div class="hd"><h1>💰 Cashflow Tracker</h1>' +
+    '<div class="q"><b>Q:</b> ' + title + '</div><div class="d">Exported ' + stamp + '</div></div>' +
+    '<div class="content">' + content.innerHTML + '</div>' + propHtml +
+    '<div class="noprint" style="margin-top:24px"><button onclick="window.print()">Save as PDF / Print</button></div>' +
+    '</body></html>';
+  const w = window.open('', '_blank');
+  if (!w) { alert('Please allow pop-ups for this site to export the PDF.'); return; }
+  w.document.open();
+  w.document.write(doc);
+  w.document.close();
+  w.focus();
+  setTimeout(() => { try { w.print(); } catch (e) {} }, 350);   // let it lay out, then print
 }
 
 function addMsg(cls, html) {

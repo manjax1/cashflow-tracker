@@ -189,7 +189,9 @@ def compute_status(rows, as_of=None, roll=None, recent_n=6):
         tot_credit += credit
         tot_rent += rent
 
-    props_out.sort(key=lambda p: (p["arrears"], p["pending_this_month"]), reverse=True)
+    # Worst-first: most months behind, then largest dollar arrears, then pending.
+    props_out.sort(key=lambda p: (p["months_behind"], p["arrears"], p["pending_this_month"]),
+                   reverse=True)
     unmatched_total = round(sum(float(t.get("Amount") or 0) for t in unmatched), 2)
     return {
         "as_of": as_of, "as_of_month": as_of_month,

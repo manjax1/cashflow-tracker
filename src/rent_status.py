@@ -1,0 +1,196 @@
+"""Rent status engine: pending rent + arrears per rental property.
+
+Reads the rent roll (rent_roll.json — expected monthly rent + how to attribute
+payments to each property) and the ledger's Rental - Income rows, and computes,
+per property: what's paid this month, what's still pending this month, the
+cumulative arrears (or credit) since the tenant's start_month, the last month
+that was fully paid, and the most recent payments (for the drill-down).
+
+Design:
+- Attribution is FIRST-MATCH-WINS in rent_roll order, so a payment is counted for
+  exactly one property. Rental-Income rows that match no property are returned as
+  'unmatched' (leakage / miscategorization to review) — never silently dropped.
+- Payments are attributed to the calendar month of the transaction date. Split
+  or partial payments within a month are summed. Timing mismatches (a July rent
+  paid in June) net out in the running balance.
+- Amounts come entirely from the ledger; expectations entirely from rent_roll.json.
+"""
+import json
+import os
+from collections import defaultdict
+from datetime import date
+
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+RENT_ROLL_PATH = os.path.join(REPO_ROOT, "rent_roll.json")
+_TOL = 0.01
+
+
+def load_rent_roll(path=RENT_ROLL_PATH):
+    with open(path) as f:
+        data = json.load(f)
+    return [p for p in data.get("properties", []) if p.get("active", True)]
+
+
+def _ym(d):
+    return str(d)[:7]
+
+
+def _month_range(start_ym, end_ym):
+    y, m = int(start_ym[:4]), int(start_ym[5:7])
+    ey, em = int(end_ym[:4]), int(end_ym[5:7])
+    out = []
+    while (y, m) <= (ey, em):
+        out.append(f"{y:04d}-{m:02d}")
+        m += 1
+        if m == 13:
+            y, m = y + 1, 1
+    return out
+
+
+def _matches(tx, prop):
+    m = prop.get("match", {})
+    if "account_label" in m:
+        return str(tx.get("Account", "")) == m["account_label"]
+    if "name_any" in m:
+        if m.get("account") and str(tx.get("Account", "")).lower() != m["account"].lower():
+            return False
+        desc = str(tx.get("Description", "")).lower()
+        return any(str(n).lower() in desc for n in m["name_any"])
+    return False
+
+
+def _rental_income_rows(rows):
+    return [t for t in rows
+            if t.get("Type") == "Income"
+            and "rental" in str(t.get("Category", "")).lower()
+            and t.get("IncludeInNet", True)]
+
+
+def compute_status(rows, as_of=None, roll=None, recent_n=6):
+    """Return {'as_of', 'as_of_month', 'properties': [...], 'totals': {...},
+    'unmatched': {...}}. `rows` is the full effective ledger (or any list with
+    Date/Account/Description/Category/Type/Amount)."""
+    roll = roll if roll is not None else load_rent_roll()
+    as_of = as_of or date.today().isoformat()
+    as_of_month = _ym(as_of)
+    income = _rental_income_rows(rows)
+
+    # First-match-wins attribution.
+    matched_by_label = defaultdict(list)
+    used = set()
+    for prop in roll:
+        for i, tx in enumerate(income):
+            if i in used:
+                continue
+            if _matches(tx, prop):
+                matched_by_label[prop["label"]].append(tx)
+                used.add(i)
+    unmatched = [tx for i, tx in enumerate(income) if i not in used]
+
+    props_out = []
+    tot_pending = tot_arrears = tot_credit = tot_rent = 0.0
+    for prop in roll:
+        rent = float(prop.get("monthly_rent") or 0)
+        txs = matched_by_label.get(prop["label"], [])
+        by_month = defaultdict(float)
+        for tx in txs:
+            by_month[_ym(tx["Date"])] += float(tx.get("Amount") or 0)
+
+        start = prop.get("start_month") or as_of_month
+        months = _month_range(start, as_of_month) if start <= as_of_month else [as_of_month]
+        expected_total = rent * len(months)
+        paid_in_scope = sum(by_month.get(m, 0.0) for m in months)
+        balance = expected_total - paid_in_scope        # + = owed, - = credit
+        arrears = max(0.0, round(balance, 2))
+        credit = max(0.0, round(-balance, 2))
+
+        paid_this = round(by_month.get(as_of_month, 0.0), 2)
+        pending_this = max(0.0, round(rent - paid_this, 2))
+
+        last_paid = ""
+        for m in reversed(months):
+            if by_month.get(m, 0.0) + _TOL >= rent and rent > 0:
+                last_paid = m
+                break
+
+        recent = sorted(txs, key=lambda t: t["Date"], reverse=True)[:recent_n]
+        recent_out = [{"date": t["Date"], "amount": round(float(t.get("Amount") or 0), 2),
+                       "month": _ym(t["Date"]),
+                       "description": str(t.get("Description", ""))[:80]} for t in recent]
+
+        props_out.append({
+            "label": prop["label"], "property": prop.get("property", prop["label"]),
+            "tenant": prop.get("tenant", ""), "monthly_rent": round(rent, 2),
+            "managed_by": prop.get("managed_by", ""),
+            "paid_this_month": paid_this, "pending_this_month": pending_this,
+            "arrears": arrears, "credit": credit,
+            "last_fully_paid_month": last_paid,
+            "last_payment_date": max((t["Date"] for t in txs), default=""),
+            "months_tracked": len(months), "start_month": start,
+            "recent_payments": recent_out,
+            "verify": bool(prop.get("verify")), "note": prop.get("note", ""),
+        })
+        tot_pending += pending_this
+        tot_arrears += arrears
+        tot_credit += credit
+        tot_rent += rent
+
+    props_out.sort(key=lambda p: (p["arrears"], p["pending_this_month"]), reverse=True)
+    unmatched_total = round(sum(float(t.get("Amount") or 0) for t in unmatched), 2)
+    return {
+        "as_of": as_of, "as_of_month": as_of_month,
+        "properties": props_out,
+        "totals": {
+            "monthly_rent_roll": round(tot_rent, 2),
+            "pending_this_month": round(tot_pending, 2),
+            "total_arrears": round(tot_arrears, 2),
+            "total_credit": round(tot_credit, 2),
+            "properties": len(props_out),
+        },
+        "unmatched": {
+            "count": len(unmatched), "total": unmatched_total,
+            "transactions": [{"date": t["Date"], "amount": round(float(t.get("Amount") or 0), 2),
+                              "account": t.get("Account", ""),
+                              "description": str(t.get("Description", ""))[:80]}
+                             for t in sorted(unmatched, key=lambda t: t["Date"], reverse=True)[:25]],
+            "note": "Rental-Income rows matching no rent-roll property — review: a new "
+                    "tenant to add, or a miscategorized row.",
+        },
+    }
+
+
+def property_detail(rows, label, as_of=None, roll=None, months_back=12):
+    """Per-property drill-down: month-by-month expected vs paid (with fully-paid
+    flag) plus every payment in the window."""
+    roll = roll if roll is not None else load_rent_roll()
+    prop = next((p for p in roll if p["label"] == label), None)
+    if not prop:
+        return {"error": f"unknown property label: {label}"}
+    as_of = as_of or date.today().isoformat()
+    as_of_month = _ym(as_of)
+    rent = float(prop.get("monthly_rent") or 0)
+    income = _rental_income_rows(rows)
+    txs = [t for t in income if _matches(t, prop)]
+
+    by_month_txs = defaultdict(list)
+    for t in txs:
+        by_month_txs[_ym(t["Date"])].append(t)
+
+    start = prop.get("start_month") or as_of_month
+    all_months = _month_range(start, as_of_month) if start <= as_of_month else [as_of_month]
+    months = all_months[-months_back:]
+    month_rows = []
+    for m in months:
+        paid = round(sum(float(t.get("Amount") or 0) for t in by_month_txs.get(m, [])), 2)
+        month_rows.append({"month": m, "expected": round(rent, 2), "paid": paid,
+                           "shortfall": max(0.0, round(rent - paid, 2)),
+                           "fully_paid": paid + _TOL >= rent and rent > 0})
+    payments = sorted(txs, key=lambda t: t["Date"], reverse=True)
+    payments = [t for t in payments if _ym(t["Date"]) >= months[0]] if months else payments
+    return {
+        "label": label, "property": prop.get("property", label),
+        "tenant": prop.get("tenant", ""), "monthly_rent": round(rent, 2),
+        "months": month_rows,
+        "payments": [{"date": t["Date"], "amount": round(float(t.get("Amount") or 0), 2),
+                      "description": str(t.get("Description", ""))[:100]} for t in payments],
+    }

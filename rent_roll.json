@@ -1,0 +1,151 @@
+{
+  "_comment": "Rent roll = the source of truth for expected monthly rent per property, used to compute pending rent and arrears. SCAFFOLDED from observed payments (Jun-Aug 2026) — PLEASE VERIFY every 'monthly_rent' and tenant mapping. Any entry with \"verify\": true had an unclear/variable amount and is a best guess. 'match' tells the engine how to attribute a transaction to this property: adriana units match by 'account_label'; directly-managed match Checking-account rows whose Description contains ANY string in 'name_any' (case-insensitive). 'start_month' (YYYY-MM) is when arrears begin accruing for this tenant — set it to the lease start or the first month you want counted, so old history doesn't inflate arrears. Remove a property or set active:false to exclude it.",
+  "properties": [
+    {
+      "label": "Stockton-1867",
+      "property": "1867 Elmwood Ave, Stockton CA 95204",
+      "tenant": "Mary Hernandez",
+      "monthly_rent": 2205.00,
+      "managed_by": "adriana",
+      "match": {"account_label": "Stockton-1867"},
+      "start_month": "2026-01",
+      "active": true
+    },
+    {
+      "label": "Stockton-1867A",
+      "property": "1867 Elmwood Ave, Unit #A, Stockton CA 95204",
+      "tenant": "Betty Parker",
+      "monthly_rent": 861.00,
+      "verify": true,
+      "note": "Low amount — likely a tenant-portion (subsidy/Section 8?). Confirm the full contract rent.",
+      "managed_by": "adriana",
+      "match": {"account_label": "Stockton-1867A"},
+      "start_month": "2026-01",
+      "active": true
+    },
+    {
+      "label": "Stockton-2516",
+      "property": "2516 Mission Rd, Stockton CA 95204",
+      "tenant": "Rosa Carillo",
+      "monthly_rent": 1890.00,
+      "note": "Paid as two line items ($1500 + $390) each month; engine sums all matches in the month.",
+      "managed_by": "adriana",
+      "match": {"account_label": "Stockton-2516"},
+      "start_month": "2026-01",
+      "active": true
+    },
+    {
+      "label": "Stockton-2528",
+      "property": "2528 Mission Rd, Stockton CA 95204",
+      "tenant": "Cathy Thissel",
+      "monthly_rent": 1000.00,
+      "verify": true,
+      "note": "Low amount — likely a tenant-portion. Confirm full contract rent.",
+      "managed_by": "adriana",
+      "match": {"account_label": "Stockton-2528"},
+      "start_month": "2026-01",
+      "active": true
+    },
+    {
+      "label": "Manteca-807",
+      "property": "807 W Center St, Manteca CA 95337",
+      "tenant": "Paul Sanchez",
+      "monthly_rent": 1785.00,
+      "managed_by": "adriana",
+      "match": {"account_label": "Manteca-807"},
+      "start_month": "2026-01",
+      "active": true
+    },
+    {
+      "label": "Manteca-809",
+      "property": "809 W Center St, Manteca CA 95337",
+      "tenant": "Michael Ward",
+      "monthly_rent": 1780.00,
+      "verify": true,
+      "note": "Michael Ward appeared under both Manteca-807 ($1780) and Manteca-809 ($3560, possibly a catch-up/2-month). Confirm the unit and monthly amount.",
+      "managed_by": "adriana",
+      "match": {"account_label": "Manteca-809"},
+      "start_month": "2026-01",
+      "active": true
+    },
+    {
+      "label": "Lathrop-16945-Strauss",
+      "property": "16945 Strauss Ct, Lathrop CA 95330",
+      "tenant": "Yassa Crawford (pays via Almitra / James Perry)",
+      "monthly_rent": 3700.00,
+      "verify": true,
+      "note": "Two payers (ALMITRA PERRY + JAMES L PERRY), split & partial. Monthly total ranged ~$2300-3700. Confirm contract rent.",
+      "managed_by": "direct",
+      "match": {"account": "Checking", "name_any": ["ALMITRA", "JAMES L PERRY"]},
+      "start_month": "2026-01",
+      "active": true
+    },
+        {
+      "label": "Lathrop-1769-Mulholland(Pryor)",
+      "property": "1769 Mulholland Drive Lathrop CA 95330",
+      "tenant": "Yuvetta Pryor",
+      "monthly_rent": 4050.00,
+      "verify": true,
+      "note": "Frequently late; pays partials + late fees. Confirm base rent (late fees will show as overpayment).",
+      "managed_by": "direct",
+      "match": {"account": "Checking", "name_any": ["YUVETTA PRYOR", "PRYOR"]},
+      "start_month": "2026-01",
+      "active": true
+    },
+    {
+      "label": "Lathrop-2431-Mulholland(Berkley)",
+      "property": "2431 Mulholland Drive Lathrop CA 95330",
+      "tenant": "Melissa N Berkley",
+      "monthly_rent": 3950.00,
+      "verify": true,
+      "note": "Amounts varied widely ($950-$3950); could be two units or catch-up. Confirm — may need to split into two properties.",
+      "managed_by": "direct",
+      "match": {"account": "Checking", "name_any": ["BERKLEY"]},
+      "start_month": "2026-01",
+      "active": true
+    },
+    {
+      "label": "Lathrop-16150-ShelteredCove(Dan)",
+      "property": "16150 Sheltered Cove Lathrop CA 95330",
+      "tenant": "Daniel Ramsey",
+      "monthly_rent": 3350.00,
+      "managed_by": "direct",
+      "match": {"account": "Checking", "name_any": ["DANIEL RAMSEY", "RAMSEY"]},
+      "start_month": "2026-01",
+      "active": true
+    },
+    {
+      "label": "Plano-6812-Dalmatian",
+      "property": "6812 Dalmatian Circle Plano TX 75023",
+      "tenant": "Anthony D Kristensen",
+      "monthly_rent": 2550.00,
+      "managed_by": "direct",
+      "match": {"account": "Checking", "name_any": ["KRISTENSEN"]},
+      "start_month": "2026-01",
+      "active": true
+    },
+    {
+      "label": "Woodlands-18-MeadowStar",
+      "property": "18 Meadow Star Ct Spring TX 77381",
+      "tenant": "John Campbell",
+      "monthly_rent": 2350.00,
+      "verify": true,
+      "note": "Pays in many partials; memos mention amounts remaining. Confirm contract rent.",
+      "managed_by": "direct",
+      "match": {"account": "Checking", "name_any": ["CAMPBELL"]},
+      "start_month": "2026-05",
+      "active": true
+    },
+    {
+      "label": "PonteVedraBeach-2-CoveRd",
+      "property": "2 Cove Rd. Ponte Vedra Beach FL 32082",
+      "tenant": "Lancelots Castle",
+      "monthly_rent": 3300.00,
+      "note": "Right now, it's vacant and actively looking for tenants",
+      "managed_by": "Phil Lancelot - Lancelots Castle",
+      "match": {"account": "Checking", "name_any": ["LANCELOTS CASTLE"]},
+      "start_month": "2026-06",
+      "active": true
+    }
+  ]
+}

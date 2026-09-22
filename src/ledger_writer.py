@@ -1045,6 +1045,74 @@ def set_last_snapshot_month(wb, year_month: str) -> None:
     ws["B1"] = year_month
 
 
+def write_rent_sheets(filepath: str, as_of: str | None = None) -> dict:
+    """(Re)build the 'Rent Status' and 'Rent Detail' sheets from the current
+    ledger + rent_roll.json. Returns the totals dict. Non-destructive to other
+    sheets; the two rent sheets are dropped and rebuilt each run."""
+    import rent_status as _rs
+    from agent import ledger as _led
+
+    _led.LEDGER_PATH = filepath
+    _led._cache["mtime"] = None
+    if hasattr(_led, "_splits_cache"):
+        _led._splits_cache["mtime"] = None
+    status = _rs.compute_status(_led.effective_rows(), as_of=as_of)
+
+    wb = load_workbook(filepath)
+    for name in ("Rent Status", "Rent Detail"):
+        if name in wb.sheetnames:
+            del wb[name]
+
+    ws = wb.create_sheet("Rent Status")
+    cols = ["Property", "Tenant", "Monthly Rent", "Paid This Month", "Pending This Month",
+            "Total Arrears", "Credit", "Last Fully Paid", "Last Payment", "Verify?"]
+    ws.append([f"Rent Status — as of {status['as_of_month']} "
+               f"(pending this month ${status['totals']['pending_this_month']:,.2f}, "
+               f"arrears ${status['totals']['total_arrears']:,.2f})"])
+    ws.append(cols)
+    _header_row(ws, cols, row=2)
+    money = "#,##0.00"
+    for p in status["properties"]:
+        ws.append([p["property"], p["tenant"], p["monthly_rent"], p["paid_this_month"],
+                   p["pending_this_month"], p["arrears"], p["credit"],
+                   p["last_fully_paid_month"] or "never", p["last_payment_date"],
+                   "VERIFY" if p["verify"] else ""])
+        r = ws.max_row
+        for c in (3, 4, 5, 6, 7):
+            ws.cell(row=r, column=c).number_format = money
+    t = status["totals"]
+    ws.append([])
+    ws.append(["TOTAL", f"{t['properties']} properties", t["monthly_rent_roll"], "",
+               t["pending_this_month"], t["total_arrears"], t["total_credit"], "", "", ""])
+    tr = ws.max_row
+    for c in (3, 5, 6, 7):
+        ws.cell(row=tr, column=c).number_format = money
+        ws.cell(row=tr, column=c).font = SUB_FONT
+    if status["unmatched"]["count"]:
+        ws.append([])
+        ws.append([f"⚠ Unmatched rental income: {status['unmatched']['count']} row(s), "
+                   f"${status['unmatched']['total']:,.2f} — a new tenant to add to "
+                   f"rent_roll.json, or a miscategorized row."])
+    widths = [34, 24, 13, 15, 16, 13, 11, 14, 13, 9]
+    for i, w in enumerate(widths, 1):
+        ws.column_dimensions[get_column_letter(i)].width = w
+
+    wd = wb.create_sheet("Rent Detail")
+    dcols = ["Property", "Tenant", "Date", "Amount", "Description"]
+    wd.append(dcols)
+    _header_row(wd, dcols, row=1)
+    for p in status["properties"]:
+        for rp in p["recent_payments"]:
+            wd.append([p["property"], p["tenant"], rp["date"], rp["amount"], rp["description"]])
+            wd.cell(row=wd.max_row, column=4).number_format = money
+    for i, w in enumerate([30, 22, 12, 12, 60], 1):
+        wd.column_dimensions[get_column_letter(i)].width = w
+
+    wb.save(filepath)
+    wb.close()
+    return t
+
+
 def set_meta_flag(ledger_path: str, key: str) -> None:
     """Set a boolean flag in the hidden _Meta sheet, updating in-place or appending."""
     wb = load_workbook(ledger_path)

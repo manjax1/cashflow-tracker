@@ -104,6 +104,18 @@ def charges_by_region(start_date: str, end_date: str,
 
 
 @mcp.tool()
+def rent_status(as_of: Optional[str] = None) -> dict:
+    """Pending rent + arrears per rental property, measured against the rent roll
+    (rent_roll.json). Returns each property's rent, paid-this-month, pending,
+    cumulative arrears (or credit), last fully-paid month, and recent payments,
+    plus any rental-income rows that matched no property. Use for 'who owes rent',
+    'pending rent', 'is <tenant> caught up', 'rent arrears' questions. `as_of`
+    (YYYY-MM-DD) sets the 'current month'; defaults to today."""
+    _maybe_refresh()
+    return ledger.rent_status(as_of=as_of)
+
+
+@mcp.tool()
 def cashflow_summary(start_date: str, end_date: str, group_by: str = "category") -> dict:
     """Computed income, expense, and net for a period, grouped by 'category',
     'month', 'account', or 'type'. Use this for totals — it does the arithmetic;

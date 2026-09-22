@@ -1065,7 +1065,8 @@ def write_rent_sheets(filepath: str, as_of: str | None = None) -> dict:
 
     ws = wb.create_sheet("Rent Status")
     cols = ["Property", "Tenant", "Monthly Rent", "Paid This Month", "Pending This Month",
-            "Total Arrears", "Credit", "Last Fully Paid", "Last Payment", "Verify?"]
+            "Total Arrears", "Credit", "Months Behind", "Last Paid", "Last Fully Paid",
+            "Last Payment", "Verify?"]
     ws.append([f"Rent Status — as of {status['as_of_month']} "
                f"(pending this month ${status['totals']['pending_this_month']:,.2f}, "
                f"arrears ${status['totals']['total_arrears']:,.2f})"])
@@ -1073,17 +1074,21 @@ def write_rent_sheets(filepath: str, as_of: str | None = None) -> dict:
     _header_row(ws, cols, row=2)
     money = "#,##0.00"
     for p in status["properties"]:
+        last_paid = (p.get("last_paid_month", "") + ("*" if p.get("last_paid_partial") else "")) \
+            if p.get("last_paid_month") else "never"
         ws.append([p["property"], p["tenant"], p["monthly_rent"], p["paid_this_month"],
                    p["pending_this_month"], p["arrears"], p["credit"],
+                   p.get("months_behind", 0), last_paid,
                    p["last_fully_paid_month"] or "never", p["last_payment_date"],
                    "VERIFY" if p["verify"] else ""])
         r = ws.max_row
         for c in (3, 4, 5, 6, 7):
             ws.cell(row=r, column=c).number_format = money
+        ws.cell(row=r, column=8).number_format = "0.0"       # Months Behind
     t = status["totals"]
     ws.append([])
     ws.append(["TOTAL", f"{t['properties']} properties", t["monthly_rent_roll"], "",
-               t["pending_this_month"], t["total_arrears"], t["total_credit"], "", "", ""])
+               t["pending_this_month"], t["total_arrears"], t["total_credit"], "", "", "", "", ""])
     tr = ws.max_row
     for c in (3, 5, 6, 7):
         ws.cell(row=tr, column=c).number_format = money
@@ -1093,7 +1098,7 @@ def write_rent_sheets(filepath: str, as_of: str | None = None) -> dict:
         ws.append([f"⚠ Unmatched rental income: {status['unmatched']['count']} row(s), "
                    f"${status['unmatched']['total']:,.2f} — a new tenant to add to "
                    f"rent_roll.json, or a miscategorized row."])
-    widths = [34, 24, 13, 15, 16, 13, 11, 14, 13, 9]
+    widths = [34, 24, 13, 15, 16, 13, 11, 12, 11, 14, 13, 9]
     for i, w in enumerate(widths, 1):
         ws.column_dimensions[get_column_letter(i)].width = w
 

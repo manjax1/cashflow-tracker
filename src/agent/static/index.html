@@ -110,6 +110,7 @@
   .rdetail .mfull { color: #2c7a4b; } .rdetail .mshort { color: #b3402a; }
   .rent-warn { margin-top: 10px; padding: 8px 12px; border-radius: 8px; font-size: 12.5px;
     background: #fff4e5; border: 1px solid #f0c67d; color: #8a4b00; }
+  .rent-foot { margin-top: 7px; font-size: 11.5px; color: var(--muted); }
   /* Pending Approvals panel */
   #approvals { margin: 14px 0 4px; border: 1px solid #f0c67d; background: #fffaf2;
     border-radius: 14px; padding: 14px 16px; }
@@ -1021,7 +1022,8 @@ async function loadRentStatus() {
   $('rent-sub').textContent = `as of ${d.as_of_month} · ${t.properties} properties · pending ${_money(t.pending_this_month||0)} this month · arrears ${_money(t.total_arrears||0)}`;
   let html = '<table class="rent"><thead><tr>'
     + '<th>Property / Tenant</th><th class="num">Rent</th><th class="num">Paid this mo.</th>'
-    + '<th class="num">Pending</th><th class="num">Arrears</th><th>Last fully paid</th><th></th>'
+    + '<th class="num">Pending</th><th class="num">Arrears</th><th class="num">Months behind</th>'
+    + '<th>Last paid</th><th></th>'
     + '</tr></thead><tbody>';
   (d.properties || []).forEach(p => {
     const pend = p.pending_this_month > 0 ? `<span class="pill due">${_money(p.pending_this_month)}</span>`
@@ -1035,11 +1037,13 @@ async function loadRentStatus() {
       <td class="num">${_money(p.paid_this_month)}</td>
       <td class="num">${pend}</td>
       <td class="num">${arr}</td>
-      <td>${p.last_fully_paid_month || '<span style="color:#b3402a">never</span>'}</td>
+      <td class="num">${p.months_behind > 0 ? '<span class="pill arr">' + p.months_behind + '</span>' : '—'}</td>
+      <td>${p.last_paid_month ? (p.last_paid_month + (p.last_paid_partial ? '<span title="last month only partially paid">*</span>' : '')) : '<span style="color:#b3402a">never</span>'}</td>
       <td style="color:var(--muted)">▸</td></tr>
-      <tr class="rdetail-row" data-for="${encodeURIComponent(p.label)}" style="display:none"><td colspan="7" class="rdetail"><div class="rloading">…</div></td></tr>`;
+      <tr class="rdetail-row" data-for="${encodeURIComponent(p.label)}" style="display:none"><td colspan="8" class="rdetail"><div class="rloading">…</div></td></tr>`;
   });
   html += '</tbody></table>';
+  html += '<div class="rent-foot">Months behind = arrears ÷ monthly rent. <b>*</b> after “Last paid” = that most-recent month was only partially paid.</div>';
   if (d.unmatched && d.unmatched.count) {
     html += `<div class="rent-warn">⚠ ${d.unmatched.count} rental-income payment(s) (${_money(d.unmatched.total)}) matched no property — a new tenant to add to rent_roll.json, or a miscategorized row. Newest: ${(d.unmatched.transactions||[]).slice(0,3).map(x=>x.description).join('; ')}</div>`;
   }

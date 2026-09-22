@@ -158,6 +158,13 @@ def compute_status(rows, as_of=None, roll=None, recent_n=6):
                 last_paid = m
                 break
 
+        # Most recent month with ANY payment, flagged partial if under a full month's rent.
+        paid_months = sorted(m for m, v in by_month.items() if v > 0)
+        last_paid_month = paid_months[-1] if paid_months else ""
+        last_paid_partial = bool(last_paid_month) and rent > 0 and \
+            by_month.get(last_paid_month, 0.0) + _TOL < rent
+        months_behind = round(arrears / rent, 1) if rent > 0 else 0.0
+
         recent = sorted(txs, key=lambda t: t["Date"], reverse=True)[:recent_n]
         recent_out = [{"date": t["Date"], "amount": round(float(t.get("Amount") or 0), 2),
                        "month": _ym(t["Date"]),
@@ -169,7 +176,9 @@ def compute_status(rows, as_of=None, roll=None, recent_n=6):
             "managed_by": prop.get("managed_by", ""),
             "paid_this_month": paid_this, "pending_this_month": pending_this,
             "arrears": arrears, "credit": credit,
+            "months_behind": months_behind,
             "last_fully_paid_month": last_paid,
+            "last_paid_month": last_paid_month, "last_paid_partial": last_paid_partial,
             "last_payment_date": max((t["Date"] for t in txs), default=""),
             "months_tracked": len(months), "start_month": start,
             "recent_payments": recent_out, "vacant": vacant,

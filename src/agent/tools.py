@@ -66,6 +66,14 @@ TOOLS = [
         },
     },
     {
+        "name": "rent_status",
+        "description": "Pending rent + arrears per rental property, measured against the rent roll (expected monthly rents). Returns each property's rent, paid-this-month, pending, cumulative arrears (or credit), last fully-paid month, and recent payments, plus any rental-income rows that matched no property. Use for 'who owes rent', 'pending rent', 'is <tenant> caught up', 'rent arrears' questions. Optional 'as_of' (YYYY-MM-DD) sets the current month.",
+        "input_schema": {
+            "type": "object",
+            "properties": {"as_of": {"type": "string", "description": "ISO date YYYY-MM-DD; defaults to today"}},
+        },
+    },
+    {
         "name": "get_trends",
         "description": "Deterministic time series for a metric with period-over-period deltas and trailing average. Use for any 'trend', 'over time', or 'growing/shrinking' question. Interpret the series; do not recompute it.",
         "input_schema": {
@@ -175,6 +183,7 @@ def dispatch(name, args):
     fn = {
         "query_transactions": ledger.query_transactions,
         "query_by_region": ledger.query_by_region,
+        "rent_status": ledger.rent_status,
         "get_cashflow_summary": ledger.get_cashflow_summary,
         "get_trends": ledger.get_trends,
         "list_categories": lambda: ledger.list_categories(),

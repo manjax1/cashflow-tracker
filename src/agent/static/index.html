@@ -86,6 +86,30 @@
     border-radius: 8px; padding: 4px 12px; font-size: 12px; cursor: pointer; }
   .export-btn:hover { border-color: var(--accent); color: var(--accent); }
   .export-btn:disabled { opacity: .55; cursor: default; }
+  /* Rent Status */
+  #rent { margin: 16px 0 4px; }
+  .rent-hd { font-size: 16px; font-weight: 700; color: var(--ink); display: flex; align-items: center; gap: 8px; }
+  .rent-sub { font-weight: 500; color: var(--muted); font-size: 13px; }
+  .rent-refresh { margin-left: auto; border: none; background: transparent; cursor: pointer; font-size: 15px; color: var(--muted); }
+  .rent-loading { color: var(--muted); font-size: 13px; padding: 8px 0; }
+  table.rent { border-collapse: collapse; width: 100%; font-size: 13px; margin-top: 10px; }
+  table.rent th { background: var(--panel); text-align: left; padding: 7px 9px; border-bottom: 2px solid var(--border); font-size: 12px; color: var(--muted); }
+  table.rent td { padding: 7px 9px; border-bottom: 1px solid var(--border); }
+  table.rent tr.rrow { cursor: pointer; }
+  table.rent tr.rrow:hover { background: var(--accent-soft); }
+  table.rent td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .pill { border-radius: 10px; padding: 1px 8px; font-size: 11.5px; font-weight: 650; white-space: nowrap; }
+  .pill.ok { background: #e7f4ec; color: #2c7a4b; }
+  .pill.due { background: #fdecea; color: #b3402a; }
+  .pill.arr { background: #fbe9e7; color: #a2472e; }
+  .pill.cred { background: #eef3fb; color: #3b5b92; }
+  .rverify { color: #b3402a; font-size: 11px; margin-left: 4px; } /* needs-verify flag */
+  .rdetail td { background: var(--bg); padding: 10px 14px; }
+  .rdetail table { border-collapse: collapse; width: 100%; font-size: 12px; }
+  .rdetail th, .rdetail td { padding: 4px 8px; border-bottom: 1px solid var(--border); text-align: left; }
+  .rdetail .mfull { color: #2c7a4b; } .rdetail .mshort { color: #b3402a; }
+  .rent-warn { margin-top: 10px; padding: 8px 12px; border-radius: 8px; font-size: 12.5px;
+    background: #fff4e5; border: 1px solid #f0c67d; color: #8a4b00; }
   /* Pending Approvals panel */
   #approvals { margin: 14px 0 4px; border: 1px solid #f0c67d; background: #fffaf2;
     border-radius: 14px; padding: 14px 16px; }
@@ -249,6 +273,7 @@
     <div class="nav-links">
       <button onclick="jumpTo('dash')">Dashboard</button>
       <button onclick="jumpTo('search')">Search</button>
+      <button onclick="jumpTo('rent')">🏠 Rent</button>
       <button onclick="jumpTo('chat')">Ask</button>
       <button class="admin-only" id="nav-approvals" onclick="jumpTo('approvals')" style="display:none">✅ Approvals<span id="approvals-badge" class="nav-badge" style="display:none">0</span></button>
       <button class="admin-only" onclick="openDrawer('upload')" style="display:none">🧾 Upload</button>
@@ -302,6 +327,12 @@
     </div>
     <div id="results"></div>
   </div>
+
+  <section id="rent">
+    <div class="rent-hd">🏠 Rent Status <span id="rent-sub" class="rent-sub"></span>
+      <button class="rent-refresh" onclick="loadRentStatus()" title="Reload">⟳</button></div>
+    <div id="rent-body"><div class="rent-loading">Loading rent status…</div></div>
+  </section>
 
   <section id="approvals" style="display:none">
     <div class="appr-hd">✅ Pending Approvals <span id="appr-count"></span>
@@ -975,6 +1006,75 @@ async function loadChatLog() {
       <td>${render(e.q || '')}</td></tr>`).join('') + '</table>';
 }
 
+function _money(n) { return (n < 0 ? '-' : '') + '$' + Math.abs(n).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}); }
+
+async function loadRentStatus() {
+  const body = $('rent-body');
+  body.innerHTML = '<div class="rent-loading">Loading rent status…</div>';
+  let d;
+  try {
+    const r = await fetch('/api/rent_status');
+    d = await r.json();
+    if (d.error) { body.innerHTML = `<div class="rent-warn">${d.error}</div>`; return; }
+  } catch (e) { body.innerHTML = `<div class="rent-warn">⚠ ${e.message}</div>`; return; }
+  const t = d.totals || {};
+  $('rent-sub').textContent = `as of ${d.as_of_month} · ${t.properties} properties · pending ${_money(t.pending_this_month||0)} this month · arrears ${_money(t.total_arrears||0)}`;
+  let html = '<table class="rent"><thead><tr>'
+    + '<th>Property / Tenant</th><th class="num">Rent</th><th class="num">Paid this mo.</th>'
+    + '<th class="num">Pending</th><th class="num">Arrears</th><th>Last fully paid</th><th></th>'
+    + '</tr></thead><tbody>';
+  (d.properties || []).forEach(p => {
+    const pend = p.pending_this_month > 0 ? `<span class="pill due">${_money(p.pending_this_month)}</span>`
+      : `<span class="pill ok">paid</span>`;
+    const arr = p.arrears > 0 ? `<span class="pill arr">${_money(p.arrears)}</span>`
+      : (p.credit > 0 ? `<span class="pill cred">credit ${_money(p.credit)}</span>` : '—');
+    const verify = p.verify ? '<span class="rverify" title="Rent amount needs verifying in rent_roll.json">⚠ verify</span>' : '';
+    html += `<tr class="rrow" data-label="${encodeURIComponent(p.label)}">
+      <td><b>${p.property}</b>${verify}<br><span style="color:var(--muted)">${p.tenant || ''}</span></td>
+      <td class="num">${_money(p.monthly_rent)}</td>
+      <td class="num">${_money(p.paid_this_month)}</td>
+      <td class="num">${pend}</td>
+      <td class="num">${arr}</td>
+      <td>${p.last_fully_paid_month || '<span style="color:#b3402a">never</span>'}</td>
+      <td style="color:var(--muted)">▸</td></tr>
+      <tr class="rdetail-row" data-for="${encodeURIComponent(p.label)}" style="display:none"><td colspan="7" class="rdetail"><div class="rloading">…</div></td></tr>`;
+  });
+  html += '</tbody></table>';
+  if (d.unmatched && d.unmatched.count) {
+    html += `<div class="rent-warn">⚠ ${d.unmatched.count} rental-income payment(s) (${_money(d.unmatched.total)}) matched no property — a new tenant to add to rent_roll.json, or a miscategorized row. Newest: ${(d.unmatched.transactions||[]).slice(0,3).map(x=>x.description).join('; ')}</div>`;
+  }
+  body.innerHTML = html;
+  body.querySelectorAll('tr.rrow').forEach(row => {
+    row.onclick = () => toggleRentDetail(row.getAttribute('data-label'), row);
+  });
+}
+
+async function toggleRentDetail(labelEnc, row) {
+  const det = row.nextElementSibling;
+  if (det.style.display !== 'none') { det.style.display = 'none'; return; }
+  det.style.display = '';
+  const cell = det.querySelector('.rdetail');
+  cell.innerHTML = '<div class="rloading" style="color:var(--muted)">Loading payments…</div>';
+  let d;
+  try {
+    const r = await fetch('/api/rent_detail?label=' + labelEnc);
+    d = await r.json();
+    if (d.error) { cell.innerHTML = `<span style="color:#b3402a">${d.error}</span>`; return; }
+  } catch (e) { cell.innerHTML = `<span style="color:#b3402a">⚠ ${e.message}</span>`; return; }
+  let h = `<div style="font-weight:650;margin-bottom:6px">${d.property} — ${d.tenant || ''} · rent ${_money(d.monthly_rent)}/mo</div>`;
+  h += '<div style="display:flex;gap:22px;flex-wrap:wrap"><div><div style="font-size:11px;color:var(--muted);margin-bottom:3px">MONTH-BY-MONTH</div><table><tr><th>Month</th><th>Expected</th><th>Paid</th><th>Status</th></tr>';
+  (d.months || []).slice().reverse().forEach(m => {
+    h += `<tr><td>${m.month}</td><td>${_money(m.expected)}</td><td>${_money(m.paid)}</td>`
+      + `<td class="${m.fully_paid ? 'mfull' : 'mshort'}">${m.fully_paid ? 'fully paid' : (m.shortfall>0 ? 'short ' + _money(m.shortfall) : '—')}</td></tr>`;
+  });
+  h += '</table></div><div><div style="font-size:11px;color:var(--muted);margin-bottom:3px">RECENT PAYMENTS</div><table><tr><th>Date</th><th>Amount</th><th>Description</th></tr>';
+  (d.payments || []).slice(0, 12).forEach(p => {
+    h += `<tr><td>${p.date}</td><td>${_money(p.amount)}</td><td>${p.description}</td></tr>`;
+  });
+  h += '</table></div></div>';
+  cell.innerHTML = h;
+}
+
 let _isAdmin = false;
 async function loadApprovals() {
   if (!_isAdmin) return;
@@ -1078,6 +1178,7 @@ async function initAdmin() {
 
 loadDashboard();
 loadMeta();
+loadRentStatus();
 initAdmin();
 </script>
 </body>

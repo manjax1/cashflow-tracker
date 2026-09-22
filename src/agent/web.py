@@ -386,6 +386,33 @@ def search():
     return jsonify(result)
 
 
+@app.get("/api/rent_status")
+def rent_status():
+    """Pending rent + arrears per rental property (reads rent_roll.json)."""
+    if not _authed():
+        return jsonify({"error": "unauthorized"}), 401
+    try:
+        return jsonify(ledger.rent_status())
+    except FileNotFoundError:
+        return jsonify({"error": "rent_roll.json not found — add the rent roll to enable this view."}), 200
+    except Exception as e:
+        return jsonify({"error": f"{type(e).__name__}: {e}"}), 500
+
+
+@app.get("/api/rent_detail")
+def rent_detail():
+    """Drill-down for one rental property. Param: label."""
+    if not _authed():
+        return jsonify({"error": "unauthorized"}), 401
+    label = request.args.get("label", "").strip()
+    if not label:
+        return jsonify({"error": "label required"}), 400
+    try:
+        return jsonify(ledger.rent_property_detail(label))
+    except Exception as e:
+        return jsonify({"error": f"{type(e).__name__}: {e}"}), 500
+
+
 @app.get("/api/monthly")
 def monthly_summary():
     """12-month rolling income/expense/net per month (Sheet-style summary)."""

@@ -324,6 +324,18 @@ def run_sync(from_date: date = None, to_date: date = None) -> dict:
     except Exception as e_costco:
         print(f"⚠️  Costco pending reconcile failed (non-fatal): {e_costco}")
 
+    # ── Rent status sheets (pending rent + arrears per property) ─────────
+    try:
+        from ledger_writer import write_rent_sheets
+        rent_totals = write_rent_sheets(ledger_path)
+        summary["rent"] = rent_totals
+        print(f"🏠 Rent status: pending ${rent_totals['pending_this_month']:,.2f} this month, "
+              f"arrears ${rent_totals['total_arrears']:,.2f} across {rent_totals['properties']} properties")
+    except FileNotFoundError:
+        print("🏠 Rent status skipped — rent_roll.json not found")
+    except Exception as e_rent:
+        print(f"⚠️  Rent status build failed (non-fatal): {e_rent}")
+
     need_snapshot    = False
     snapshot_attachment: list[dict] | None = None
     year_month = date.today().strftime("%Y-%m")

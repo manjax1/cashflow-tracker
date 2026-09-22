@@ -253,6 +253,25 @@ def query_by_region(start_date, end_date, region=None, limit=300):
     }
 
 
+def _rent_status_mod():
+    import sys
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    import rent_status as _rs
+    return _rs
+
+
+def rent_status(as_of=None):
+    """Pending rent + arrears per rental property (reads rent_roll.json for
+    expected rents). Returns per-property paid/pending/arrears/credit, last
+    fully-paid month, recent payments, and any unmatched rental-income rows."""
+    return _rent_status_mod().compute_status(effective_rows(), as_of=as_of)
+
+
+def rent_property_detail(label, as_of=None):
+    """Drill-down for one property: month-by-month expected vs paid + payments."""
+    return _rent_status_mod().property_detail(effective_rows(), label, as_of=as_of)
+
+
 def get_cashflow_summary(start_date, end_date, group_by="category", category=None, basis="cash"):
     """Aggregates income/expense/net. group_by: category|month|account|type.
 

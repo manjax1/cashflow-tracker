@@ -31,8 +31,25 @@ def load_rent_roll(path=RENT_ROLL_PATH):
     return [p for p in data.get("properties", []) if p.get("active", True)]
 
 
+def load_ignore(path=RENT_ROLL_PATH):
+    """Optional top-level 'ignore' list in rent_roll.json: description substrings
+    for Rental-Income rows that are NOT current-tenant rent (historical
+    pre-manager deposits, refunds, personal transfers). They're excluded from the
+    'unmatched' review bucket so it only surfaces genuinely-missing tenants."""
+    try:
+        with open(path) as f:
+            return [str(s).lower() for s in json.load(f).get("ignore", [])]
+    except (OSError, ValueError):
+        return []
+
+
 def _ym(d):
     return str(d)[:7]
+
+
+def _tenant_str(t):
+    """tenant may be a string or a list of names — return a single display string."""
+    return ", ".join(str(x) for x in t) if isinstance(t, (list, tuple)) else str(t or "")
 
 
 def _month_range(start_ym, end_ym):
@@ -48,15 +65,33 @@ def _month_range(start_ym, end_ym):
 
 
 def _matches(tx, prop):
+    """A transaction belongs to a property if EITHER its Account equals the
+    property's account_label (Adriana statement) OR its Description contains any
+    name in name_any (direct payer). Supporting both lets one property collect an
+    Adriana statement AND direct Zelle payments (e.g. an Adriana-managed unit that
+    also receives a tenant's Zelle)."""
     m = prop.get("match", {})
-    if "account_label" in m:
-        return str(tx.get("Account", "")) == m["account_label"]
+    if "account_label" in m and str(tx.get("Account", "")) == m["account_label"]:
+        return True
     if "name_any" in m:
         if m.get("account") and str(tx.get("Account", "")).lower() != m["account"].lower():
             return False
         desc = str(tx.get("Description", "")).lower()
-        return any(str(n).lower() in desc for n in m["name_any"])
+        names = m["name_any"]
+        if isinstance(names, str):
+            names = [names]                 # tolerate a bare string instead of a list
+        return any(_name_in(desc, n) for n in names)
     return False
+
+
+def _name_in(desc, token):
+    """A name token matches if EVERY word in it appears in the description
+    (order-independent). So 'Almitra Perry' matches 'ALMITRA Y PERRY' and
+    'Ruby Roberts' matches 'RUBY ANNETTE ROBERTS' — a bank-inserted middle
+    name/initial no longer breaks the match. Single-word tokens (a surname) still
+    work as a simple contains-check."""
+    words = [w for w in str(token).lower().split() if w]
+    return bool(words) and all(w in desc for w in words)
 
 
 def _rental_income_rows(rows):
@@ -85,7 +120,11 @@ def compute_status(rows, as_of=None, roll=None, recent_n=6):
             if _matches(tx, prop):
                 matched_by_label[prop["label"]].append(tx)
                 used.add(i)
-    unmatched = [tx for i, tx in enumerate(income) if i not in used]
+    ignore = load_ignore()
+    def _ignored(tx):
+        d = str(tx.get("Description", "")).lower()
+        return any(s in d for s in ignore)
+    unmatched = [tx for i, tx in enumerate(income) if i not in used and not _ignored(tx)]
 
     props_out = []
     tot_pending = tot_arrears = tot_credit = tot_rent = 0.0
@@ -107,6 +146,12 @@ def compute_status(rows, as_of=None, roll=None, recent_n=6):
         paid_this = round(by_month.get(as_of_month, 0.0), 2)
         pending_this = max(0.0, round(rent - paid_this, 2))
 
+        # A vacant unit isn't in arrears — it's a vacancy, not an unpaid tenant.
+        vacant = bool(prop.get("vacant"))
+        if vacant:
+            arrears = 0.0
+            pending_this = 0.0
+
         last_paid = ""
         for m in reversed(months):
             if by_month.get(m, 0.0) + _TOL >= rent and rent > 0:
@@ -120,14 +165,14 @@ def compute_status(rows, as_of=None, roll=None, recent_n=6):
 
         props_out.append({
             "label": prop["label"], "property": prop.get("property", prop["label"]),
-            "tenant": prop.get("tenant", ""), "monthly_rent": round(rent, 2),
+            "tenant": _tenant_str(prop.get("tenant", "")), "monthly_rent": round(rent, 2),
             "managed_by": prop.get("managed_by", ""),
             "paid_this_month": paid_this, "pending_this_month": pending_this,
             "arrears": arrears, "credit": credit,
             "last_fully_paid_month": last_paid,
             "last_payment_date": max((t["Date"] for t in txs), default=""),
             "months_tracked": len(months), "start_month": start,
-            "recent_payments": recent_out,
+            "recent_payments": recent_out, "vacant": vacant,
             "verify": bool(prop.get("verify")), "note": prop.get("note", ""),
         })
         tot_pending += pending_this
@@ -189,7 +234,7 @@ def property_detail(rows, label, as_of=None, roll=None, months_back=12):
     payments = [t for t in payments if _ym(t["Date"]) >= months[0]] if months else payments
     return {
         "label": label, "property": prop.get("property", label),
-        "tenant": prop.get("tenant", ""), "monthly_rent": round(rent, 2),
+        "tenant": _tenant_str(prop.get("tenant", "")), "monthly_rent": round(rent, 2),
         "months": month_rows,
         "payments": [{"date": t["Date"], "amount": round(float(t.get("Amount") or 0), 2),
                       "description": str(t.get("Description", ""))[:100]} for t in payments],

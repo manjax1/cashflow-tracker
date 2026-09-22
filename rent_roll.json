@@ -147,8 +147,7 @@
       "property": "2431 Mulholland Drive Lathrop CA 95330",
       "tenant": "Melissa N Berkley",
       "monthly_rent": 3950.0,
-      "verify": true,
-      "note": "Amounts varied widely ($950-$3950); could be two units or catch-up. Confirm — may need to split into two properties.",
+      "note": "Confirmed $3,950/mo, single unit. Tenant pays irregularly — arrears reflect real delinquency.",
       "managed_by": "direct",
       "match": {
         "account": "Checking",

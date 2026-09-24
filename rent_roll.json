@@ -233,10 +233,8 @@
     }
   ],
   "ignore": [
+    "BOFA FIN CTR",
     "UTOPIA MGMT",
-    "Yosemite Av",
-    "McHenry Ave",
-    "305 E F St",
     "STEADILY",
     "HIPPO INSURANCE",
     "Sai Vudatha",
@@ -245,5 +243,5 @@
     "RITA ANDONIAN",
     "ERIKA MARLENE PARRA"
   ],
-  "_ignore_comment": "Description substrings for Rental-Income rows that are NOT current-tenant rent, so they don't clutter the 'unmatched' review. Here: pre-Adriana Utopia/branch-deposit income for units now managed by Adriana, insurance refunds, personal Zelles, and pre-2026 former tenants/refunds (Rita Andonian, Erika Parra). CONFIRM: Rita Andonian's memos reference '3136 Watermarke place' — if that is a property you still rent out, add it as a property instead of ignoring."
+  "_ignore_comment": "Description substrings for Rental-Income rows that are NOT current-tenant rent, so they don't clutter the 'unmatched' review. 'BOFA FIN CTR' = any branch deposit (Adriana's monthly consolidated payout, whatever branch/address she uses — this is the real income, counted in net, but it isn't a per-property payment so it's ignored for rent attribution). 'UTOPIA MGMT' = predecessor manager's ACH payouts. Also: insurance refunds, personal Zelles, and pre-2026 former tenants/refunds (Rita Andonian, Erika Parra)."
 }

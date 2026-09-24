@@ -37,6 +37,19 @@ def _adriana_section(report: dict, force: bool = False) -> str:
     def _li(items):
         return "".join(f"<li style='margin:3px 0'>{x}</li>" for x in items)
 
+    def _amounts(i):
+        # gross rent − management fee (− maintenance) = net deposit (Adriana's check)
+        if i.get("net") is None:
+            return f"${i.get('total', 0):,.2f}"
+        parts = [f"gross rent ${i.get('gross', 0):,.2f}"]
+        if i.get("mgmt_fee"):
+            parts.append(f"mgmt fee ${i['mgmt_fee']:,.2f}")
+        if i.get("maintenance"):
+            parts.append(f"maintenance ${i['maintenance']:,.2f}")
+        if i.get("other_deduction"):
+            parts.append(f"other ${i['other_deduction']:,.2f}")
+        return " − ".join(parts) + f" = <b>net deposit ${i['net']:,.2f}</b>"
+
     if has_problem:
         blocks = []
         if errors:
@@ -50,7 +63,7 @@ def _adriana_section(report: dict, force: bool = False) -> str:
                           + _li(f"No file found for <b>{_ym_label(m)}</b> (expected last month's ledger)." for m in missing) + "</ul></div>")
         if imported:
             blocks.append("<div style='margin-top:8px;color:#2c5c3f'><b>Imported this run:</b><ul style='margin:4px 0 0 0;padding-left:20px'>"
-                          + _li(f"{i['label']}: {i['added']} new rows, ${i['total']:,.2f}" for i in imported) + "</ul></div>")
+                          + _li(f"{i['label']}: {i['added']} new rows — {_amounts(i)}" for i in imported) + "</ul></div>")
         return ("<div style='margin:16px 0;padding:14px 16px;background:#fdecea;"
                 "border:2px solid #a2472e;border-radius:8px;color:#7a2e1a;font-size:13.5px'>"
                 "<div style='font-size:15px;font-weight:700;color:#a2472e'>⚠️ Adriana rental import needs attention</div>"
@@ -59,9 +72,9 @@ def _adriana_section(report: dict, force: bool = False) -> str:
     # Success-only summary
     rows = []
     for i in imported:
-        rows.append(f"<li style='margin:3px 0'>{i['label']}: <b>{i['added']}</b> new rows, "
-                    f"${i['total']:,.2f} (skipped {i['skipped']})</li>")
-    warn = [f"<div style='margin-top:6px;color:#8a6d00'>⚠️ {_ym_label(s['ym'])} total "
+        rows.append(f"<li style='margin:3px 0'>{i['label']}: <b>{i['added']}</b> new rows "
+                    f"(skipped {i['skipped']}) — {_amounts(i)}</li>")
+    warn = [f"<div style='margin-top:6px;color:#8a6d00'>⚠️ {_ym_label(s['ym'])} net deposit "
             f"${s['total']:,.2f} is {s['pct']:+.0f}% vs {_ym_label(s['prior_ym'])} "
             f"${s['prior_total']:,.2f} — worth a look.</div>"
             for s in sanity if s.get("flag")]

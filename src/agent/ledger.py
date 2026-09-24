@@ -87,6 +87,12 @@ def load_transactions():
         row["Date"] = _parse_date(row["Date"]).isoformat()
         row["Amount"] = float(row["Amount"] or 0)
         row["IncludeInNet"] = bool(row.get("IncludeInNet", True))
+        # Adriana per-property rows are a BREAKDOWN, not real income — the real
+        # income is Adriana's monthly bank deposit. Exclude them from net here so
+        # existing rows behave correctly without a ledger migration. (Rent Status
+        # still uses them; see rent_status._rental_income_rows.)
+        if str(row.get("SourceRef", "")).startswith("adriana:"):
+            row["IncludeInNet"] = False
         rows.append(row)
     wb.close()
     _cache.update(mtime=mtime, rows=rows)

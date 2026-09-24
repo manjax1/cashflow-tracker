@@ -329,7 +329,7 @@
     <div id="results"></div>
   </div>
 
-  <section id="rent">
+  <section id="rent" style="display:none">
     <div class="rent-hd">🏠 Rent Status <span id="rent-sub" class="rent-sub"></span>
       <button class="rent-refresh" onclick="loadRentStatus()" title="Reload">⟳</button></div>
     <div id="rent-body"><div class="rent-loading">Loading rent status…</div></div>
@@ -1149,8 +1149,16 @@ async function loadApprovals() {
   list.appendChild(box);
 }
 
+let _rentLoaded = false;
 function jumpTo(id) {
   if (id === 'chat') { $('q').focus(); window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }); return; }
+  if (id === 'rent') {                       // reveal + lazy-load the Rent view on demand
+    const sec = $('rent');
+    sec.style.display = 'block';
+    if (!_rentLoaded) { _rentLoaded = true; loadRentStatus(); }
+    sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return;
+  }
   $(id).scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 function openDrawer(which) {
@@ -1182,8 +1190,9 @@ async function initAdmin() {
 
 loadDashboard();
 loadMeta();
-loadRentStatus();
 initAdmin();
+// Rent is loaded on demand (when the 🏠 Rent nav button is clicked), keeping the
+// landing pane clean — see jumpTo('rent').
 </script>
 </body>
 </html>

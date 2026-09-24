@@ -267,25 +267,39 @@ def run_sync(from_date: date = None, to_date: date = None) -> dict:
                     a_txns = parse_adriana_file(drive_svc, fm)
                     a_result = write_spending_ledger(ledger_path, a_txns)
                     set_meta_flag(ledger_path, f"adriana_processed:{ym_key}")
-                    this_total = round(sum(t["amount"] for t in a_txns), 2)
+                    # Split into gross rent, deductions, and the NET deposit Adriana
+                    # actually sends (gross − management fee − maintenance).
+                    def _sum(pred):
+                        return round(sum(t["amount"] for t in a_txns if pred(t)), 2)
+                    gross = _sum(lambda t: t.get("type") == "Income")
+                    mgmt_fee = _sum(lambda t: "Management Fee" in t.get("category", ""))
+                    maintenance = _sum(lambda t: "Maintenance" in t.get("category", ""))
+                    other_ded = _sum(lambda t: t.get("type") == "Expense"
+                                     and "Management Fee" not in t.get("category", "")
+                                     and "Maintenance" not in t.get("category", ""))
+                    deductions = round(mgmt_fee + maintenance + other_ded, 2)
+                    net_deposit = round(gross - deductions, 2)
                     prior_ym = _prev_ym(ym_key)
-                    prior_total = _adriana_month_total(ledger_path, prior_ym)
+                    prior_net = _adriana_net(ledger_path, prior_ym)
                     entry = {"name": fm["name"], "ym": ym_key, "label": month_label,
                              "added": a_result["added"], "skipped": a_result["skipped"],
-                             "rows": len(a_txns), "total": this_total}
+                             "rows": len(a_txns), "gross": gross, "mgmt_fee": mgmt_fee,
+                             "maintenance": maintenance, "other_deduction": other_ded,
+                             "net": net_deposit, "total": gross}
                     adriana_report["imported"].append(entry)
                     if len(a_txns) == 0:
                         adriana_report["errors"].append(
                             {"name": fm["name"], "error": "0 transactions parsed — header row "
                              "or Property/column names may not match the expected layout"})
-                    elif prior_total > 0:
-                        pct = (this_total - prior_total) / prior_total * 100
-                        s = {"ym": ym_key, "total": this_total, "prior_ym": prior_ym,
-                             "prior_total": prior_total, "pct": round(pct, 1),
-                             "flag": abs(pct) >= 25}
+                    elif prior_net > 0:
+                        pct = (net_deposit - prior_net) / prior_net * 100
+                        s = {"ym": ym_key, "total": net_deposit, "prior_ym": prior_ym,
+                             "prior_total": prior_net, "pct": round(pct, 1),
+                             "flag": abs(pct) >= 25, "basis": "net deposit"}
                         adriana_report["sanity"].append(s)
                     print(f"📋 Adriana {month_label}: {a_result['added']} added, "
-                          f"{a_result['skipped']} skipped, ${this_total:,.2f} total")
+                          f"{a_result['skipped']} skipped — gross ${gross:,.2f}, "
+                          f"fees ${mgmt_fee:,.2f}, net ${net_deposit:,.2f}")
                 except Exception as e_fm:
                     adriana_report["errors"].append({"name": fm["name"], "error": str(e_fm)})
                     print(f"⚠️  Adriana '{fm['name']}': {e_fm} — skipping")
@@ -421,6 +435,30 @@ def _adriana_month_total(ledger_path: str, ym: str) -> float:
                     pass
         wb.close()
         return round(total, 2)
+    except Exception:
+        return 0.0
+
+
+def _adriana_net(ledger_path: str, ym: str) -> float:
+    """Net Adriana payout for a month = income − expenses among 'adriana:<ym>:'
+    rows (what Adriana actually deposits). 0.0 if none/unreadable."""
+    try:
+        wb = load_workbook(ledger_path, read_only=True)
+        ws = wb["Transactions"]
+        header = [c.value for c in next(ws.iter_rows(min_row=1, max_row=1))]
+        ref_i, amt_i, typ_i = header.index("SourceRef"), header.index("Amount"), header.index("Type")
+        net = 0.0
+        prefix = f"adriana:{ym}:"
+        for row in ws.iter_rows(min_row=2, values_only=True):
+            ref = row[ref_i] if ref_i < len(row) else None
+            if ref and str(ref).startswith(prefix):
+                try:
+                    a = abs(float(row[amt_i]))
+                    net += a if str(row[typ_i]) == "Income" else -a
+                except (TypeError, ValueError):
+                    pass
+        wb.close()
+        return round(net, 2)
     except Exception:
         return 0.0
 

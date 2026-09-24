@@ -95,10 +95,15 @@ def _name_in(desc, token):
 
 
 def _rental_income_rows(rows):
+    # Include Adriana per-property rows even though they're excluded from NET
+    # (they're the breakdown used to attribute rent per property); the
+    # consolidated bank deposit that counts as real income is kept out of rent
+    # attribution via the rent_roll 'ignore' list.
     return [t for t in rows
             if t.get("Type") == "Income"
             and "rental" in str(t.get("Category", "")).lower()
-            and t.get("IncludeInNet", True)]
+            and (t.get("IncludeInNet", True)
+                 or str(t.get("SourceRef", "")).startswith("adriana:"))]
 
 
 def compute_status(rows, as_of=None, roll=None, recent_n=6):

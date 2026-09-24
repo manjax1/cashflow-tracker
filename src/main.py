@@ -325,6 +325,13 @@ def run_sync(from_date: date = None, to_date: date = None) -> dict:
             print(f"⚠️  Adriana sync failed (non-fatal): {e_adriana}")
     summary["adriana"] = adriana_report
 
+    # Keep Adriana per-property rows excluded from net in the stored file so the
+    # spreadsheet Monthly Summary never double-counts them against the bank deposit.
+    _adr_healed = _exclude_adriana_from_net(ledger_path)
+    if _adr_healed:
+        print(f"🩹 Re-excluded {_adr_healed} Adriana row(s) from net (had been re-included)")
+        summary["adriana"]["net_exclusion_healed"] = _adr_healed
+
     # ── Costco pending-receipt reconciliation ────────────────────────────
     # Receipts uploaded before their charge posted are queued in the ledger;
     # now that fresh charges are in, try to auto-split them.
@@ -437,6 +444,32 @@ def _adriana_month_total(ledger_path: str, ym: str) -> float:
         return round(total, 2)
     except Exception:
         return 0.0
+
+
+def _exclude_adriana_from_net(ledger_path: str) -> int:
+    """Self-heal: ensure Adriana per-property rows are stored IncludeInNet=False,
+    so the spreadsheet Monthly Summary never double-counts (the app already
+    excludes them at load, but the sheet reads the stored flag). Idempotent;
+    returns how many rows it had to fix (>0 means something re-included them)."""
+    try:
+        wb = load_workbook(ledger_path)
+        ws = wb["Transactions"]
+        header = [c.value for c in next(ws.iter_rows(min_row=1, max_row=1))]
+        ref_i, inc_i = header.index("SourceRef"), header.index("IncludeInNet")
+        fixed = 0
+        for row in ws.iter_rows(min_row=2):
+            ref = row[ref_i].value
+            if ref and str(ref).lower().startswith("adriana:") \
+                    and row[inc_i].value not in (False, "FALSE", 0, "0"):
+                row[inc_i].value = False
+                fixed += 1
+        if fixed:
+            wb.save(ledger_path)
+        wb.close()
+        return fixed
+    except Exception as e:
+        print(f"⚠️  Adriana net-exclusion self-heal failed (non-fatal): {e}")
+        return 0
 
 
 def _adriana_net(ledger_path: str, ym: str) -> float:

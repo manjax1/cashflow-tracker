@@ -59,8 +59,11 @@
       "property": "2528 Mission Rd, Stockton CA 95204",
       "tenant": "Cathy Thissel",
       "monthly_rent": 1000.0,
-      "verify": true,
-      "note": "Low amount — likely a tenant-portion. Confirm full contract rent.",
+      "rent_schedule": [
+        {"from": "2026-01", "amount": 820.0},
+        {"from": "2026-09", "amount": 1000.0}
+      ],
+      "note": "Full contract rent: $820/mo through Aug 2026, raised to $1000/mo from Sep 2026 (county-approved). Split as tenant portion (Cathy Thissel, ~$195) + County Assistance (veteran benefit). NOTE: county has paid $0 since Mar 2026 (Adriana analyzing), so arrears here are a real receivable for the county shortfall.",
       "managed_by": "adriana",
       "match": {
         "account_label": "Stockton-2528"

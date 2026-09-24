@@ -52,6 +52,22 @@ def _tenant_str(t):
     return ", ".join(str(x) for x in t) if isinstance(t, (list, tuple)) else str(t or "")
 
 
+def rent_for_month(prop, ym):
+    """Expected rent for a property in a given month (YYYY-MM). Supports an
+    effective-dated 'rent_schedule' [{'from': 'YYYY-MM', 'amount': N}, …] for
+    mid-lease rent changes; falls back to the flat 'monthly_rent'. The applicable
+    amount is the latest schedule entry whose 'from' is ≤ the month."""
+    sched = prop.get("rent_schedule")
+    if sched:
+        entries = sorted(sched, key=lambda x: str(x.get("from", "")))
+        applicable = entries[0].get("amount")          # baseline = earliest entry
+        for e in entries:
+            if str(e.get("from", "")) <= ym:
+                applicable = e.get("amount")
+        return float(applicable)
+    return float(prop.get("monthly_rent") or 0)
+
+
 def _month_range(start_ym, end_ym):
     y, m = int(start_ym[:4]), int(start_ym[5:7])
     ey, em = int(end_ym[:4]), int(end_ym[5:7])
@@ -134,7 +150,7 @@ def compute_status(rows, as_of=None, roll=None, recent_n=6):
     props_out = []
     tot_pending = tot_arrears = tot_credit = tot_rent = 0.0
     for prop in roll:
-        rent = float(prop.get("monthly_rent") or 0)
+        rent = rent_for_month(prop, as_of_month)   # current-month rent (for display/pending)
         txs = matched_by_label.get(prop["label"], [])
         by_month = defaultdict(float)
         for tx in txs:
@@ -142,7 +158,9 @@ def compute_status(rows, as_of=None, roll=None, recent_n=6):
 
         start = prop.get("start_month") or as_of_month
         months = _month_range(start, as_of_month) if start <= as_of_month else [as_of_month]
-        expected_total = rent * len(months)
+        # Expected is summed per-month so an effective-dated rent change applies
+        # correctly (e.g. $820 through Aug, $1,000 from Sep).
+        expected_total = round(sum(rent_for_month(prop, m) for m in months), 2)
         paid_in_scope = sum(by_month.get(m, 0.0) for m in months)
         balance = expected_total - paid_in_scope        # + = owed, - = credit
         arrears = max(0.0, round(balance, 2))
@@ -159,15 +177,16 @@ def compute_status(rows, as_of=None, roll=None, recent_n=6):
 
         last_paid = ""
         for m in reversed(months):
-            if by_month.get(m, 0.0) + _TOL >= rent and rent > 0:
+            rm = rent_for_month(prop, m)
+            if by_month.get(m, 0.0) + _TOL >= rm and rm > 0:
                 last_paid = m
                 break
 
-        # Most recent month with ANY payment, flagged partial if under a full month's rent.
+        # Most recent month with ANY payment, flagged partial if under that month's rent.
         paid_months = sorted(m for m, v in by_month.items() if v > 0)
         last_paid_month = paid_months[-1] if paid_months else ""
-        last_paid_partial = bool(last_paid_month) and rent > 0 and \
-            by_month.get(last_paid_month, 0.0) + _TOL < rent
+        last_paid_partial = bool(last_paid_month) and rent_for_month(prop, last_paid_month) > 0 and \
+            by_month.get(last_paid_month, 0.0) + _TOL < rent_for_month(prop, last_paid_month)
         months_behind = round(arrears / rent, 1) if rent > 0 else 0.0
 
         recent = sorted(txs, key=lambda t: t["Date"], reverse=True)[:recent_n]
@@ -229,7 +248,6 @@ def property_detail(rows, label, as_of=None, roll=None, months_back=12):
         return {"error": f"unknown property label: {label}"}
     as_of = as_of or date.today().isoformat()
     as_of_month = _ym(as_of)
-    rent = float(prop.get("monthly_rent") or 0)
     income = _rental_income_rows(rows)
     txs = [t for t in income if _matches(t, prop)]
 
@@ -242,15 +260,17 @@ def property_detail(rows, label, as_of=None, roll=None, months_back=12):
     months = all_months[-months_back:]
     month_rows = []
     for m in months:
+        rm = rent_for_month(prop, m)
         paid = round(sum(float(t.get("Amount") or 0) for t in by_month_txs.get(m, [])), 2)
-        month_rows.append({"month": m, "expected": round(rent, 2), "paid": paid,
-                           "shortfall": max(0.0, round(rent - paid, 2)),
-                           "fully_paid": paid + _TOL >= rent and rent > 0})
+        month_rows.append({"month": m, "expected": round(rm, 2), "paid": paid,
+                           "shortfall": max(0.0, round(rm - paid, 2)),
+                           "fully_paid": paid + _TOL >= rm and rm > 0})
     payments = sorted(txs, key=lambda t: t["Date"], reverse=True)
     payments = [t for t in payments if _ym(t["Date"]) >= months[0]] if months else payments
     return {
         "label": label, "property": prop.get("property", label),
-        "tenant": _tenant_str(prop.get("tenant", "")), "monthly_rent": round(rent, 2),
+        "tenant": _tenant_str(prop.get("tenant", "")),
+        "monthly_rent": round(rent_for_month(prop, as_of_month), 2),
         "months": month_rows,
         "payments": [{"date": t["Date"], "amount": round(float(t.get("Amount") or 0), 2),
                       "description": str(t.get("Description", ""))[:100]} for t in payments],

@@ -150,44 +150,54 @@ def compute_status(rows, as_of=None, roll=None, recent_n=6):
     props_out = []
     tot_pending = tot_arrears = tot_credit = tot_rent = 0.0
     for prop in roll:
-        rent = rent_for_month(prop, as_of_month)   # current-month rent (for display/pending)
+        gross_rent = rent_for_month(prop, as_of_month)   # gross contract rent (display)
+        fee_pct = float(prop.get("management_fee_pct") or 0)
+        fee_factor = 1.0 - fee_pct / 100.0
+        net_rent = round(gross_rent * fee_factor, 2)     # what the owner should net
+        # When rent arrives net of a management fee (e.g. the PM deposits 90%),
+        # expected is the NET, so the fee isn't mistaken for a shortfall.
+        def _expected(m):
+            return round(rent_for_month(prop, m) * fee_factor, 2)
+
         txs = matched_by_label.get(prop["label"], [])
         by_month = defaultdict(float)
         for tx in txs:
             by_month[_ym(tx["Date"])] += float(tx.get("Amount") or 0)
 
         start = prop.get("start_month") or as_of_month
-        months = _month_range(start, as_of_month) if start <= as_of_month else [as_of_month]
-        # Expected is summed per-month so an effective-dated rent change applies
-        # correctly (e.g. $820 through Aug, $1,000 from Sep).
-        expected_total = round(sum(rent_for_month(prop, m) for m in months), 2)
+        lease_end = prop.get("lease_end")                # optional 'YYYY-MM' fixed-term end
+        scope_end = min(as_of_month, lease_end) if lease_end else as_of_month
+        not_started = start > as_of_month                # lease hasn't begun yet
+        months = _month_range(start, scope_end) if (not not_started and start <= scope_end) else []
+        expected_total = round(sum(_expected(m) for m in months), 2)
         paid_in_scope = sum(by_month.get(m, 0.0) for m in months)
         balance = expected_total - paid_in_scope        # + = owed, - = credit
         arrears = max(0.0, round(balance, 2))
         credit = max(0.0, round(-balance, 2))
 
         paid_this = round(by_month.get(as_of_month, 0.0), 2)
-        pending_this = max(0.0, round(rent - paid_this, 2))
+        pending_this = max(0.0, round(net_rent - paid_this, 2))
 
-        # A vacant unit isn't in arrears — it's a vacancy, not an unpaid tenant.
+        # Vacant, or a lease that hasn't started yet, owes nothing.
         vacant = bool(prop.get("vacant"))
-        if vacant:
+        if vacant or not_started:
             arrears = 0.0
             pending_this = 0.0
 
         last_paid = ""
         for m in reversed(months):
-            rm = rent_for_month(prop, m)
-            if by_month.get(m, 0.0) + _TOL >= rm and rm > 0:
+            em = _expected(m)
+            if by_month.get(m, 0.0) + _TOL >= em and em > 0:
                 last_paid = m
                 break
 
-        # Most recent month with ANY payment, flagged partial if under that month's rent.
+        # Most recent month with ANY payment, flagged partial if under that month's expected.
         paid_months = sorted(m for m, v in by_month.items() if v > 0)
         last_paid_month = paid_months[-1] if paid_months else ""
-        last_paid_partial = bool(last_paid_month) and rent_for_month(prop, last_paid_month) > 0 and \
-            by_month.get(last_paid_month, 0.0) + _TOL < rent_for_month(prop, last_paid_month)
-        months_behind = round(arrears / rent, 1) if rent > 0 else 0.0
+        last_paid_partial = bool(last_paid_month) and _expected(last_paid_month) > 0 and \
+            by_month.get(last_paid_month, 0.0) + _TOL < _expected(last_paid_month)
+        months_behind = round(arrears / net_rent, 1) if net_rent > 0 else 0.0
+        rent = gross_rent
 
         recent = sorted(txs, key=lambda t: t["Date"], reverse=True)[:recent_n]
         recent_out = [{"date": t["Date"], "amount": round(float(t.get("Amount") or 0), 2),
@@ -197,6 +207,8 @@ def compute_status(rows, as_of=None, roll=None, recent_n=6):
         props_out.append({
             "label": prop["label"], "property": prop.get("property", prop["label"]),
             "tenant": _tenant_str(prop.get("tenant", "")), "monthly_rent": round(rent, 2),
+            "management_fee_pct": fee_pct, "net_rent": net_rent,
+            "not_started": not_started, "lease_end": lease_end or "",
             "managed_by": prop.get("managed_by", ""),
             "paid_this_month": paid_this, "pending_this_month": pending_this,
             "arrears": arrears, "credit": credit,
@@ -255,22 +267,26 @@ def property_detail(rows, label, as_of=None, roll=None, months_back=12):
     for t in txs:
         by_month_txs[_ym(t["Date"])].append(t)
 
+    fee_factor = 1.0 - float(prop.get("management_fee_pct") or 0) / 100.0
     start = prop.get("start_month") or as_of_month
-    all_months = _month_range(start, as_of_month) if start <= as_of_month else [as_of_month]
+    lease_end = prop.get("lease_end")
+    scope_end = min(as_of_month, lease_end) if lease_end else as_of_month
+    all_months = _month_range(start, scope_end) if start <= scope_end else []
     months = all_months[-months_back:]
     month_rows = []
     for m in months:
-        rm = rent_for_month(prop, m)
+        em = round(rent_for_month(prop, m) * fee_factor, 2)   # net expected
         paid = round(sum(float(t.get("Amount") or 0) for t in by_month_txs.get(m, [])), 2)
-        month_rows.append({"month": m, "expected": round(rm, 2), "paid": paid,
-                           "shortfall": max(0.0, round(rm - paid, 2)),
-                           "fully_paid": paid + _TOL >= rm and rm > 0})
+        month_rows.append({"month": m, "expected": em, "paid": paid,
+                           "shortfall": max(0.0, round(em - paid, 2)),
+                           "fully_paid": paid + _TOL >= em and em > 0})
     payments = sorted(txs, key=lambda t: t["Date"], reverse=True)
     payments = [t for t in payments if _ym(t["Date"]) >= months[0]] if months else payments
     return {
         "label": label, "property": prop.get("property", label),
         "tenant": _tenant_str(prop.get("tenant", "")),
         "monthly_rent": round(rent_for_month(prop, as_of_month), 2),
+        "management_fee_pct": float(prop.get("management_fee_pct") or 0),
         "months": month_rows,
         "payments": [{"date": t["Date"], "amount": round(float(t.get("Amount") or 0), 2),
                       "description": str(t.get("Description", ""))[:100]} for t in payments],

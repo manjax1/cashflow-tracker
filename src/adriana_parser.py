@@ -267,7 +267,7 @@ def _parse_xlsx(content: bytes, file_meta: dict) -> list[dict]:
                 "type":             tx_type,
                 "amount":           round(amount, 2),
                 "transaction_id":   _dedup_key(year_month, prop_label, date_str, amount),
-                "exclude_from_net": False,
+                "exclude_from_net": True,  # breakdown only; bank deposit is the real income
             })
 
     return transactions
@@ -326,7 +326,7 @@ def _parse_csv(content: bytes, file_meta: dict) -> list[dict]:
             "type":             tx_type,
             "amount":           round(amount, 2),
             "transaction_id":   _dedup_key(year_month, prop_label, date_str, amount),
-            "exclude_from_net": False,
+            "exclude_from_net": True,  # breakdown only; bank deposit is the real income
         })
 
     return transactions

@@ -304,6 +304,16 @@ def run_sync(from_date: date = None, to_date: date = None) -> dict:
                     adriana_report["errors"].append({"name": fm["name"], "error": str(e_fm)})
                     print(f"⚠️  Adriana '{fm['name']}': {e_fm} — skipping")
 
+            # Reconcile statement totals vs actual bank deposits (whenever a file
+            # was imported this run).
+            if adriana_report["imported"]:
+                last = adriana_report["imported"][-1]
+                adriana_report["reconciliation"] = _adriana_reconcile(
+                    ledger_path, last["ym"], last.get("net", 0.0))
+                rec = adriana_report["reconciliation"]
+                print(f"🏦 Adriana reconcile: statements ${rec['cum_net']:,.2f} vs "
+                      f"deposits ${rec['cum_deposits']:,.2f} (diff ${rec['diff']:,.2f}) — {rec['kind']}")
+
             # Missing expected month: previous calendar month with no file present
             # and not already processed.
             prev = _prev_ym(date.today().strftime("%Y-%m"))
@@ -314,7 +324,8 @@ def run_sync(from_date: date = None, to_date: date = None) -> dict:
 
             # Immediate standalone alert the moment a problem is detected.
             if (adriana_report["errors"] or adriana_report["unmatched"]
-                    or adriana_report["missing_months"]):
+                    or adriana_report["missing_months"]
+                    or adriana_report.get("reconciliation", {}).get("flag")):
                 try:
                     from email_notifier import send_adriana_alert
                     send_adriana_alert(adriana_report, str(end))
@@ -470,6 +481,53 @@ def _exclude_adriana_from_net(ledger_path: str) -> int:
     except Exception as e:
         print(f"⚠️  Adriana net-exclusion self-heal failed (non-fatal): {e}")
         return 0
+
+
+def _adriana_reconcile(ledger_path: str, latest_ym: str, latest_net: float) -> dict:
+    """Reconcile Adriana statement totals against the actual bank deposits.
+
+    Compares CUMULATIVE statement net (all 'adriana:' rows: income − fees −
+    maintenance) against CUMULATIVE branch deposits ('BOFA FIN CTR … DEPOSIT'
+    categorized Rental-Income) — timing-agnostic, so a deposit landing in the
+    next month doesn't create a false discrepancy. Flags when they diverge beyond
+    tolerance, allowing for the most-recent month's deposit possibly not having
+    posted yet. Positive diff = bank received MORE than statements show.
+    """
+    TOL = 25.0
+    try:
+        wb = load_workbook(ledger_path, read_only=True)
+        ws = wb["Transactions"]
+        h = [str(c.value) for c in next(ws.iter_rows(min_row=1, max_row=1))]
+        di, ni, ci, ai, ti, si = (h.index(x) for x in
+                                  ["Date", "Description", "Category", "Amount", "Type", "SourceRef"])
+        cum_net = cum_dep = 0.0
+        for r in ws.iter_rows(min_row=2, values_only=True):
+            if r[di] is None:
+                continue
+            desc, cat, sref = str(r[ni] or ""), str(r[ci] or ""), str(r[si] or "")
+            try:
+                amt = abs(float(r[ai] or 0))
+            except (TypeError, ValueError):
+                continue
+            if sref.lower().startswith("adriana:"):
+                cum_net += amt if str(r[ti]) == "Income" else -amt
+            elif "BOFA FIN CTR" in desc and "DEPOSIT" in desc and "rental" in cat.lower():
+                cum_dep += amt
+        wb.close()
+        cum_net, cum_dep = round(cum_net, 2), round(cum_dep, 2)
+        diff = round(cum_dep - cum_net, 2)                 # + = bank exceeds statements
+        # The just-processed month's deposit may not have posted yet; allow that.
+        if diff > TOL:
+            flag, kind = True, "bank deposits EXCEED statement totals"
+        elif diff < -(latest_net + TOL):
+            flag, kind = True, "bank deposits fall SHORT of statement totals"
+        else:
+            flag, kind = False, "reconciled"
+        return {"cum_net": cum_net, "cum_deposits": cum_dep, "diff": diff,
+                "flag": flag, "kind": kind, "tol": TOL, "latest_ym": latest_ym}
+    except Exception as e:
+        return {"flag": False, "kind": f"reconcile skipped: {e}", "diff": 0.0,
+                "cum_net": 0.0, "cum_deposits": 0.0, "tol": TOL, "latest_ym": latest_ym}
 
 
 def _adriana_net(ledger_path: str, ym: str) -> float:

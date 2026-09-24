@@ -1026,19 +1026,26 @@ async function loadRentStatus() {
     + '<th>Last paid</th><th></th>'
     + '</tr></thead><tbody>';
   (d.properties || []).forEach(p => {
-    const pend = p.pending_this_month > 0 ? `<span class="pill due">${_money(p.pending_this_month)}</span>`
-      : `<span class="pill ok">paid</span>`;
+    const started = !p.not_started;
+    const pend = !started ? `<span class="pill cred">starts ${p.start_month || ''}</span>`
+      : (p.pending_this_month > 0 ? `<span class="pill due">${_money(p.pending_this_month)}</span>`
+      : `<span class="pill ok">paid</span>`);
     const arr = p.arrears > 0 ? `<span class="pill arr">${_money(p.arrears)}</span>`
       : (p.credit > 0 ? `<span class="pill cred">credit ${_money(p.credit)}</span>` : '—');
     const verify = p.verify ? '<span class="rverify" title="Rent amount needs verifying in rent_roll.json">⚠ verify</span>' : '';
+    const rentCell = p.management_fee_pct > 0
+      ? `${_money(p.monthly_rent)}<br><span style="color:var(--muted);font-size:11px">${p.management_fee_pct}% fee → net ${_money(p.net_rent)}</span>`
+      : _money(p.monthly_rent);
+    const lastPaid = !started ? '—'
+      : (p.last_paid_month ? (p.last_paid_month + (p.last_paid_partial ? '<span title="last month only partially paid">*</span>' : '')) : '<span style="color:#b3402a">never</span>');
     html += `<tr class="rrow" data-label="${encodeURIComponent(p.label)}">
       <td><b>${p.property}</b>${verify}<br><span style="color:var(--muted)">${p.tenant || ''}</span></td>
-      <td class="num">${_money(p.monthly_rent)}</td>
+      <td class="num">${rentCell}</td>
       <td class="num">${_money(p.paid_this_month)}</td>
       <td class="num">${pend}</td>
       <td class="num">${arr}</td>
       <td class="num">${p.months_behind > 0 ? '<span class="pill arr">' + p.months_behind + '</span>' : '—'}</td>
-      <td>${p.last_paid_month ? (p.last_paid_month + (p.last_paid_partial ? '<span title="last month only partially paid">*</span>' : '')) : '<span style="color:#b3402a">never</span>'}</td>
+      <td>${lastPaid}</td>
       <td style="color:var(--muted)">▸</td></tr>
       <tr class="rdetail-row" data-for="${encodeURIComponent(p.label)}" style="display:none"><td colspan="8" class="rdetail"><div class="rloading">…</div></td></tr>`;
   });

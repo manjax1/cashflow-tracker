@@ -221,8 +221,9 @@
       "label": "PonteVedraBeach-2-CoveRd",
       "property": "2 Cove Rd. Ponte Vedra Beach FL 32082",
       "tenant": "Lancelots Castle",
-      "monthly_rent": 3300.0,
-      "note": "Right now, it's vacant and actively looking for tenants",
+      "monthly_rent": 3350.0,
+      "management_fee_pct": 10,
+      "note": "Rented effective Oct 1, 2026 for a 6-month term (through Mar 2027). $3,350/mo gross, 10% management fee -> owner nets $3,015/mo. Managed by Phil Lancelot. NOTE: confirm/adjust name_any once the first payout posts — the deposit descriptor may differ from 'LANCELOTS CASTLE'.",
       "managed_by": "Phil Lancelot - Lancelots Castle",
       "match": {
         "account": "Checking",
@@ -230,8 +231,8 @@
           "LANCELOTS CASTLE"
         ]
       },
-      "start_month": "2026-06",
-      "vacant": true,
+      "start_month": "2026-10",
+      "lease_end": "2027-03",
       "active": true
     }
   ],

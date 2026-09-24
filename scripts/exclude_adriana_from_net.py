@@ -37,15 +37,40 @@ def main():
     ref_i = header.index("SourceRef")
     inc_i = header.index("IncludeInNet")
 
-    changed = 0
+    from collections import Counter
+    total_rows = adr_rows = changed = 0
+    adr_incval = Counter()
+    samples, prefix_samples = [], Counter()
     for row in ws.iter_rows(min_row=2):
         ref = row[ref_i].value
-        if ref and str(ref).startswith("adriana:") and row[inc_i].value not in (False, "FALSE", 0):
-            if args.apply:
-                row[inc_i].value = False
-            changed += 1
+        if ref is None:
+            continue
+        total_rows += 1
+        sref = str(ref)
+        # capture what SourceRef prefixes look like (first token before ':')
+        prefix_samples[sref.split(":")[0][:20]] += 1
+        if sref.lower().startswith("adriana:"):
+            adr_rows += 1
+            adr_incval[repr(row[inc_i].value)] += 1
+            if len(samples) < 4:
+                samples.append((sref[:48], repr(row[inc_i].value)))
+            if row[inc_i].value not in (False, "FALSE", 0, "0"):
+                if args.apply:
+                    row[inc_i].value = False
+                changed += 1
 
-    print(f"Adriana rows to exclude from net: {changed}")
+    print(f"Transactions rows: {total_rows}")
+    print(f"Adriana rows (SourceRef starts 'adriana:'): {adr_rows}")
+    print(f"  IncludeInNet values among them: {dict(adr_incval)}")
+    if samples:
+        print("  samples:")
+        for s, v in samples:
+            print(f"    {s}   IncludeInNet={v}")
+    if adr_rows == 0:
+        print("\n  No 'adriana:' SourceRefs found. Prefix breakdown of all SourceRefs:")
+        for p, n in prefix_samples.most_common(12):
+            print(f"    {p!r}: {n}")
+    print(f"\nAdriana rows to exclude from net: {changed}")
     if not args.apply:
         print("(dry run — re-run with --apply to write to Drive)")
         return

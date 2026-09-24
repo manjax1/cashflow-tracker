@@ -30,7 +30,9 @@ def _adriana_section(report: dict, force: bool = False) -> str:
     missing = report.get("missing_months", [])
     imported = report.get("imported", [])
     sanity = report.get("sanity", [])
-    has_problem = bool(errors or unmatched or missing)
+    recon = report.get("reconciliation") or {}
+    recon_flag = bool(recon.get("flag"))
+    has_problem = bool(errors or unmatched or missing or recon_flag)
     if not (has_problem or imported or force):
         return ""
 
@@ -61,6 +63,15 @@ def _adriana_section(report: dict, force: bool = False) -> str:
         if missing:
             blocks.append("<div style='margin-top:8px'><b>Missing month(s):</b><ul style='margin:4px 0 0 0;padding-left:20px'>"
                           + _li(f"No file found for <b>{_ym_label(m)}</b> (expected last month's ledger)." for m in missing) + "</ul></div>")
+        if recon_flag:
+            d = recon["diff"]
+            blocks.append(
+                "<div style='margin-top:8px'><b>🏦 Deposit vs statement discrepancy:</b>"
+                f"<div style='margin-top:3px'>Bank deposits total <b>${recon['cum_deposits']:,.2f}</b> "
+                f"vs statement net total <b>${recon['cum_net']:,.2f}</b> — "
+                f"<b style='color:#a2472e'>{'+' if d >= 0 else ''}${d:,.2f}</b> ({recon['kind']}). "
+                "Verify Adriana's deposit against the statement (a tenant portion, fee, or "
+                "maintenance may be handled outside the file).</div></div>")
         if imported:
             blocks.append("<div style='margin-top:8px;color:#2c5c3f'><b>Imported this run:</b><ul style='margin:4px 0 0 0;padding-left:20px'>"
                           + _li(f"{i['label']}: {i['added']} new rows — {_amounts(i)}" for i in imported) + "</ul></div>")
@@ -78,11 +89,17 @@ def _adriana_section(report: dict, force: bool = False) -> str:
             f"${s['total']:,.2f} is {s['pct']:+.0f}% vs {_ym_label(s['prior_ym'])} "
             f"${s['prior_total']:,.2f} — worth a look.</div>"
             for s in sanity if s.get("flag")]
+    recon_ok = ""
+    if recon and not recon_flag and recon.get("kind") == "reconciled":
+        recon_ok = (f"<div style='margin-top:6px'>🏦 Reconciled: bank deposits "
+                    f"${recon['cum_deposits']:,.2f} ≈ statement net ${recon['cum_net']:,.2f}"
+                    + (f" (diff ${recon['diff']:,.2f}, within ${recon['tol']:,.0f})"
+                       if abs(recon.get('diff', 0)) > 0.01 else "") + ".</div>")
     return ("<div style='margin:16px 0;padding:12px 14px;background:#eef6ee;"
             "border-left:4px solid #2E7D32;border-radius:4px;font-size:13px;color:#2c5c3f'>"
             "<b>📋 Adriana rental import</b>"
             "<ul style='margin:6px 0 0 0;padding-left:20px'>" + "".join(rows) + "</ul>"
-            + "".join(warn) + "</div>")
+            + "".join(warn) + recon_ok + "</div>")
 
 
 def _build_html(summary: dict) -> str:

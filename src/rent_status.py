@@ -25,19 +25,31 @@ RENT_ROLL_PATH = os.path.join(REPO_ROOT, "rent_roll.json")
 _TOL = 0.01
 
 
-def load_rent_roll(path=RENT_ROLL_PATH):
-    with open(path) as f:
+def _rent_roll_path():
+    """rent_roll.json is kept out of git (it holds tenant PII); fetch it from
+    Drive (RENT_ROLL_DRIVE_FILE_ID) when the local copy is absent."""
+    try:
+        import sys
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        from drive_sync import ensure_file_from_drive
+        return ensure_file_from_drive(RENT_ROLL_PATH, "RENT_ROLL_DRIVE_FILE_ID")
+    except Exception:
+        return RENT_ROLL_PATH
+
+
+def load_rent_roll(path=None):
+    with open(path or _rent_roll_path()) as f:
         data = json.load(f)
     return [p for p in data.get("properties", []) if p.get("active", True)]
 
 
-def load_ignore(path=RENT_ROLL_PATH):
+def load_ignore(path=None):
     """Optional top-level 'ignore' list in rent_roll.json: description substrings
     for Rental-Income rows that are NOT current-tenant rent (historical
     pre-manager deposits, refunds, personal transfers). They're excluded from the
     'unmatched' review bucket so it only surfaces genuinely-missing tenants."""
     try:
-        with open(path) as f:
+        with open(path or _rent_roll_path()) as f:
             return [str(s).lower() for s in json.load(f).get("ignore", [])]
     except (OSError, ValueError):
         return []

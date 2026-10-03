@@ -38,6 +38,23 @@ def download_ledger(file_id: str, local_path: str):
         raise
 
 
+def ensure_file_from_drive(local_path: str, env_name: str) -> str:
+    """Make a config file available locally, fetching it from Google Drive when
+    it isn't present. Used for files kept OUT of git for privacy (rent_roll.json,
+    mortgage_pi.json): on Railway's ephemeral disk the file is absent, so it's
+    downloaded from the Drive id in <env_name>; a local dev machine keeps its own
+    copy and is never overwritten. Returns local_path regardless (callers fall
+    back to whatever is on disk if Drive isn't configured)."""
+    file_id = clean_env(os.getenv(env_name), env_name)
+    if file_id and not os.path.exists(local_path):
+        try:
+            download_ledger(file_id, local_path)
+        except Exception as e:
+            print(f"⚠️  Could not fetch {os.path.basename(local_path)} from Drive "
+                  f"({env_name}): {e}")
+    return local_path
+
+
 def upload_ledger(file_id: str, local_path: str):
     try:
         service = get_drive_service()

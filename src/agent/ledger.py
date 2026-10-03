@@ -38,10 +38,20 @@ _mpi_cache = {"data": None}
 
 def load_mortgage_pi():
     """Map of rental mortgage debit amount -> {property, principal}. Used to
-    derive the profitability/margin view (principal = equity build, not a cost)."""
+    derive the profitability/margin view (principal = equity build, not a cost).
+    Kept out of git (property addresses); fetched from Drive
+    (MORTGAGE_PI_DRIVE_FILE_ID) when the local copy is absent."""
     if _mpi_cache["data"] is None:
+        path = MORTGAGE_PI_PATH
         try:
-            with open(MORTGAGE_PI_PATH) as f:
+            import sys
+            sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            from drive_sync import ensure_file_from_drive
+            path = ensure_file_from_drive(MORTGAGE_PI_PATH, "MORTGAGE_PI_DRIVE_FILE_ID")
+        except Exception:
+            pass
+        try:
+            with open(path) as f:
                 _mpi_cache["data"] = json.load(f).get("amounts", {})
         except Exception:
             _mpi_cache["data"] = {}

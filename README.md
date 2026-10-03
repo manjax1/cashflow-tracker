@@ -1,6 +1,6 @@
 # spending-tracker
 
-Tracks personal spending across Bank of America checking and credit card accounts via Plaid. Generates a categorized Excel ledger with monthly/YTD/YoY dashboards, syncs to Google Drive, and sends a weekly email summary.
+Tracks personal spending across your bank's checking and credit card accounts via Plaid. Generates a categorized Excel ledger with monthly/YTD/YoY dashboards, syncs to Google Drive, and sends a weekly email summary.
 
 ---
 
@@ -22,7 +22,7 @@ Tracks personal spending across Bank of America checking and credit card account
 ### 1. Clone and create venv
 
 ```bash
-cd /Users/manjax/Documents/Code/AI/spending-tracker
+cd cashflow-tracker
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt

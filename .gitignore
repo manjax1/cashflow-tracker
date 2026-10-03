@@ -19,3 +19,14 @@ __pycache__/
 .venv/
 .DS_Store
 service-account*.json
+
+# Private data / personal config — kept OUT of git (contains addresses, tenant
+# PII, purchase history). rent_roll.json & mortgage_pi.json reach the app via
+# Google Drive (RENT_ROLL_DRIVE_FILE_ID / MORTGAGE_PI_DRIVE_FILE_ID); see
+# scripts/push_config_to_drive.py.
+rent_roll.json
+mortgage_pi.json
+costco_data/
+cashflow-chatlog.jsonl
+push
+CHEATSHEET.md

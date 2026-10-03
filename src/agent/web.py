@@ -394,7 +394,13 @@ def rent_status():
     try:
         return jsonify(ledger.rent_status())
     except FileNotFoundError:
-        return jsonify({"error": "rent_roll.json not found — add the rent roll to enable this view."}), 200
+        has_id = bool(os.getenv("RENT_ROLL_DRIVE_FILE_ID"))
+        msg = ("rent_roll.json couldn't be loaded from Drive — RENT_ROLL_DRIVE_FILE_ID "
+               "is set, so check the file is shared with the service account (see deploy logs)."
+               if has_id else
+               "rent_roll.json not found. Set RENT_ROLL_DRIVE_FILE_ID (and share the Drive "
+               "file with the service account) so it loads from Drive, then redeploy.")
+        return jsonify({"error": msg}), 200
     except Exception as e:
         return jsonify({"error": f"{type(e).__name__}: {e}"}), 500
 

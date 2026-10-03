@@ -405,6 +405,40 @@ def rent_status():
         return jsonify({"error": f"{type(e).__name__}: {e}"}), 500
 
 
+@app.get("/api/rent_source")
+def rent_source():
+    """Diagnostic: what the running server actually sees for rent-roll delivery —
+    which env vars are present (NOT their values), whether a local file exists,
+    and whether a live Drive download succeeds. Authed; reveals no secrets."""
+    if not _authed():
+        return jsonify({"error": "unauthorized"}), 401
+    import tempfile
+    rr_id = os.getenv("RENT_ROLL_DRIVE_FILE_ID")
+    mp_id = os.getenv("MORTGAGE_PI_DRIVE_FILE_ID")
+    out = {
+        "RENT_ROLL_DRIVE_FILE_ID_set": bool(rr_id),
+        "RENT_ROLL_DRIVE_FILE_ID_len": len(rr_id or ""),
+        "MORTGAGE_PI_DRIVE_FILE_ID_set": bool(mp_id),
+        "GOOGLE_SERVICE_ACCOUNT_JSON_set": bool(os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON")),
+        "rent_roll_local_exists": os.path.exists(
+            os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                         "rent_roll.json")),
+        "env_keys_with_DRIVE": sorted(k for k in os.environ if "DRIVE" in k),
+    }
+    if rr_id:
+        try:
+            from src.drive_sync import download_ledger
+        except Exception:
+            from drive_sync import download_ledger
+        try:
+            tmp = os.path.join(tempfile.gettempdir(), "rentroll_probe.json")
+            download_ledger(rr_id.strip().strip('"').strip("'"), tmp)
+            out["drive_download"] = f"OK ({os.path.getsize(tmp)} bytes)"
+        except Exception as e:
+            out["drive_download"] = f"FAILED: {type(e).__name__}: {str(e)[:160]}"
+    return jsonify(out)
+
+
 @app.get("/api/rent_detail")
 def rent_detail():
     """Drill-down for one rental property. Param: label."""

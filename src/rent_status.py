@@ -285,11 +285,24 @@ def property_detail(rows, label, as_of=None, roll=None, months_back=12):
     scope_end = min(as_of_month, lease_end) if lease_end else as_of_month
     all_months = _month_range(start, scope_end) if start <= scope_end else []
     months = all_months[-months_back:]
+
+    # Running balance carries over/under payments month to month, so a catch-up
+    # or overpayment visibly covers later months instead of each month being
+    # judged in isolation. Seed from any over/underpayment BEFORE the window.
+    running = 0.0
+    for m in (all_months[:-months_back] if len(all_months) > months_back else []):
+        running += (round(sum(float(t.get("Amount") or 0) for t in by_month_txs.get(m, [])), 2)
+                    - round(rent_for_month(prop, m) * fee_factor, 2))
+    running = round(running, 2)
+
     month_rows = []
     for m in months:
         em = round(rent_for_month(prop, m) * fee_factor, 2)   # net expected
         paid = round(sum(float(t.get("Amount") or 0) for t in by_month_txs.get(m, [])), 2)
+        carried_in = running
+        running = round(running + paid - em, 2)               # + = ahead, − = behind
         month_rows.append({"month": m, "expected": em, "paid": paid,
+                           "carried_in": carried_in, "balance": running,
                            "shortfall": max(0.0, round(em - paid, 2)),
                            "fully_paid": paid + _TOL >= em and em > 0})
     payments = sorted(txs, key=lambda t: t["Date"], reverse=True)

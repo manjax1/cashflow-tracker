@@ -1073,10 +1073,13 @@ async function toggleRentDetail(labelEnc, row) {
     if (d.error) { cell.innerHTML = `<span style="color:#b3402a">${d.error}</span>`; return; }
   } catch (e) { cell.innerHTML = `<span style="color:#b3402a">⚠ ${e.message}</span>`; return; }
   let h = `<div style="font-weight:650;margin-bottom:6px">${d.property} — ${d.tenant || ''} · rent ${_money(d.monthly_rent)}/mo</div>`;
-  h += '<div style="display:flex;gap:22px;flex-wrap:wrap"><div><div style="font-size:11px;color:var(--muted);margin-bottom:3px">MONTH-BY-MONTH</div><table><tr><th>Month</th><th>Expected</th><th>Paid</th><th>Status</th></tr>';
+  h += '<div style="display:flex;gap:22px;flex-wrap:wrap"><div><div style="font-size:11px;color:var(--muted);margin-bottom:3px">MONTH-BY-MONTH (running balance carries over)</div><table><tr><th>Month</th><th>Expected</th><th>Paid</th><th>Balance</th></tr>';
   (d.months || []).slice().reverse().forEach(m => {
+    const b = (typeof m.balance === 'number') ? m.balance : 0;
+    const bTxt = b > 0.005 ? '+' + _money(b) + ' ahead'
+      : (b < -0.005 ? _money(Math.abs(b)) + ' behind' : 'even');
     h += `<tr><td>${m.month}</td><td>${_money(m.expected)}</td><td>${_money(m.paid)}</td>`
-      + `<td class="${m.fully_paid ? 'mfull' : 'mshort'}">${m.fully_paid ? 'fully paid' : (m.shortfall>0 ? 'short ' + _money(m.shortfall) : '—')}</td></tr>`;
+      + `<td class="${b < -0.005 ? 'mshort' : 'mfull'}">${bTxt}</td></tr>`;
   });
   h += '</table></div><div><div style="font-size:11px;color:var(--muted);margin-bottom:3px">RECENT PAYMENTS</div><table><tr><th>Date</th><th>Amount</th><th>Description</th></tr>';
   (d.payments || []).slice(0, 12).forEach(p => {

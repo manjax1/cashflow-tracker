@@ -1,6 +1,7 @@
 import os
 import sys
 import json
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from googleapiclient.discovery import build
@@ -38,15 +39,38 @@ def download_ledger(file_id: str, local_path: str):
         raise
 
 
-def ensure_file_from_drive(local_path: str, env_name: str) -> str:
-    """Make a config file available locally, fetching it from Google Drive when
-    it isn't present. Used for files kept OUT of git for privacy (rent_roll.json,
-    mortgage_pi.json): on Railway's ephemeral disk the file is absent, so it's
-    downloaded from the Drive id in <env_name>; a local dev machine keeps its own
-    copy and is never overwritten. Returns local_path regardless (callers fall
-    back to whatever is on disk if Drive isn't configured)."""
+def ensure_file_from_drive(local_path: str, env_name: str, ttl: int = 300) -> str:
+    """Make a config file available locally, fetching it from Google Drive. Used
+    for files kept OUT of git for privacy (rent_roll.json, mortgage_pi.json).
+
+    - Always downloads when the local file is **missing** (e.g. Railway's
+      ephemeral disk on a fresh container).
+    - On a **deployed host** it also re-downloads when the local copy is older
+      than `ttl` seconds, so edits pushed to Drive take effect without a restart.
+      "Deployed" = any `RAILWAY_*` env var is present, or `CONFIG_REFRESH_TTL` is
+      set (which also overrides the interval). On a **local dev machine** (neither
+      signal) the time-based refresh is OFF, so your edited copy is never
+      overwritten — you push changes up with scripts/push_config_to_drive.py.
+
+    Returns local_path regardless (callers fall back to whatever is on disk)."""
     file_id = clean_env(os.getenv(env_name), env_name)
-    if file_id and not os.path.exists(local_path):
+    if not file_id:
+        return local_path
+
+    refresh_env = clean_env(os.getenv("CONFIG_REFRESH_TTL"), "CONFIG_REFRESH_TTL")
+    on_deployed_host = bool(refresh_env) or any(k.startswith("RAILWAY_") for k in os.environ)
+    try:
+        ttl_s = int(refresh_env) if refresh_env else ttl
+    except ValueError:
+        ttl_s = ttl
+
+    need = not os.path.exists(local_path)
+    if not need and on_deployed_host and ttl_s > 0:
+        try:
+            need = (time.time() - os.path.getmtime(local_path)) > ttl_s
+        except OSError:
+            need = True
+    if need:
         try:
             download_ledger(file_id, local_path)
         except Exception as e:

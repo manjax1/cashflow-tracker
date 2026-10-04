@@ -104,6 +104,12 @@ python scripts/push_rules_to_drive.py          # spending_rules.json
   one, manually **Redeploy** each service and confirm the active deployment's
   commit SHA matches `git rev-parse origin/main`.
 - **Env-var changes need a redeploy** to reach the running container.
+- **Config auto-refresh:** on Railway (detected via `RAILWAY_*` env), the
+  Drive-delivered configs re-download when the local copy is older than ~5 min,
+  so pushing a new `rent_roll.json` to Drive takes effect within minutes — no
+  restart needed. Tune/force with `CONFIG_REFRESH_TTL=<seconds>`. Local dev never
+  auto-refreshes (your edited copy is safe). Note: `mortgage_pi.json` is cached in
+  memory per process, so changing *it* still wants a restart (it changes rarely).
 - **Diagnose from the server's own view:** `GET /api/rent_source` (authed)
   reports whether the web service sees `RENT_ROLL_DRIVE_FILE_ID`, whether a local
   file exists, and whether a live Drive download succeeds — no secrets. Use it

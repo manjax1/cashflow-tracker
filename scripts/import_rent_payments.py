@@ -55,12 +55,16 @@ def build_rows(units):
 
 
 def apply_import(ledger_path, units, apply=False):
-    rows = build_rows(units)
+    # SAFETY: only touch units that actually have payments listed — a unit with an
+    # empty 'payments' list is skipped entirely, so it can never wipe existing rows.
+    active = {lbl: cfg for lbl, cfg in units.items() if cfg.get("payments")}
+    skipped = [lbl for lbl in units if lbl not in active]
+    rows = build_rows(active)
     wb = openpyxl.load_workbook(ledger_path)
     ws = wb["Transactions"]
     header = [c.value for c in next(ws.iter_rows(min_row=1, max_row=1))]
     ci = {h: header.index(h) for h in COLS}
-    accts = {cfg.get("account_label", lbl) for lbl, cfg in units.items()}
+    accts = {cfg.get("account_label", lbl) for lbl, cfg in active.items()}
 
     removed = 0
     for r in range(ws.max_row, 1, -1):
@@ -85,7 +89,7 @@ def apply_import(ledger_path, units, apply=False):
         totals.setdefault(d["SourceRef"].split(":")[2], {}).setdefault(d["Date"][:7], 0.0)
         totals[d["SourceRef"].split(":")[2]][d["Date"][:7]] += d["Amount"]
     return {"removed": removed, "added": len(rows), "accounts": sorted(accts),
-            "period_totals": totals}
+            "skipped_empty": skipped, "period_totals": totals}
 
 
 def main():
@@ -100,6 +104,8 @@ def main():
     print(f"Units: {', '.join(res['accounts'])}")
     print(f"Existing adriana:2026 rows on those accounts {'removed' if args.apply else 'to remove'}: {res['removed']}")
     print(f"Rows {'written' if args.apply else 'to write'}: {res['added']}")
+    if res["skipped_empty"]:
+        print(f"Skipped (no payments listed, left untouched): {', '.join(res['skipped_empty'])}")
     for label, months in res["period_totals"].items():
         print(f"  {label}: " + ", ".join(f"{m} ${v:,.2f}" for m, v in sorted(months.items())))
     if not args.apply:

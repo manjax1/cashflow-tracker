@@ -10,7 +10,9 @@ import plaid
 from plaid.api import plaid_api
 from plaid.model.link_token_create_request import LinkTokenCreateRequest
 from plaid.model.link_token_create_request_user import LinkTokenCreateRequestUser
+from plaid.model.link_token_create_hosted_link import LinkTokenCreateHostedLink
 from plaid.model.item_public_token_exchange_request import ItemPublicTokenExchangeRequest
+from plaid.model.link_token_get_request import LinkTokenGetRequest
 from plaid.model.transactions_get_request import TransactionsGetRequest
 from plaid.model.transactions_get_request_options import TransactionsGetRequestOptions
 from plaid.model.accounts_get_request import AccountsGetRequest
@@ -54,6 +56,78 @@ class PlaidClient:
         )
         response = self.client.link_token_create(request)
         return response["link_token"]
+
+    def get_update_link_token(self, access_token: str) -> str:
+        """Link token for UPDATE MODE — re-authenticates an EXISTING item
+        (e.g. after ITEM_LOGIN_REQUIRED) instead of creating a new one. The
+        access_token is preserved; 'products' must be omitted in update mode."""
+        request = LinkTokenCreateRequest(
+            user=LinkTokenCreateRequestUser(client_user_id="spending-tracker-user"),
+            client_name="Spending Tracker",
+            country_codes=[CountryCode("US")],
+            language="en",
+            access_token=access_token,
+        )
+        response = self.client.link_token_create(request)
+        return response["link_token"]
+
+    def get_hosted_update_link(self, access_token: str) -> str:
+        """Hosted-Link URL for UPDATE MODE. Plaid hosts the entire flow on its
+        own domain and handles the OAuth redirect to/from the bank (required for
+        OAuth institutions like Bank of America) — so no local redirect_uri or
+        server callback is needed. Returns a URL to open in a browser; the
+        existing access_token is preserved."""
+        request = LinkTokenCreateRequest(
+            user=LinkTokenCreateRequestUser(client_user_id="spending-tracker-user"),
+            client_name="Spending Tracker",
+            country_codes=[CountryCode("US")],
+            language="en",
+            access_token=access_token,
+            hosted_link=LinkTokenCreateHostedLink(),
+        )
+        response = self.client.link_token_create(request)
+        url = response.get("hosted_link_url")
+        if not url:
+            raise RuntimeError("Plaid did not return a hosted_link_url — is Hosted Link "
+                               "enabled for your Plaid account? (Dashboard → Link → Hosted Link)")
+        return url
+
+    def get_hosted_new_link(self) -> tuple:
+        """Hosted-Link URL for a BRAND-NEW item (fresh bank authorization). Use
+        when an item is past repair (update mode fails) and must be recreated.
+        Returns (link_token, hosted_link_url). After the user completes it, call
+        poll_hosted_public_token(link_token) to retrieve the public token."""
+        request = LinkTokenCreateRequest(
+            user=LinkTokenCreateRequestUser(client_user_id="spending-tracker-user"),
+            client_name="Spending Tracker",
+            products=[Products("transactions")],
+            country_codes=[CountryCode("US")],
+            language="en",
+            hosted_link=LinkTokenCreateHostedLink(),
+        )
+        response = self.client.link_token_create(request)
+        token = response["link_token"]
+        url = response.get("hosted_link_url")
+        if not url:
+            raise RuntimeError("Plaid did not return a hosted_link_url — is Hosted Link "
+                               "enabled for your Plaid account? (Dashboard → Link → Hosted Link)")
+        return token, url
+
+    def poll_hosted_public_token(self, link_token: str):
+        """Return the public_token from a completed Hosted Link session, or None
+        if the session isn't finished yet. Exchange the result with
+        exchange_public_token() to get the new access_token."""
+        resp = self.client.link_token_get(LinkTokenGetRequest(link_token=link_token))
+        for sess in (resp.get("link_sessions") or []):
+            success = sess.get("on_success")
+            if success and success.get("public_token"):
+                return success["public_token"]
+            results = sess.get("results")
+            if results:
+                for r in (results.get("item_add_results") or []):
+                    if r.get("public_token"):
+                        return r["public_token"]
+        return None
 
     def exchange_public_token(self, public_token: str) -> str:
         request = ItemPublicTokenExchangeRequest(public_token=public_token)

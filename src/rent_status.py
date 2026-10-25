@@ -80,6 +80,21 @@ def rent_for_month(prop, ym):
     return float(prop.get("monthly_rent") or 0)
 
 
+def _deductions(prop):
+    """Owner expenses the property manager WITHHELD from a payout (leasing fee,
+    repairs, ...), as {month: total}. The tenant paid in full, so these count
+    toward rent collected — they're not a tenant shortfall. Configure per
+    property in rent_roll.json:
+        "deductions": [{"month": "2026-10", "amount": 460.50, "note": "..."}]"""
+    out = defaultdict(float)
+    for d in prop.get("deductions") or []:
+        try:
+            out[str(d["month"])] += float(d["amount"])
+        except (KeyError, TypeError, ValueError):
+            continue
+    return out
+
+
 def _month_range(start_ym, end_ym):
     y, m = int(start_ym[:4]), int(start_ym[5:7])
     ey, em = int(end_ym[:4]), int(end_ym[5:7])
@@ -175,6 +190,9 @@ def compute_status(rows, as_of=None, roll=None, recent_n=6):
         by_month = defaultdict(float)
         for tx in txs:
             by_month[_ym(tx["Date"])] += float(tx.get("Amount") or 0)
+        ded = _deductions(prop)
+        for m, amt in ded.items():                       # withheld by manager = collected
+            by_month[m] += amt
 
         start = prop.get("start_month") or as_of_month
         lease_end = prop.get("lease_end")                # optional 'YYYY-MM' fixed-term end
@@ -231,6 +249,7 @@ def compute_status(rows, as_of=None, roll=None, recent_n=6):
             "months_tracked": len(months), "start_month": start,
             "recent_payments": recent_out, "vacant": vacant,
             "verify": bool(prop.get("verify")), "note": prop.get("note", ""),
+            "deductions_this_month": round(ded.get(as_of_month, 0.0), 2),
         })
         tot_pending += pending_this
         tot_arrears += arrears
@@ -289,19 +308,29 @@ def property_detail(rows, label, as_of=None, roll=None, months_back=12):
     # Running balance carries over/under payments month to month, so a catch-up
     # or overpayment visibly covers later months instead of each month being
     # judged in isolation. Seed from any over/underpayment BEFORE the window.
+    ded = _deductions(prop)
+    ded_notes = defaultdict(list)
+    for d in prop.get("deductions") or []:
+        if d.get("note"):
+            ded_notes[str(d.get("month"))].append(str(d["note"]))
+
     running = 0.0
     for m in (all_months[:-months_back] if len(all_months) > months_back else []):
         running += (round(sum(float(t.get("Amount") or 0) for t in by_month_txs.get(m, [])), 2)
+                    + ded.get(m, 0.0)
                     - round(rent_for_month(prop, m) * fee_factor, 2))
     running = round(running, 2)
 
     month_rows = []
     for m in months:
         em = round(rent_for_month(prop, m) * fee_factor, 2)   # net expected
-        paid = round(sum(float(t.get("Amount") or 0) for t in by_month_txs.get(m, [])), 2)
+        deducted = round(ded.get(m, 0.0), 2)                  # withheld by manager
+        paid = round(sum(float(t.get("Amount") or 0) for t in by_month_txs.get(m, []))
+                     + deducted, 2)
         carried_in = running
         running = round(running + paid - em, 2)               # + = ahead, − = behind
         month_rows.append({"month": m, "expected": em, "paid": paid,
+                           "deducted": deducted, "deduction_note": "; ".join(ded_notes.get(m, [])),
                            "carried_in": carried_in, "balance": running,
                            "shortfall": max(0.0, round(em - paid, 2)),
                            "fully_paid": paid + _TOL >= em and em > 0})

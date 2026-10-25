@@ -1078,7 +1078,10 @@ async function toggleRentDetail(labelEnc, row) {
     const b = (typeof m.balance === 'number') ? m.balance : 0;
     const bTxt = b > 0.005 ? '+' + _money(b) + ' ahead'
       : (b < -0.005 ? _money(Math.abs(b)) + ' behind' : 'even');
-    h += `<tr><td>${m.month}</td><td>${_money(m.expected)}</td><td>${_money(m.paid)}</td>`
+    const dTxt = m.deducted > 0.005
+      ? `<div style="font-size:11px;opacity:.7" title="${(m.deduction_note || '').replace(/"/g, '&quot;')}">incl. ${_money(m.deducted)} withheld by manager</div>`
+      : '';
+    h += `<tr><td>${m.month}</td><td>${_money(m.expected)}</td><td>${_money(m.paid)}${dTxt}</td>`
       + `<td class="${b < -0.005 ? 'mshort' : 'mfull'}">${bTxt}</td></tr>`;
   });
   h += '</table></div><div><div style="font-size:11px;color:var(--muted);margin-bottom:3px">RECENT PAYMENTS</div><table><tr><th>Date</th><th>Amount</th><th>Description</th></tr>';

@@ -75,7 +75,7 @@ def _load_rules_with_fallback() -> list:
     return []
 
 
-def run_sync(from_date: date = None, to_date: date = None) -> dict:
+def run_sync(from_date: date = None, to_date: date = None, local_only: bool = False) -> dict:
     is_cloud = bool(os.getenv("RAILWAY_ENVIRONMENT"))
     plaid_env = clean_env(os.getenv("PLAID_ENV", "production"), "PLAID_ENV")
     resend_set = bool(clean_env(os.getenv("RESEND_API_KEY"), "RESEND_API_KEY"))
@@ -86,11 +86,29 @@ def run_sync(from_date: date = None, to_date: date = None) -> dict:
     ledger_path, is_cloud = _resolve_ledger_path()
     file_id = clean_env(os.getenv("GOOGLE_DRIVE_FILE_ID"), "GOOGLE_DRIVE_FILE_ID")
 
-    if is_cloud and file_id:
+    # Drive is the source of truth. Cloud runs always round-trip through it.
+    # Local runs do too (download -> sync -> upload) unless --local-only, so a
+    # local catch-up can never stay stranded on this machine and later be
+    # overwritten by a Drive refresh.
+    use_drive = bool(file_id) and (is_cloud or not local_only)
+    if use_drive:
+        if not is_cloud and os.path.exists(ledger_path):
+            import shutil
+            bak = ledger_path.replace(".xlsx", f"_BACKUP_{datetime.now():%Y-%m-%d_%H%M%S}.xlsx")
+            shutil.copy2(ledger_path, bak)
+            print(f"💾 Local ledger backed up → {os.path.basename(bak)}")
         try:
             download_ledger(file_id, ledger_path)
-        except Exception:
-            print("⚠️  Could not download existing ledger — will create fresh file.")
+        except Exception as e:
+            if is_cloud:
+                print("⚠️  Could not download existing ledger — will create fresh file.")
+            else:
+                # Never upload a possibly-stale local copy over Drive.
+                print(f"⚠️  Could not download ledger from Drive ({e}) — running LOCAL-ONLY; "
+                      "Drive will NOT be updated.")
+                use_drive = False
+    elif not is_cloud:
+        print("ℹ️  Local-only run — the Drive ledger will NOT be updated.")
 
     client = PlaidClient()
 
@@ -372,7 +390,7 @@ def run_sync(from_date: date = None, to_date: date = None) -> dict:
     snapshot_attachment: list[dict] | None = None
     year_month = date.today().strftime("%Y-%m")
 
-    if is_cloud and file_id:
+    if use_drive:
         upload_ok = False
         try:
             upload_ledger(file_id, ledger_path)
@@ -406,7 +424,7 @@ def run_sync(from_date: date = None, to_date: date = None) -> dict:
     except Exception as e:
         print(f"⚠️  Email failed: {e}")
 
-    if need_snapshot and email_ok and is_cloud and file_id:
+    if need_snapshot and email_ok and use_drive:
         try:
             wb_meta = load_workbook(ledger_path)
             set_last_snapshot_month(wb_meta, year_month)
@@ -569,6 +587,10 @@ if __name__ == "__main__":
         "--from-date",
         help="Start date for transaction fetch (YYYY-MM-DD). Defaults to 7 days ago.",
     )
+    parser.add_argument(
+        "--local-only", action="store_true",
+        help="Don't download from / upload to Drive; work on the local ledger file only.",
+    )
     args = parser.parse_args()
 
     from_date = None
@@ -582,4 +604,4 @@ if __name__ == "__main__":
         if (date.today() - from_date).days > 730:
             print("⚠️  Warning: requesting more than 2 years of history — Plaid may limit results.")
 
-    run_sync(from_date)
+    run_sync(from_date, local_only=args.local_only)
